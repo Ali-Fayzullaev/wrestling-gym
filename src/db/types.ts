@@ -1,0 +1,397 @@
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export type Database = {
+  
+  "graphql_public": {
+          Tables: {
+            [_ in never]: never
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "graphql":
+{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        },"public": {
+          Tables: {
+            "audit_log": {
+                  Row: {
+                    "action": string,"actor_id": string | null,"created_at": string,"details": NonNullable<Json>,"entity": string,"entity_id": string | null,"id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"actor_id"?: string | null,"created_at"?: string,"details"?: NonNullable<Json>,"entity": string,"entity_id"?: string | null,"id"?: string
+                  }
+                  Update: {
+                    "action"?: string,"actor_id"?: string | null,"created_at"?: string,"details"?: NonNullable<Json>,"entity"?: string,"entity_id"?: string | null,"id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "audit_log_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"clients": {
+                  Row: {
+                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"note": string,"parent_name": string | null,"phone": string,"phone_owner": string,"search_text": string | null,"started_on": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"note"?: string,"parent_name"?: string | null,"phone": string,"phone_owner": string,"search_text"?: never,"started_on": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"note"?: string,"parent_name"?: string | null,"phone"?: string,"phone_owner"?: string,"search_text"?: never,"started_on"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "clients_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "clients_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"consents": {
+                  Row: {
+                    "client_id": string,"created_at": string,"given_on": string,"id": string,"kind": string,"recorded_by": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "client_id": string,"created_at"?: string,"given_on": string,"id"?: string,"kind": string,"recorded_by"?: string
+                  }
+                  Update: {
+                    "client_id"?: string,"created_at"?: string,"given_on"?: string,"id"?: string,"kind"?: string,"recorded_by"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "consents_client_id_fkey"
+      columns: ["client_id"]
+isOneToOne: false
+      referencedRelation: "clients"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "consents_recorded_by_fkey"
+      columns: ["recorded_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"groups": {
+                  Row: {
+                    "archived_at": string | null,"capacity": number | null,"coach_id": string,"created_at": string,"default_price": number,"id": string,"name": string,"schedule": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"capacity"?: number | null,"coach_id": string,"created_at"?: string,"default_price": number,"id"?: string,"name": string,"schedule"?: NonNullable<Json>
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"capacity"?: number | null,"coach_id"?: string,"created_at"?: string,"default_price"?: number,"id"?: string,"name"?: string,"schedule"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "groups_coach_id_fkey"
+      columns: ["coach_id"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"message_templates": {
+                  Row: {
+                    "body": string,"id": string,"kind": string,"name": string,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"id"?: string,"kind": string,"name": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "body"?: string,"id"?: string,"kind"?: string,"name"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "message_templates_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"payments": {
+                  Row: {
+                    "amount": number,"client_id": string,"created_at": string,"created_by": string,"id": string,"idempotency_key": string,"kind": string,"method": string,"period_end": string,"period_start": string,"reason": string | null,"reverses_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"client_id": string,"created_at"?: string,"created_by"?: string,"id"?: string,"idempotency_key": string,"kind": string,"method": string,"period_end": string,"period_start": string,"reason"?: string | null,"reverses_id"?: string | null
+                  }
+                  Update: {
+                    "amount"?: number,"client_id"?: string,"created_at"?: string,"created_by"?: string,"id"?: string,"idempotency_key"?: string,"kind"?: string,"method"?: string,"period_end"?: string,"period_start"?: string,"reason"?: string | null,"reverses_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payments_client_id_fkey"
+      columns: ["client_id"]
+isOneToOne: false
+      referencedRelation: "clients"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_reverses_same_client"
+      columns: ["reverses_id","client_id"]
+isOneToOne: false
+      referencedRelation: "payments"
+      referencedColumns: ["id","client_id"]
+    }
+                  ]
+                },"reminder_events": {
+                  Row: {
+                    "client_id": string,"id": string,"kind": string,"marked_sent_at": string | null,"marked_sent_by": string | null,"opened_at": string,"opened_by": string,"payment_id": string,"status": string,"template_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "client_id": string,"id"?: string,"kind": string,"marked_sent_at"?: string | null,"marked_sent_by"?: string | null,"opened_at"?: string,"opened_by"?: string,"payment_id": string,"status"?: string,"template_id": string
+                  }
+                  Update: {
+                    "client_id"?: string,"id"?: string,"kind"?: string,"marked_sent_at"?: string | null,"marked_sent_by"?: string | null,"opened_at"?: string,"opened_by"?: string,"payment_id"?: string,"status"?: string,"template_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "reminder_events_marked_sent_by_fkey"
+      columns: ["marked_sent_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reminder_events_opened_by_fkey"
+      columns: ["opened_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reminder_events_payment_client_fk"
+      columns: ["payment_id","client_id"]
+isOneToOne: false
+      referencedRelation: "payments"
+      referencedColumns: ["id","client_id"]
+    },{
+      foreignKeyName: "reminder_events_template_id_fkey"
+      columns: ["template_id"]
+isOneToOne: false
+      referencedRelation: "message_templates"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"settings": {
+                  Row: {
+                    "gym_name": string,"gym_whatsapp": string | null,"id": boolean,"reminder_days": (number)[],"timezone": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "gym_name"?: string,"gym_whatsapp"?: string | null,"id"?: boolean,"reminder_days"?: (number)[],"timezone"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "gym_name"?: string,"gym_whatsapp"?: string | null,"id"?: boolean,"reminder_days"?: (number)[],"timezone"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"staff": {
+                  Row: {
+                    "active": boolean,"created_at": string,"full_name": string,"id": string,"role": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"created_at"?: string,"full_name": string,"id": string,"role": string
+                  }
+                  Update: {
+                    "active"?: boolean,"created_at"?: string,"full_name"?: string,"id"?: string,"role"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                }
+          }
+          Views: {
+            "client_status_v": {
+                  Row: {
+                    "client_id": string | null,"days_left": number | null,"ends_on": string | null,"payment_id": string | null,"period_start": string | null,"status": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
+                }
+          }
+          Functions: {
+            "client_status":
+{ Args: { "p_today"?: string }; Returns: {
+              "client_id": string,"days_left": number,"ends_on": string,"payment_id": string,"period_start": string,"status": string
+            }[]
+                           },
+"current_staff_role":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"dashboard_counts":
+{ Args: { "p_today"?: string }; Returns: {
+              "debtors": number,"expiring_week": number,"paid_today": number,"remind_today": number
+            }[]
+                           },
+"is_own_recent_payment":
+{ Args: { "p_payment_id": string }; Returns: boolean
+                           },
+"normalize_search":
+{ Args: { "p_text": string }; Returns: string
+                           },
+"reminder_kind_for":
+{ Args: { "p_days_left": number,"p_reminder_days": (number)[] }; Returns: string
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        }
+}
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
+
+export const Constants = {
+  "graphql_public": {
+          Enums: {
+            
+          }
+        },"public": {
+          Enums: {
+            
+          }
+        }
+} as const

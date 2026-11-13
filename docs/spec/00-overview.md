@@ -37,6 +37,10 @@
 - **Телефон**: `+77XXXXXXXXX`, дубли разрешены с предупреждением.
 - **Клиенты** архивируются, полное удаление только у владельца с причиной.
 
+## Модель данных
+
+`staff`, `groups`, `clients`, `consents`, `payments` (оплаты и сторно), `reminder_events`, `message_templates`, `settings` (одна строка), `audit_log`. Статус абонемента и счётчики «Сегодня» считают SQL-функции `client_status` и `dashboard_counts`. ER-список, права по ролям и функции: [02-database.md](02-database.md#схема-er-список).
+
 ## Технологии
 
 Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/ui, lucide-react, Supabase (Postgres, Auth, RLS, CLI-миграции), Zod, Vitest, Playwright, GitHub Actions, Vercel. Регионы Vercel Functions и Supabase совпадают (`fra1` + `eu-central-1`).
@@ -57,7 +61,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | --- | --- | --- | --- | --- |
 | 00 | [00-overview.md](00-overview.md) | Обзор, правила, план, CLAUDE.md, навыки | — | done |
 | 01 | [01-scaffold.md](01-scaffold.md) | Каркас, инструменты, CI, локальный Supabase | 00 | done |
-| 02 | [02-database.md](02-database.md) | Схема, миграции, RLS, view статусов, сиды, тесты политик | 01 | todo |
+| 02 | [02-database.md](02-database.md) | Схема, миграции, RLS, view статусов, сиды, тесты политик | 01 | done |
 | 03 | [03-auth.md](03-auth.md) | Вход, роли, защита маршрутов, лимит попыток | 02 | todo |
 | 04 | [04-design-system.md](04-design-system.md) | Токены, темы, шрифт, компоненты, макет | 01 | todo |
 | 05 | [05-groups.md](05-groups.md) | Группы | 03, 04 | todo |

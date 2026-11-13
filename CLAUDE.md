@@ -59,6 +59,8 @@
 | Локальный Supabase | `pnpm db:start` / `pnpm db:stop` / `pnpm db:reset` |
 | Новая миграция | `pnpm supabase migration new <name>` |
 | Генерация типов | `pnpm db:types` (пишет в `src/db/types.ts`) |
+| Advisors Supabase (локально) | `pnpm supabase db advisors` |
+| Supabase без лишних сервисов (как в CI) | `pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta,mailpit` |
 | Сборка | `pnpm build` |
 | Деплой | только через CI: merge в `main` → Vercel production |
 
