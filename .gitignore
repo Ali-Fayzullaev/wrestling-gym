@@ -1,13 +1,35 @@
+# dependencies
 node_modules/
+.pnp
+.pnp.*
+
+# next.js
 .next/
 out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
 coverage/
 playwright-report/
 test-results/
+blob-report/
 .lighthouse/
+.perf/
+
+# deploy
 .vercel/
+
+# supabase
 supabase/.temp/
+supabase/.branches/
+
+# env files: secrets live in Vercel and GitHub Secrets
 .env*
 !.env.example
+
+# misc
 .DS_Store
+*.pem
 *.log

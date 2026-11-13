@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+.next/
+playwright-report/
+test-results/
+coverage/
+.lighthouse/
+.perf/
+supabase/.temp/
+src/db/types.ts
+# Docs are hand-written; Prettier would pad every table row and bloat diffs.
+*.md

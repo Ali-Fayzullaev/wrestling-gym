@@ -44,15 +44,18 @@
 
 ## Команды
 
-Появятся в шаге 01; держать этот список актуальным.
+Держать этот список актуальным. Node 24 (`.nvmrc`), pnpm из `packageManager`. Перед `pnpm check` и `pnpm test:int` нужен запущенный `pnpm db:start` (Docker).
 
 | Задача | Команда |
 | --- | --- |
 | Установка | `pnpm install` |
 | Dev-сервер | `pnpm dev` |
-| Все проверки | `pnpm check` |
+| Все проверки | `pnpm check` (typecheck → lint → format:check → unit → int → build → e2e) |
+| Автоформат | `pnpm format` |
 | Типы / линтер / формат | `pnpm typecheck` / `pnpm lint` / `pnpm format:check` |
 | Unit / интеграция / e2e | `pnpm test:unit` / `pnpm test:int` / `pnpm test:e2e` |
+| Браузер для e2e (один раз) | `pnpm exec playwright install chromium` |
+| Размер JS первой загрузки | пишет e2e-тест в `.perf/first-load-js.md` (Next 16 не выводит его в `next build`) |
 | Локальный Supabase | `pnpm db:start` / `pnpm db:stop` / `pnpm db:reset` |
 | Новая миграция | `pnpm supabase migration new <name>` |
 | Генерация типов | `pnpm db:types` (пишет в `src/db/types.ts`) |
@@ -68,8 +71,11 @@ src/
   lib/                 общие утилиты без бизнес-логики (даты, деньги, телефон, wa.me)
   db/                  клиенты Supabase, сгенерированные типы
   i18n/                все тексты интерфейса (ru; kk позже, D-04)
+  components/ui/       компоненты shadcn/ui (не импортируют app и features)
 supabase/migrations/   SQL-миграции, единственный источник схемы
+tests/integration/     Vitest против локального Supabase
 tests/e2e/             Playwright
+tests/lint/            тесты правил ESLint (границы слоёв, any)
 docs/spec/             шаги и решения
 ```
 
