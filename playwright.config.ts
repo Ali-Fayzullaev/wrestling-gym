@@ -63,6 +63,8 @@ export default defineConfig({
       SUPABASE_URL: process.env.E2E_SUPABASE_URL ?? "",
       SUPABASE_PUBLISHABLE_KEY: process.env.E2E_SUPABASE_PUBLISHABLE_KEY ?? "",
       SUPABASE_SECRET_KEY: process.env.E2E_SUPABASE_SECRET_KEY ?? "",
+      // The component showcase (/dev/ui) is off in production builds unless asked for.
+      ENABLE_DEV_UI: "1",
     },
   },
 });

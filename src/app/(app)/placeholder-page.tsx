@@ -1,3 +1,7 @@
+import { Construction } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import type { Actor } from "@/features/auth/roles";
 import { ru } from "@/i18n/ru";
 
@@ -11,8 +15,8 @@ export function PlaceholderPage({
 }) {
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <p className="text-muted-foreground">{ru.pages.placeholder}</p>
+      <PageHeader title={title} />
+      <EmptyState icon={Construction} title={ru.pages.placeholder} />
       <p className="text-sm text-muted-foreground" data-testid="actor-role">
         {ru.roles[actor.role]}
       </p>

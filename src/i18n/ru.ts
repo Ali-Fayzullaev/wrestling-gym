@@ -44,12 +44,38 @@ export const ru = {
       `Слишком много попыток, попробуйте через ${minutes} ${minutesWord(minutes)}.`,
     unavailable: "Не удалось выполнить запрос. Попробуйте ещё раз.",
   },
+  common: {
+    close: "Закрыть",
+    cancel: "Отмена",
+    retry: "Повторить",
+    loading: "Загружаем…",
+  },
   nav: {
+    label: "Основное меню",
+    skipToContent: "К содержимому",
     today: "Сегодня",
     clients: "Клиенты",
+    groups: "Группы",
+    more: "Ещё",
     reports: "Отчёты",
     audit: "Журнал",
     staff: "Сотрудники",
+  },
+  theme: {
+    label: "Тема",
+    light: "Светлая",
+    dark: "Тёмная",
+    system: "Как в системе",
+  },
+  status: {
+    active: "Активен",
+    expiring: "Скоро закончится",
+    expired: "Долг",
+    none: "Нет абонемента",
+  },
+  errors: {
+    pageTitle: "Не удалось открыть раздел",
+    pageText: "Проверьте интернет и попробуйте ещё раз.",
   },
   roles: {
     owner: "Владелец",
@@ -58,10 +84,14 @@ export const ru = {
   pages: {
     today: "Сегодня",
     clients: "Клиенты",
+    groups: "Группы",
+    more: "Ещё",
     reports: "Отчёты",
     audit: "Журнал действий",
     staff: "Сотрудники",
     placeholder: "Раздел появится в следующих шагах.",
+    ownerSections: "Разделы владельца",
+    account: "Учётная запись",
   },
   forbidden: {
     title: "Нет доступа",

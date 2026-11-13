@@ -41,6 +41,14 @@ describe("layer boundaries", () => {
     );
   });
 
+  it("rejects the bare cn package outside lib/utils", async () => {
+    const code = `import { cn } from "cn";\nexport const join = cn;\n`;
+    expect(await ruleIdsFor(code, "src/components/probe.tsx")).toContain(
+      "no-restricted-imports",
+    );
+    expect(await ruleIdsFor(code, "src/lib/utils.ts")).toEqual([]);
+  });
+
   it("allows app importing lib", async () => {
     const code = `import { businessDate } from "@/lib/dates";\nexport const today = businessDate;\n`;
     expect(await ruleIdsFor(code, "src/app/probe.ts")).toEqual([]);

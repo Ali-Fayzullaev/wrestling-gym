@@ -5,7 +5,12 @@ export const LOGIN_PATH = "/login";
 export const FORBIDDEN_PATH = "/forbidden";
 
 /** Pages reachable without a session. */
-const PUBLIC_PATHS = ["/login", "/reset-password", "/auth/confirm"] as const;
+const PUBLIC_PATHS = [
+  "/login",
+  "/reset-password",
+  "/auth/confirm",
+  "/auth/sign-out",
+] as const;
 /** Signed-in staff are sent home from these instead of seeing them again. */
 const GUEST_ONLY_PATHS = ["/login", "/reset-password"] as const;
 /** Money, staff and the audit log: owner only (spec 00, roles). */

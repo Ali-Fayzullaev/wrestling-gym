@@ -50,6 +50,24 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/utils.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "cn",
+              message:
+                "Import cn from @/lib/utils: the bare package ships the full merge tables to every page.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/features/**/service.ts"],
     rules: {
       "no-restricted-imports": [
@@ -82,5 +100,6 @@ export default defineConfig([
     "coverage/**",
     "supabase/.temp/**",
     "src/db/types.ts",
+    "src/lib/cn-tables.ts",
   ]),
 ]);
