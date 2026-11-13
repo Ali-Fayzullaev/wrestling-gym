@@ -55,8 +55,8 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 
 | Шаг | Файл | Что | Зависит от | Статус |
 | --- | --- | --- | --- | --- |
-| 00 | [00-overview.md](00-overview.md) | Обзор, правила, план, CLAUDE.md, навыки | — | in-progress |
-| 01 | [01-scaffold.md](01-scaffold.md) | Каркас, инструменты, CI, локальный Supabase | 00 | todo |
+| 00 | [00-overview.md](00-overview.md) | Обзор, правила, план, CLAUDE.md, навыки | — | done |
+| 01 | [01-scaffold.md](01-scaffold.md) | Каркас, инструменты, CI, локальный Supabase | 00 | done |
 | 02 | [02-database.md](02-database.md) | Схема, миграции, RLS, view статусов, сиды, тесты политик | 01 | todo |
 | 03 | [03-auth.md](03-auth.md) | Вход, роли, защита маршрутов, лимит попыток | 02 | todo |
 | 04 | [04-design-system.md](04-design-system.md) | Токены, темы, шрифт, компоненты, макет | 01 | todo |
@@ -104,4 +104,4 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 - [x] Навыки `.claude/skills/*`
 - [x] `docs/spec/00`–`14`, `90-open-decisions.md`
 - [x] Ветка `step/00-foundation`, коммит
-- [ ] Пуш и PR — нужен GitHub-репозиторий (решение пользователя)
+- [x] Пуш: приватный репозиторий создан, `main` = коммит шага 00 (без отдельного PR, решение пользователя)

@@ -1,6 +1,6 @@
 # 01. Каркас проекта
 
-Статус: todo
+Статус: done
 Зависит от: 00
 Ветка: `step/01-scaffold`
 
@@ -42,16 +42,28 @@
 
 ## Чек-лист
 
-- [ ] Создать приложение, включить strict-настройки
-- [ ] Tailwind + shadcn/ui init
-- [ ] ESLint + Prettier + правило границ модулей
-- [ ] Vitest (unit, integration)
-- [ ] Playwright (mobile, desktop) + проверка консоли
-- [ ] Supabase CLI, `supabase init`, signup выключен
-- [ ] Скрипты и `pnpm check`
-- [ ] `.env.example`, `.gitignore`
-- [ ] GitHub Actions
-- [ ] Команды в CLAUDE.md
-- [ ] PR, CI зелёный, отчёт
+- [x] Создать приложение, включить strict-настройки
+- [x] Tailwind + shadcn/ui init
+- [x] ESLint + Prettier + правило границ модулей
+- [x] Vitest (unit, integration)
+- [x] Playwright (mobile, desktop) + проверка консоли
+- [x] Supabase CLI, `supabase init`, signup выключен
+- [x] Скрипты и `pnpm check`
+- [x] `.env.example`, `.gitignore`
+- [x] GitHub Actions
+- [x] Команды в CLAUDE.md
+- [x] PR, CI зелёный, отчёт
 
 ## Заметки на будущее
+
+- Next.js 16 убрал колонки `size` и `First Load JS` из вывода `next build` (официальная заметка «Upgrading to 16»). Размер JS первой загрузки меряет e2e-тест `tests/e2e/first-load-js.spec.ts`: сумма скачанных скриптов (gzip, по сети) от `next start`, бюджет 150 КБ. Отчёт пишется в `.perf/first-load-js.md` и в summary CI job `e2e`. При добавлении маршрутов дописывать их в `ROUTES` теста.
+- Шаблон create-next-app 16.4 собирает Tailwind через Turbopack-загрузчик `@tailwindcss/turbopack` (без PostCSS) и включает `cacheComponents` и `partialPrefetching`. Учитывать в шагах 03 и далее: динамика за `<Suspense>`, `"use cache"` для кешируемого.
+- shadcn 4.23 (`-b radix`) ставит пакет `cn` (shadcn-ui/cn) вместо `clsx` + `tailwind-merge`. Шрифт Geist из шаблона убран, шрифт выбирается в шаге 04.
+- Markdown исключён из Prettier (`.prettierignore`): выравнивание таблиц раздувало бы diff документов.
+- Правила ESLint (границы слоёв, `any`, `next/*` в `service.ts`) закреплены тестом `tests/lint/eslint-rules.test.ts` в проекте `unit`.
+- Интеграционные тесты получают URL и ключи локального Supabase из `supabase status` (globalSetup + `inject`), `.env` для них не нужен.
+- В CI `supabase start` запускается без studio, storage, realtime, edge-runtime и других ненужных сервисов. Если шагу понадобится storage или realtime, убрать их из `-x` в `ci.yml`.
+- `supabase/config.toml`: `minimum_password_length = 6` и `password_requirements = ""` по умолчанию. Ужесточить в шаге 03 (вход) вместе с лимитом попыток.
+- Тёмная тема: shadcn включает её классом `.dark`, а не `prefers-color-scheme`. Переключатель темы (cookie, без мигания) делается в шаге 04; скриншоты шага 01 только светлые.
+- Lighthouse mobile главной (шаг 01, `next start`, simulate): Perf 99, A11y 100, BP 100, CLS 0, TBT 70 мс, но LCP 2,0 с при цели < 1,5 с. Страница статическая, текст; LCP упирается в render-blocking CSS и JS фреймворка (132 КБ gzip). Разобрать в шаге 04 (шрифт, CSS) и проверить на Vercel в шаге 13.
+- JS первой загрузки `/`: 132,2 КБ gzip из 150. Почти весь объём это рантайм React/Next, запас на свой клиентский код около 18 КБ. Следить, чтобы `"use client"` был только в листовых компонентах.
