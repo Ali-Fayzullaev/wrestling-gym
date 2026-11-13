@@ -67,6 +67,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      # Sign-in tests need Auth and the database; the password-reset test reads mail from Mailpit.
+      - name: Start Supabase (with Mailpit for the reset email)
+        run: pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta
+      - run: pnpm db:reset
       - run: pnpm test:e2e
       - name: First-load JS report
         if: always()
@@ -81,3 +85,5 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+      - if: always()
+        run: pnpm supabase stop --no-backup

@@ -43,6 +43,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"auth_attempts": {
+                  Row: {
+                    "action": string,"created_at": string,"email_hash": string,"id": string,"ip_hash": string,"outcome": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"created_at": string,"email_hash": string,"id"?: string,"ip_hash": string,"outcome": string
+                  }
+                  Update: {
+                    "action"?: string,"created_at"?: string,"email_hash"?: string,"id"?: string,"ip_hash"?: string,"outcome"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"clients": {
                   Row: {
                     "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"note": string,"parent_name": string | null,"phone": string,"phone_owner": string,"search_text": string | null,"started_on": string,"updated_at": string
@@ -247,7 +261,23 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "client_status":
+            "auth_throttle_begin":
+{ Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: {
+              "allowed": boolean,"limited_by": string,"retry_after_seconds": number
+            }[]
+                           },
+"auth_throttle_limits":
+{ Args: { "p_action": string }; Returns: {
+              "email_limit": number,"ip_limit": number,"window_length": string
+            }[]
+                           },
+"auth_throttle_retry_at":
+{ Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_limit": number,"p_since": string,"p_window": string }; Returns: string
+                           },
+"auth_throttle_success":
+{ Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: undefined
+                           },
+"client_status":
 { Args: { "p_today"?: string }; Returns: {
               "client_id": string,"days_left": number,"ends_on": string,"payment_id": string,"period_start": string,"status": string
             }[]

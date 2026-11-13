@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { readLocalSupabase } from "./tests/support/local-supabase";
+
 const PORT = 3100;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
@@ -7,6 +9,15 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 const serverCommand = process.env.E2E_PREBUILT
   ? `pnpm start --port ${PORT}`
   : `pnpm build && pnpm start --port ${PORT}`;
+
+// Read once in the main process; workers inherit the values through the environment.
+if (!process.env.E2E_SUPABASE_URL) {
+  const local = readLocalSupabase();
+  process.env.E2E_SUPABASE_URL = local.apiUrl;
+  process.env.E2E_SUPABASE_PUBLISHABLE_KEY = local.publishableKey;
+  process.env.E2E_SUPABASE_SECRET_KEY = local.secretKey;
+  process.env.E2E_MAILPIT_URL = local.mailpitUrl;
+}
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -47,5 +58,11 @@ export default defineConfig({
     timeout: 180_000,
     stdout: "ignore",
     stderr: "pipe",
+    // Server-only variables, read at request time; the build itself needs none of them.
+    env: {
+      SUPABASE_URL: process.env.E2E_SUPABASE_URL ?? "",
+      SUPABASE_PUBLISHABLE_KEY: process.env.E2E_SUPABASE_PUBLISHABLE_KEY ?? "",
+      SUPABASE_SECRET_KEY: process.env.E2E_SUPABASE_SECRET_KEY ?? "",
+    },
   },
 });

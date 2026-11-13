@@ -9,26 +9,26 @@ async function ruleIdsFor(code: string, filePath: string): Promise<string[]> {
   return (result?.messages ?? []).map((message) => message.ruleId ?? "fatal");
 }
 
-const importHomePage = (specifier: string) =>
-  `import HomePage from "${specifier}";\nexport const page = HomePage;\n`;
+const importAppModule = (specifier: string) =>
+  `import AppModule from "${specifier}";\nexport const page = AppModule;\n`;
 
 describe("layer boundaries", () => {
   it("rejects lib importing app through the alias", async () => {
     expect(
-      await ruleIdsFor(importHomePage("@/app/page"), "src/lib/probe.ts"),
+      await ruleIdsFor(importAppModule("@/app/layout"), "src/lib/probe.ts"),
     ).toContain("import/no-restricted-paths");
   });
 
   it("rejects lib importing app through a relative path", async () => {
     expect(
-      await ruleIdsFor(importHomePage("../app/page"), "src/lib/probe.ts"),
+      await ruleIdsFor(importAppModule("../app/layout"), "src/lib/probe.ts"),
     ).toContain("import/no-restricted-paths");
   });
 
   it("rejects features importing app", async () => {
     expect(
       await ruleIdsFor(
-        importHomePage("@/app/page"),
+        importAppModule("@/app/layout"),
         "src/features/probe/component.ts",
       ),
     ).toContain("import/no-restricted-paths");
