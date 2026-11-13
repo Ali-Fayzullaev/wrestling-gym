@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { withCn } from "cn/next";
+
+import { cnBuildOptions } from "./cn.build";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -17,4 +20,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withCn(nextConfig, {
+  ...cnBuildOptions,
+  content: [...cnBuildOptions.content],
+});

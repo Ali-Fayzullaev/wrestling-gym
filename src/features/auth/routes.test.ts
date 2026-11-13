@@ -7,6 +7,8 @@ describe("routeAccess", () => {
     ["/login", "public"],
     ["/reset-password", "public"],
     ["/auth/confirm", "public"],
+    // Ending a session must work without one too (expired cookie): the handler just redirects.
+    ["/auth/sign-out", "public"],
     ["/reports", "owner"],
     ["/reports/2026-11", "owner"],
     ["/audit", "owner"],

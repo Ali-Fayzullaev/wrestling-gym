@@ -1,54 +1,46 @@
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { ru } from "@/i18n/ru";
 
+import { BottomNav, SideNav } from "./_nav/app-nav";
 import { LogoutButton } from "./logout-button";
 
-const linkClass =
-  "inline-flex min-h-11 items-center px-2 text-sm font-medium hover:underline";
-
-// Temporary chrome so the access rules can be exercised; step 04 replaces the layout.
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="border-b">
-        <nav className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-2 px-4">
-          <Link href="/today" className={linkClass}>
-            {ru.nav.today}
-          </Link>
-          <Link href="/clients" className={linkClass}>
-            {ru.nav.clients}
-          </Link>
-          <Suspense fallback={null}>
-            <OwnerLinks />
-          </Suspense>
+    <div className="flex flex-1">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-md bg-background px-4 py-3 text-sm font-medium focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:ring-[3px] focus:ring-ring"
+      >
+        {ru.nav.skipToContent}
+      </a>
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r bg-sidebar py-5 text-sidebar-foreground md:flex">
+        {/* STUB(D-01): text logo until the gym's name and logo are decided. */}
+        <p className="px-6 text-base font-semibold tracking-tight">
+          {ru.app.name}
+        </p>
+        <Suspense fallback={<SideNav isOwner={false} />}>
+          <RoleAwareSideNav />
+        </Suspense>
+        <div className="border-t px-3 pt-3">
           <LogoutButton />
-        </nav>
-      </header>
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
+        </div>
+      </aside>
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-[1200px] min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none md:px-8 md:pt-8 md:pb-10"
+      >
         {children}
       </main>
+      <BottomNav />
     </div>
   );
 }
 
-async function OwnerLinks() {
+async function RoleAwareSideNav() {
   const actor = await requireStaff(STAFF_ROLES);
-  if (actor.role !== "owner") return null;
-  return (
-    <>
-      <Link href="/reports" className={linkClass}>
-        {ru.nav.reports}
-      </Link>
-      <Link href="/audit" className={linkClass}>
-        {ru.nav.audit}
-      </Link>
-      <Link href="/settings/staff" className={linkClass}>
-        {ru.nav.staff}
-      </Link>
-    </>
-  );
+  return <SideNav isOwner={actor.role === "owner"} />;
 }

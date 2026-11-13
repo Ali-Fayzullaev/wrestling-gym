@@ -10,9 +10,12 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import {
+  actorRole,
   formAlert,
   latestEmailHtml,
   loginAs,
+  openMoreOnPhone,
+  signOut,
   submitLogin,
 } from "./support/auth";
 
@@ -26,7 +29,7 @@ test.describe("sign-in", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: ru.pages.today }),
     ).toBeVisible();
-    await expect(page.getByTestId("actor-role")).toHaveText(ru.roles.owner);
+    await expect(actorRole(page)).toHaveText(ru.roles.owner);
 
     const sessionCookies = (await context.cookies()).filter((cookie) =>
       cookie.name.startsWith("sb-"),
@@ -148,6 +151,7 @@ test.describe("roles", () => {
 
   test("owner opens the reports page", async ({ page }) => {
     await loginAs(page, SEED_EMAILS.owner, SEED_PASSWORD);
+    await openMoreOnPhone(page);
     await page.getByRole("link", { name: ru.nav.reports }).click();
     await expect(page).toHaveURL(/\/reports$/);
     await expect(
@@ -166,6 +170,9 @@ test.describe("session", () => {
   }) => {
     const staff = await createTempStaff(supabase, "admin");
     await loginAs(page, staff.email, staff.password);
+    // Let the menu finish prefetching first: a prefetch answered after the deactivation redirects
+    // the router to sign-in by itself and would abort the navigation under test.
+    await page.waitForLoadState("networkidle");
 
     await setStaffActive(supabase, staff.id, false);
     await page.goto("/clients");
@@ -180,7 +187,9 @@ test.describe("session", () => {
     page,
   }) => {
     await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
-    await expect(page.getByTestId("actor-role")).toHaveText(ru.roles.admin);
+    await expect(actorRole(page)).toHaveText(ru.roles.admin);
+    await openMoreOnPhone(page);
+    await expect(actorRole(page)).toHaveText(ru.roles.admin);
     await expect(page.getByRole("link", { name: ru.nav.reports })).toHaveCount(
       0,
     );
@@ -188,7 +197,9 @@ test.describe("session", () => {
     await expect(page).toHaveURL(/\/login$/);
 
     await loginAs(page, SEED_EMAILS.owner, SEED_PASSWORD);
-    await expect(page.getByTestId("actor-role")).toHaveText(ru.roles.owner);
+    await expect(actorRole(page)).toHaveText(ru.roles.owner);
+    await openMoreOnPhone(page);
+    await expect(actorRole(page)).toHaveText(ru.roles.owner);
     await page.waitForLoadState("networkidle");
     // No retrying assertion: the menu must not show the previous employee's role even briefly.
     expect(await page.getByRole("link", { name: ru.nav.reports }).count()).toBe(
@@ -196,9 +207,27 @@ test.describe("session", () => {
     );
   });
 
+  test("another site cannot end the session", async ({ page }) => {
+    await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+    const crossSite: Record<string, string>[] = [
+      { "sec-fetch-site": "cross-site", origin: "https://evil.example" },
+      { origin: "https://evil.example" },
+      {},
+    ];
+    for (const headers of crossSite) {
+      const response = await page.request.post("/auth/sign-out", {
+        headers,
+        maxRedirects: 0,
+      });
+      expect(response.status()).toBe(403);
+    }
+    await page.goto("/clients");
+    await expect(page).toHaveURL(/\/clients$/);
+  });
+
   test("sign-out ends the session", async ({ page, context }) => {
     await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
-    await page.getByRole("button", { name: ru.auth.logout }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/login$/);
 
     const sessionCookies = (await context.cookies()).filter((cookie) =>
@@ -236,7 +265,7 @@ test.describe("password reset", () => {
     await page.getByRole("button", { name: ru.auth.update.submit }).click();
     await expect(page).toHaveURL(/\/today$/);
 
-    await page.getByRole("button", { name: ru.auth.logout }).click();
+    await signOut(page);
     await submitLogin(page, staff.email, newPassword);
     await expect(page).toHaveURL(/\/today$/);
   });
