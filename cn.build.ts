@@ -5,7 +5,8 @@
  * src/lib/cn-tables.test.ts fails when the committed copy is stale.
  */
 export const cnBuildOptions = {
-  content: ["src/**/*.tsx"],
+  // variants.ts holds the Button and Input class strings that Button and Input merge with.
+  content: ["src/**/*.tsx", "src/components/ui/variants.ts"],
   css: "src/app/globals.css",
   out: "src/lib/cn-tables.ts",
 } as const;

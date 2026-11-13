@@ -4,7 +4,7 @@ import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { ru } from "@/i18n/ru";
 
-import { BottomNav, SideNav } from "./_nav/app-nav";
+import { BottomNav, BottomNavView, SideNav, SideNavView } from "./_nav/app-nav";
 import { LogoutButton } from "./logout-button";
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
@@ -21,7 +21,8 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         <p className="px-6 text-base font-semibold tracking-tight">
           {ru.app.name}
         </p>
-        <Suspense fallback={<SideNav isOwner={false} />}>
+        {/* The menus read the path; on routes with an id it is known only per request. */}
+        <Suspense fallback={<SideNavView isOwner={false} pathname={null} />}>
           <RoleAwareSideNav />
         </Suspense>
         <div className="border-t px-3 pt-3">
@@ -35,7 +36,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       >
         {children}
       </main>
-      <BottomNav />
+      <Suspense fallback={<BottomNavView active={null} />}>
+        <BottomNav />
+      </Suspense>
     </div>
   );
 }

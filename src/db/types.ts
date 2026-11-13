@@ -261,7 +261,12 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "auth_throttle_begin":
+            "archive_group":
+{ Args: { "p_force": boolean,"p_group_id": string }; Returns: {
+              "active_clients": number,"archived": boolean
+            }[]
+                           },
+"auth_throttle_begin":
 { Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: {
               "allowed": boolean,"limited_by": string,"retry_after_seconds": number
             }[]
@@ -277,10 +282,19 @@ isOneToOne: false
 "auth_throttle_success":
 { Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: undefined
                            },
+"check_coach":
+{ Args: { "p_coach_id": string,"p_current_coach_id"?: string }; Returns: undefined
+                           },
 "client_status":
 { Args: { "p_today"?: string }; Returns: {
               "client_id": string,"days_left": number,"ends_on": string,"payment_id": string,"period_start": string,"status": string
             }[]
+                           },
+"coach_options":
+{ Args: { "p_keep_id"?: string }; Returns: Json
+                           },
+"create_group":
+{ Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_name": string,"p_schedule": Json }; Returns: string
                            },
 "current_staff_role":
 { Args: Record<PropertyKey, never>; Returns: string
@@ -290,14 +304,39 @@ isOneToOne: false
               "debtors": number,"expiring_week": number,"paid_today": number,"remind_today": number
             }[]
                            },
+"group_counts":
+{ Args: { "p_today"?: string }; Returns: {
+              "debtors": number,"expiring": number,"group_id": string,"members": number,"paid": number,"unpaid": number
+            }[]
+                           },
+"group_screen":
+{ Args: { "p_group_id": string,"p_today"?: string }; Returns: Json
+                           },
+"groups_screen":
+{ Args: { "p_today"?: string }; Returns: Json
+                           },
 "is_own_recent_payment":
 { Args: { "p_payment_id": string }; Returns: boolean
+                           },
+"lock_group":
+{ Args: { "p_group_id": string }; Returns: undefined
+                           },
+"move_clients":
+{ Args: { "p_client_ids": (string)[],"p_target_group_id": string }; Returns: {
+              "moved": number,"target_capacity": number,"target_members": number
+            }[]
                            },
 "normalize_search":
 { Args: { "p_text": string }; Returns: string
                            },
 "reminder_kind_for":
 { Args: { "p_days_left": number,"p_reminder_days": (number)[] }; Returns: string
+                           },
+"require_staff_role":
+{ Args: { "p_roles": (string)[] }; Returns: undefined
+                           },
+"update_group":
+{ Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_group_id": string,"p_name": string,"p_schedule": Json }; Returns: undefined
                            }
           }
           Enums: {

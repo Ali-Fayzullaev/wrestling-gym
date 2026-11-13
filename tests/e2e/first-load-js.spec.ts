@@ -9,7 +9,14 @@ import { loginAs } from "./support/auth";
 // CLAUDE.md budget: first-load JS per route <= 150 KB gzip on mobile 4G.
 const BUDGET_BYTES = 150 * 1024;
 const PUBLIC_ROUTES = ["/login"];
-const STAFF_ROUTES = ["/today", "/clients", "/more"];
+const STAFF_ROUTES = [
+  "/today",
+  "/clients",
+  "/more",
+  "/groups",
+  // A group screen: the member list and the transfer island.
+  "/groups/10000000-0000-4000-8000-000000000001",
+];
 const REPORT_DIR = ".perf";
 
 type Row = {
