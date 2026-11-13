@@ -6,7 +6,7 @@ import { expect, test } from "./fixtures";
 
 // CLAUDE.md budget: first-load JS per route <= 150 KB gzip on mobile 4G.
 const BUDGET_BYTES = 150 * 1024;
-const ROUTES = ["/"];
+const ROUTES = ["/login"];
 const REPORT_DIR = ".perf";
 
 // next build in Next 16 no longer prints First Load JS, so measure what the browser really downloads.

@@ -63,7 +63,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 00 | [00-overview.md](00-overview.md) | Обзор, правила, план, CLAUDE.md, навыки | — | done |
 | 01 | [01-scaffold.md](01-scaffold.md) | Каркас, инструменты, CI, локальный Supabase | 00 | done |
 | 02 | [02-database.md](02-database.md) | Схема, миграции, RLS, view статусов, сиды, тесты политик | 01 | done |
-| 03 | [03-auth.md](03-auth.md) | Вход, роли, защита маршрутов, лимит попыток | 02 | todo |
+| 03 | [03-auth.md](03-auth.md) | Вход, роли, защита маршрутов, лимит попыток | 02 | done |
 | 04 | [04-design-system.md](04-design-system.md) | Токены, темы, шрифт, компоненты, макет | 01 | todo |
 | 05 | [05-groups.md](05-groups.md) | Группы | 03, 04 | todo |
 | 06 | [06-clients.md](06-clients.md) | Клиенты: список, поиск, фильтры, карточка, архив | 05 | todo |
