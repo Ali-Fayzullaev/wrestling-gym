@@ -7,7 +7,7 @@ import { ru } from "@/i18n/ru";
 
 import { SEED_EMAILS, SEED_PASSWORD } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
-import { actorRole, bottomNav, loginAs } from "./support/auth";
+import { bottomNav, loginAs } from "./support/auth";
 
 const SCREENSHOT_DIR = "docs/spec/screenshots/04";
 
@@ -71,7 +71,11 @@ test.describe("phone layout", () => {
     // The fixed menu must not cover the end of the page.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     const menuTop = (await nav.boundingBox())?.y ?? 0;
-    const lastLine = await actorRole(page).boundingBox();
+    const lastLine = await page
+      .getByTestId("client-row")
+      .filter({ visible: true })
+      .last()
+      .boundingBox();
     expect(
       (lastLine?.y ?? Infinity) + (lastLine?.height ?? 0),
     ).toBeLessThanOrEqual(menuTop);
