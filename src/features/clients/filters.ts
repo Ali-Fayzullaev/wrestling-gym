@@ -54,6 +54,8 @@ export type GroupOption = {
   name: string;
   coachId: string;
   archived: boolean;
+  /** Price of a month, offered in the payment form. */
+  price: number;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

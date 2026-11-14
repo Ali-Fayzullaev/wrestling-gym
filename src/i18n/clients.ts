@@ -33,8 +33,6 @@ export const clientsText = {
       days >= 0 ? `Осталось дней: ${days}` : `Просрочен на ${-days} дн.`,
     noPayments: "Оплат пока не было.",
     payments: "История оплат",
-    paymentsEmpty: "Раздел в разработке",
-    paymentsEmptyText: "Здесь будут оплаты и сторно клиента.",
     reminders: "Напоминания",
     remindersEmpty: "Раздел в разработке",
     remindersEmptyText: "Здесь будут открытые чаты WhatsApp с напоминаниями.",
