@@ -285,6 +285,9 @@ isOneToOne: false
 "auth_throttle_success":
 { Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: undefined
                            },
+"begin_export":
+{ Args: { "p_details": Json,"p_entity": string,"p_format": string }; Returns: undefined
+                           },
 "cancel_recent_payment":
 { Args: { "p_idempotency_key": string,"p_payment_id": string }; Returns: Json
                            },
@@ -324,6 +327,12 @@ isOneToOne: false
                            },
 "delete_client":
 { Args: { "p_client_id": string,"p_last_name": string,"p_reason": string }; Returns: string
+                           },
+"export_clients":
+{ Args: { "p_format": string,"p_today"?: string }; Returns: Json
+                           },
+"export_payments":
+{ Args: { "p_format": string,"p_month": string }; Returns: Json
                            },
 "group_counts":
 { Args: { "p_today"?: string }; Returns: {
@@ -409,6 +418,14 @@ isOneToOne: false
                            },
 "reminders_screen":
 { Args: { "p_date"?: string,"p_limit"?: number,"p_staff_id"?: string,"p_tab": string,"p_today"?: string }; Returns: Json
+                           },
+"report_month":
+{ Args: { "p_month": string,"p_today"?: string }; Returns: Json
+                           },
+"report_month_bounds":
+{ Args: { "p_month": string }; Returns: {
+              "ends_at": string,"starts_at": string
+            }[]
                            },
 "require_staff_role":
 { Args: { "p_roles": (string)[] }; Returns: undefined

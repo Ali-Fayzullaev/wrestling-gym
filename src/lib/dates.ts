@@ -12,3 +12,15 @@ const isoDateFormatter = new Intl.DateTimeFormat("en-CA", {
 export function businessDate(now: Date): string {
   return isoDateFormatter.format(now);
 }
+
+const timeOfDayFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: BUSINESS_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** "YYYY-MM-DD HH:MM" of the instant in the gym's time zone: sortable text for exported files. */
+export function businessDateTime(instant: Date): string {
+  return `${businessDate(instant)} ${timeOfDayFormatter.format(instant)}`;
+}
