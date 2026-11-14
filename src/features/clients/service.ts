@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { SubscriptionStatus } from "@/components/status-badge";
 import type { Db } from "@/db/client";
 import type { Actor } from "@/features/auth/roles";
+import { PAYMENT_METHODS } from "@/features/payments/form-fields";
+import type { HistoryRow } from "@/features/payments/history";
 import { businessDate } from "@/lib/dates";
 
 import type { ClientRow, GroupOption } from "./filters";
@@ -58,6 +60,7 @@ const clientsScreenShape = z.object({
       name: z.string(),
       coach_id: z.string(),
       archived: z.boolean(),
+      price: z.number(),
     }),
   ),
   coaches: z.array(z.object({ id: z.string(), name: z.string() })),
@@ -83,6 +86,7 @@ const clientScreenShape = z.object({
       name: z.string(),
       coach_name: z.string(),
       archived: z.boolean(),
+      price: z.number(),
     })
     .nullable(),
   subscription: z.object({
@@ -96,6 +100,21 @@ const clientScreenShape = z.object({
       kind: z.enum(CONSENT_KINDS),
       given_on: z.string(),
       recorded_by: z.string(),
+    }),
+  ),
+  payments: z.array(
+    z.object({
+      id: z.string(),
+      kind: z.enum(["payment", "reversal"]),
+      amount: z.number(),
+      method: z.enum(PAYMENT_METHODS),
+      period_start: z.string(),
+      period_end: z.string(),
+      reverses_id: z.string().nullable(),
+      reason: z.string().nullable(),
+      created_at: z.string(),
+      created_by: z.string(),
+      created_by_name: z.string(),
     }),
   ),
   groups: z.array(z.object({ id: z.string(), name: z.string() })),
@@ -149,6 +168,8 @@ export type ClientScreen = {
     name: string;
     coachName: string;
     archived: boolean;
+    /** Price of a month, offered in the payment form. */
+    price: number;
   } | null;
   subscription: {
     status: SubscriptionStatus;
@@ -157,6 +178,8 @@ export type ClientScreen = {
     daysLeft: number | null;
   };
   consents: Consent[];
+  /** Payments and reversals, newest first. */
+  payments: HistoryRow[];
   /** Active groups, for the edit form. */
   groups: ActiveGroup[];
 };
@@ -197,12 +220,13 @@ export async function listClients(
       name: group.name,
       coachId: group.coach_id,
       archived: group.archived,
+      price: group.price,
     })),
     coaches: screen.coaches,
   };
 }
 
-/** One client with group, subscription, consents and the groups to choose from, or null. */
+/** One client with group, subscription, consents, payments and the groups to choose from, or null. */
 export async function getClient(
   db: Db,
   now: Date,
@@ -235,6 +259,7 @@ export async function getClient(
       name: screen.group.name,
       coachName: screen.group.coach_name,
       archived: screen.group.archived,
+      price: screen.group.price,
     },
     subscription: {
       status: screen.subscription.status,
@@ -246,6 +271,19 @@ export async function getClient(
       kind: consent.kind,
       givenOn: consent.given_on,
       recordedBy: consent.recorded_by,
+    })),
+    payments: screen.payments.map((payment) => ({
+      id: payment.id,
+      kind: payment.kind,
+      amount: payment.amount,
+      method: payment.method,
+      periodStart: payment.period_start,
+      periodEnd: payment.period_end,
+      reversesId: payment.reverses_id,
+      reason: payment.reason,
+      createdAt: payment.created_at,
+      createdBy: payment.created_by,
+      createdByName: payment.created_by_name,
     })),
     groups: screen.groups,
   };

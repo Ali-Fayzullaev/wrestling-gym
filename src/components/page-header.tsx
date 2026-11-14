@@ -18,7 +18,10 @@ export function PageHeader({
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
+      {/* Never wider than the screen: a row of several actions wraps instead of scrolling. */}
+      {actions ? (
+        <div className="flex max-w-full min-w-0 gap-2">{actions}</div>
+      ) : null}
     </header>
   );
 }

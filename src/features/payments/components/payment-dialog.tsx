@@ -1,0 +1,253 @@
+"use client";
+
+import { useId, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import { requestToaster } from "@/components/deferred-toaster";
+import { ResponsiveDialog } from "@/components/responsive-dialog";
+import { buttonVariants, inputClassName } from "@/components/ui/variants";
+import { paymentsText as t } from "@/i18n/payments";
+import { ru } from "@/i18n/ru";
+import { businessDate } from "@/lib/dates";
+import { formatDate, formatMoney } from "@/lib/format";
+
+import {
+  AMOUNT_MAX,
+  PAYMENT_METHODS,
+  PAYMENT_MONTHS,
+  type PaymentMethod,
+} from "../form-fields";
+import { nextPeriod } from "../period";
+import type { PaymentError, PaymentResult, RecordedPayment } from "../result";
+
+// This dialog reports with a toast: make sure the toast area is there.
+requestToaster();
+
+export type RecordPayment = (input: {
+  clientId: string;
+  amount: number;
+  method: PaymentMethod;
+  idempotencyKey: string;
+}) => Promise<PaymentResult<RecordedPayment>>;
+
+export type CancelPayment = (input: {
+  paymentId: string;
+  idempotencyKey: string;
+}) => Promise<PaymentResult<RecordedPayment>>;
+
+export type PaymentTarget = {
+  clientId: string;
+  name: string;
+  /** End of the current subscription (YYYY-MM-DD), null without one. */
+  endsOn: string | null;
+  /** The group's monthly price; null without a group. */
+  price: number | null;
+};
+
+const DIGITS = /^\d+$/;
+
+function parseAmount(text: string): number | null {
+  const compact = text.replace(/\s/g, "");
+  if (!DIGITS.test(compact)) return null;
+  const amount = Number(compact);
+  return amount >= 1 && amount <= AMOUNT_MAX ? amount : null;
+}
+
+/** Runs a payment action; a lost connection becomes a message instead of an unhandled error. */
+async function settle<T>(
+  call: () => Promise<PaymentResult<T>>,
+): Promise<PaymentResult<T> | { ok: false; error: "network" }> {
+  try {
+    return await call();
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
+
+const errorText = (error: PaymentError | "network") =>
+  error === "network" ? t.network : t.errors[error];
+
+/**
+ * "Paid": amount (the group price filled in), method, the period it will cover, one confirm tap.
+ * The idempotency key is made when the form opens for a client and kept until a payment is saved,
+ * so a retry after a lost connection cannot record a second payment. The dialog closes at once;
+ * `onOptimistic` lets the list show the new status while the request runs.
+ */
+export default function PaymentDialog({
+  target,
+  today,
+  open,
+  onOpenChange,
+  record,
+  cancel,
+  onOptimistic,
+}: {
+  target: PaymentTarget;
+  today: Date;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  record: RecordPayment;
+  cancel: CancelPayment;
+  onOptimistic?: (endsOn: string) => void;
+}) {
+  const id = useId();
+  const [amountText, setAmountText] = useState(
+    target.price === null ? "" : String(target.price),
+  );
+  const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [touched, setTouched] = useState(false);
+  const [key, setKey] = useState(() => crypto.randomUUID());
+  const [, startTransition] = useTransition();
+  // A second tap may land before React re-renders the closed dialog.
+  const submitting = useRef(false);
+
+  const amount = parseAmount(amountText);
+  const period = nextPeriod(target.endsOn, businessDate(today), PAYMENT_MONTHS);
+  const showAmountError = touched && amount === null;
+
+  function undo(payment: RecordedPayment) {
+    void settle(() =>
+      cancel({ paymentId: payment.id, idempotencyKey: crypto.randomUUID() }),
+    ).then((result) => {
+      if (result.ok) toast.success(t.cancelled);
+      else toast.error(errorText(result.error));
+    });
+  }
+
+  function confirm() {
+    setTouched(true);
+    if (amount === null || submitting.current) return;
+    submitting.current = true;
+    onOpenChange(false);
+    startTransition(async () => {
+      onOptimistic?.(period.end);
+      const result = await settle(() =>
+        record({
+          clientId: target.clientId,
+          amount,
+          method,
+          idempotencyKey: key,
+        }),
+      );
+      submitting.current = false;
+      if (!result.ok) {
+        toast.error(errorText(result.error));
+        return;
+      }
+      // The next payment for this client is a new one.
+      setKey(crypto.randomUUID());
+      const payment = result.data;
+      toast.success(t.saved(formatDate(payment.periodEnd, today)), {
+        duration: 10_000,
+        action: { label: t.undo, onClick: () => undo(payment) },
+      });
+    });
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t.dialog.title}
+      description={target.name}
+      footer={
+        <>
+          <button
+            type="button"
+            className={buttonVariants({ variant: "outline" })}
+            onClick={() => onOpenChange(false)}
+          >
+            {ru.common.cancel}
+          </button>
+          <button
+            type="submit"
+            form={`${id}-form`}
+            className={buttonVariants()}
+            data-testid="payment-confirm"
+          >
+            {t.dialog.confirm}
+          </button>
+        </>
+      }
+    >
+      <form
+        id={`${id}-form`}
+        className="flex flex-col gap-4 py-2"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          confirm();
+        }}
+      >
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${id}-amount`} className="text-sm font-medium">
+            {t.dialog.amount}
+          </label>
+          <input
+            id={`${id}-amount`}
+            name="amount"
+            inputMode="numeric"
+            autoComplete="off"
+            value={amountText}
+            onChange={(event) => setAmountText(event.target.value)}
+            onBlur={() => setTouched(true)}
+            aria-invalid={showAmountError || undefined}
+            aria-describedby={`${id}-amount-hint`}
+            className={`${inputClassName} tabular-nums`}
+          />
+          <p
+            id={`${id}-amount-hint`}
+            className={
+              showAmountError
+                ? "text-sm text-destructive"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {showAmountError
+              ? t.dialog.amountError
+              : target.price === null
+                ? t.dialog.amountNoPrice
+                : t.dialog.amountHint(formatMoney(target.price))}
+          </p>
+        </div>
+
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-sm font-medium">
+            {t.dialog.method}
+          </legend>
+          <div className="grid grid-cols-3 gap-2">
+            {PAYMENT_METHODS.map((value) => (
+              <label
+                key={value}
+                className="flex h-11 cursor-pointer items-center justify-center rounded-md border text-sm font-medium has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
+              >
+                <input
+                  type="radio"
+                  name="method"
+                  value={value}
+                  checked={method === value}
+                  onChange={() => setMethod(value)}
+                  className="sr-only"
+                />
+                {t.dialog.methods[value]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="flex flex-col gap-1 rounded-md bg-muted px-3 py-2 text-sm">
+          <p>
+            <span className="text-muted-foreground">{t.dialog.period}: </span>
+            {t.dialog.periodMonth}
+          </p>
+          <p className="font-medium" data-testid="payment-preview">
+            {t.dialog.preview(
+              formatDate(period.start, today),
+              formatDate(period.end, today),
+            )}
+          </p>
+        </div>
+      </form>
+    </ResponsiveDialog>
+  );
+}

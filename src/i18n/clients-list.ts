@@ -25,6 +25,8 @@ export const clientsListText = {
   found: (count: number) => `Найдено: ${count}`,
   endsOnPrefix: "до",
   noSubscription: "оплат не было",
+  pay: "Оплатил",
+  payFor: (name: string) => `Оплатил: ${name}`,
   nothingFound: "Никого не нашли",
   nothingFoundHint: "Проверьте написание или сбросьте фильтры.",
   emptyTitle: "Клиентов пока нет",

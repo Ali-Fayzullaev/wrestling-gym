@@ -14,6 +14,8 @@ import { listClients } from "@/features/clients/service";
 import { clientsText } from "@/i18n/clients";
 import { ru } from "@/i18n/ru";
 
+import { cancelPaymentAction, recordPaymentAction } from "./payment-actions";
+
 export const metadata: Metadata = {
   title: `${ru.pages.clients} | ${ru.app.name}`,
 };
@@ -60,6 +62,8 @@ export default async function ClientsPage({
             coaches={screen.coaches}
             initialFilters={filters}
             today={now}
+            recordPayment={recordPaymentAction}
+            cancelPayment={cancelPaymentAction}
           />
         </>
       )}

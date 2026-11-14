@@ -285,6 +285,9 @@ isOneToOne: false
 "auth_throttle_success":
 { Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: undefined
                            },
+"cancel_recent_payment":
+{ Args: { "p_idempotency_key": string,"p_payment_id": string }; Returns: Json
+                           },
 "check_client_group":
 { Args: { "p_current_group_id"?: string,"p_group_id": string }; Returns: undefined
                            },
@@ -333,6 +336,9 @@ isOneToOne: false
 "groups_screen":
 { Args: { "p_today"?: string }; Returns: Json
                            },
+"insert_reversal":
+{ Args: { "p_cancel": boolean,"p_idempotency_key": string,"p_payment_id": string,"p_reason": string }; Returns: Json
+                           },
 "is_own_recent_payment":
 { Args: { "p_payment_id": string }; Returns: boolean
                            },
@@ -344,17 +350,31 @@ isOneToOne: false
               "moved": number,"target_capacity": number,"target_members": number
             }[]
                            },
+"next_period":
+{ Args: { "p_current_end": string,"p_months"?: number,"p_paid_on": string }; Returns: {
+              "period_end": string,"period_start": string
+            }[]
+                           },
 "normalize_search":
 { Args: { "p_text": string }; Returns: string
                            },
+"payment_json":
+{ Args: { "p": Omit<Database["public"]['Tables']["payments"]['Row'], Database["public"]['Tables']["payments"]['ComputedFields']>,"p_created": boolean }; Returns: Json
+                           },
 "phone_duplicates":
 { Args: { "p_exclude_id"?: string,"p_phone": string }; Returns: Json
+                           },
+"record_payment":
+{ Args: { "p_amount": number,"p_client_id": string,"p_idempotency_key": string,"p_method": string,"p_months"?: number }; Returns: Json
                            },
 "reminder_kind_for":
 { Args: { "p_days_left": number,"p_reminder_days": (number)[] }; Returns: string
                            },
 "require_staff_role":
 { Args: { "p_roles": (string)[] }; Returns: undefined
+                           },
+"reverse_payment":
+{ Args: { "p_idempotency_key": string,"p_payment_id": string,"p_reason": string }; Returns: Json
                            },
 "set_client_archived":
 { Args: { "p_archived": boolean,"p_client_id": string }; Returns: boolean

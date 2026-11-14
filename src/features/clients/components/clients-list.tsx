@@ -3,16 +3,24 @@
 import { ChevronRight, Search, X } from "lucide-react";
 import Link from "next/link";
 import {
+  lazy,
   type ReactNode,
+  Suspense,
   useDeferredValue,
   useId,
   useMemo,
+  useOptimistic,
   useState,
 } from "react";
 
 import { DateText } from "@/components/date-text";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
+import type {
+  CancelPayment,
+  PaymentTarget,
+  RecordPayment,
+} from "@/features/payments/components/payment-dialog";
 import { clientsListText as l } from "@/i18n/clients-list";
 import { ru } from "@/i18n/ru";
 
@@ -30,6 +38,26 @@ import {
 } from "../filters";
 import type { Coach } from "../service";
 
+// The payment dialog, its texts and the toasts load on first intent: the list stays within budget.
+const loadPaymentDialog = () =>
+  import("@/features/payments/components/payment-dialog");
+const PaymentDialog = lazy(loadPaymentDialog);
+
+type Paid = { clientId: string; endsOn: string };
+
+/**
+ * Shown while the payment request runs and replaced by the server's rows when it succeeds (React
+ * drops it on failure). A new month always leaves more than 7 days, so "active" is what
+ * client_status() will report; the status itself is still computed only in the database.
+ */
+function withPaid(rows: ClientRow[], paid: Paid): ClientRow[] {
+  return rows.map((row) =>
+    row.id === paid.clientId
+      ? { ...row, status: "active", endsOn: paid.endsOn }
+      : row,
+  );
+}
+
 /**
  * The whole list arrives once from the server; search, filters and sorting run here without any
  * request. Filters go to the URL (replaceState: no navigation, no server round trip) so a link can
@@ -41,20 +69,27 @@ export function ClientsList({
   coaches,
   initialFilters,
   today,
+  recordPayment,
+  cancelPayment,
 }: {
   rows: ClientRow[];
   groups: GroupOption[];
   coaches: Coach[];
   initialFilters: ClientFilters;
   today: Date;
+  recordPayment: RecordPayment;
+  cancelPayment: CancelPayment;
 }) {
+  const [shownRows, markPaid] = useOptimistic(rows, withPaid);
+  const [payTarget, setPayTarget] = useState<PaymentTarget | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(initialFilters);
   // Typing stays responsive; the list catches up a frame later on a slow phone.
   const deferredQuery = useDeferredValue(query);
   const ids = useId();
 
-  const indexed = useMemo(() => indexRows(rows), [rows]);
+  const indexed = useMemo(() => indexRows(shownRows), [shownRows]);
   const groupsById = useMemo(
     () => new Map(groups.map((group) => [group.id, group])),
     [groups],
@@ -215,10 +250,36 @@ export function ClientsList({
               row={row}
               group={row.groupId ? groupsById.get(row.groupId) : undefined}
               today={today}
+              onPay={(group) => {
+                setPayTarget({
+                  clientId: row.id,
+                  name: `${row.lastName} ${row.firstName}`,
+                  endsOn: row.endsOn,
+                  price: group && !group.archived ? group.price : null,
+                });
+                setPayOpen(true);
+              }}
             />
           ))}
         </ul>
       )}
+      {payTarget ? (
+        <Suspense fallback={null}>
+          <PaymentDialog
+            // One form (and one idempotency key) per client.
+            key={payTarget.clientId}
+            target={payTarget}
+            today={today}
+            open={payOpen}
+            onOpenChange={setPayOpen}
+            record={recordPayment}
+            cancel={cancelPayment}
+            onOptimistic={(endsOn) =>
+              markPaid({ clientId: payTarget.clientId, endsOn })
+            }
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
@@ -267,45 +328,57 @@ function ClientListRow({
   row,
   group,
   today,
+  onPay,
 }: {
   row: ClientRow;
   group: GroupOption | undefined;
   today: Date;
+  onPay: (group: GroupOption | undefined) => void;
 }) {
+  const name = `${row.lastName} ${row.firstName}`;
   return (
-    <li data-testid="client-row">
+    <li data-testid="client-row" className="flex items-center gap-2 pr-3">
       {/* No prefetch: hundreds of rows scroll past while searching, and the list stays offline. */}
       <Link
         href={`/clients/${row.id}`}
         prefetch={false}
-        className="flex min-h-16 items-center gap-3 px-4 py-3 outline-none hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pl-4 outline-none hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <span className="grid min-w-0 flex-1 gap-0.5 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_9rem_10rem] md:items-center md:gap-4">
-          <span className="font-medium break-words">
-            {row.lastName} {row.firstName}
-          </span>
-          {/* Phone: the end date first, it matters more than the group and must not be cut. */}
-          <span className="flex min-w-0 gap-1 text-sm text-muted-foreground md:contents">
+        <span className="grid min-w-0 flex-1 gap-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_9rem_10rem] md:items-center md:gap-4">
+          <span className="font-medium break-words">{name}</span>
+          {/* Phone: status and end date first and never cut; the line wraps before they would be. */}
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-muted-foreground md:contents">
+            <span className="md:hidden">
+              <StatusBadge status={row.status} />
+            </span>
             <span className="shrink-0 whitespace-nowrap md:order-1">
               <EndsOn row={row} today={today} />
             </span>
             <span aria-hidden className="md:hidden">
               ·
             </span>
-            <span className="truncate">{groupLabel(group)}</span>
+            <span className="max-w-full truncate">{groupLabel(group)}</span>
           </span>
           <span className="hidden md:order-2 md:flex md:justify-end">
             <StatusBadge status={row.status} />
           </span>
         </span>
-        <span className="md:hidden">
-          <StatusBadge status={row.status} />
-        </span>
         <ChevronRight
           aria-hidden
-          className="hidden size-4 shrink-0 text-muted-foreground sm:block"
+          className="hidden size-4 shrink-0 text-muted-foreground md:block"
         />
       </Link>
+      <button
+        type="button"
+        aria-label={l.payFor(name)}
+        className={buttonVariants({ variant: "outline" })}
+        onPointerEnter={() => void loadPaymentDialog()}
+        onFocus={() => void loadPaymentDialog()}
+        onClick={() => onPay(group)}
+        data-testid="row-pay"
+      >
+        {l.pay}
+      </button>
     </li>
   );
 }

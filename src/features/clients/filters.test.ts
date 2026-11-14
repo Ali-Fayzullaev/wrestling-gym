@@ -19,9 +19,24 @@ const COACH_A = "00000000-0000-4000-8000-000000000002";
 const COACH_B = "00000000-0000-4000-8000-000000000001";
 
 const groups = new Map<string, GroupOption>([
-  [KIDS, { id: KIDS, name: "Дети", coachId: COACH_A, archived: false }],
-  [ADULTS, { id: ADULTS, name: "Взрослые", coachId: COACH_B, archived: false }],
-  [OLD, { id: OLD, name: "Старая", coachId: COACH_A, archived: true }],
+  [
+    KIDS,
+    { id: KIDS, name: "Дети", coachId: COACH_A, archived: false, price: 15000 },
+  ],
+  [
+    ADULTS,
+    {
+      id: ADULTS,
+      name: "Взрослые",
+      coachId: COACH_B,
+      archived: false,
+      price: 15000,
+    },
+  ],
+  [
+    OLD,
+    { id: OLD, name: "Старая", coachId: COACH_A, archived: true, price: 15000 },
+  ],
 ]);
 
 function row(
