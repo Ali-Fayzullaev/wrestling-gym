@@ -9,8 +9,13 @@ import type {
   PaymentTarget,
   RecordPayment,
 } from "@/features/payments/components/payment-dialog";
+import {
+  type OpenReminder,
+  type WhatsAppLabels,
+  WhatsAppButton,
+} from "@/features/reminders/components/whatsapp-button";
 
-import type { TodayRow } from "../service";
+import type { TodayRemindRow } from "../service";
 import { ClientSummaryLink } from "./client-summary-link";
 
 // The payment dialog, its texts and the toasts load on first intent: the screen stays within budget.
@@ -20,29 +25,35 @@ const loadPaymentDialog = () =>
 const PaymentDialog = lazy(loadPaymentDialog);
 
 /** The paid client leaves the list at once; the server's next rows confirm it (or bring it back). */
-function withoutPaid(rows: TodayRow[], paidId: string): TodayRow[] {
+function withoutPaid(rows: TodayRemindRow[], paidId: string): TodayRemindRow[] {
   return rows.filter((row) => row.id !== paidId);
 }
 
 /**
- * "Remind today" with a "Paid" button per row. The labels come from the server so the screen's
- * texts stay out of this island. Each row keeps a second button's place for WhatsApp (step 09).
+ * "Remind today" with "WhatsApp" and "Paid" buttons per row. The labels and the ready wa.me links
+ * come from the server, so the screen's texts and the template code stay out of this island.
+ * Opening a chat is not removed here: the server's next rows (reminders_due) drop the client and
+ * the counter together.
  */
 export function RemindList({
   rows,
   empty,
   today,
   labels,
+  whatsappLabels,
   recordPayment,
   cancelPayment,
+  openReminder,
 }: {
-  rows: TodayRow[];
+  rows: TodayRemindRow[];
   /** Shown when nobody is left to remind, also right after the last one paid. */
   empty: ReactNode;
   today: Date;
   labels: { pay: string; noGroup: string; endsOn: string };
+  whatsappLabels: WhatsAppLabels;
   recordPayment: RecordPayment;
   cancelPayment: CancelPayment;
+  openReminder: OpenReminder;
 }) {
   const [shownRows, markPaid] = useOptimistic(rows, withoutPaid);
   const [payTarget, setPayTarget] = useState<PaymentTarget | null>(null);
@@ -64,8 +75,20 @@ export function RemindList({
           >
             <ClientSummaryLink row={row} today={today} labels={labels} />
             <div className="grid shrink-0 grid-cols-2 gap-2 md:w-[17rem]">
-              {/* The WhatsApp button arrives in step 09; its place is kept so rows do not shift. */}
-              <span aria-hidden className="invisible h-11" />
+              {row.reminder.href ? (
+                <WhatsAppButton
+                  href={row.reminder.href}
+                  target={{
+                    paymentId: row.reminder.paymentId,
+                    kind: row.reminder.kind,
+                  }}
+                  labels={whatsappLabels}
+                  open={openReminder}
+                />
+              ) : (
+                // No template of this kind: nothing to open, the place is kept so rows line up.
+                <span aria-hidden className="invisible h-11" />
+              )}
               <button
                 type="button"
                 className={buttonVariants()}

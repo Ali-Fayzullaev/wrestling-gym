@@ -11,7 +11,7 @@ import { ru } from "@/i18n/ru";
 import { businessDate } from "@/lib/dates";
 
 import { checkPhoneAction, createClientAction } from "../actions";
-import { BackLink } from "../back-link";
+import { BackLink } from "@/components/back-link";
 
 export const metadata: Metadata = {
   title: `${clientsText.form.createTitle} | ${ru.app.name}`,

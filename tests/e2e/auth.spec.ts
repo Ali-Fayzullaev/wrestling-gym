@@ -139,7 +139,12 @@ test.describe("sign-in", () => {
 });
 
 test.describe("roles", () => {
-  for (const path of ["/reports", "/audit", "/settings/staff"]) {
+  for (const path of [
+    "/reports",
+    "/audit",
+    "/settings/staff",
+    "/settings/reminders",
+  ]) {
     test(`admin gets 403 on ${path}`, async ({ page }) => {
       await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
       const response = await page.goto(path);

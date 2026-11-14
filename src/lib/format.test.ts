@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatAmount,
   formatDate,
   formatMoney,
   formatTime,
@@ -8,6 +9,17 @@ import {
 } from "./format";
 
 const NBSP = " ";
+
+describe("formatAmount", () => {
+  it("groups digits like formatMoney, without the currency sign", () => {
+    expect(formatAmount(25000)).toBe(`25${NBSP}000`);
+    expect(formatAmount(-1500)).toBe(`−1${NBSP}500`);
+  });
+
+  it("refuses fractions", () => {
+    expect(() => formatAmount(1.5)).toThrow(RangeError);
+  });
+});
 
 describe("formatMoney", () => {
   it.each([

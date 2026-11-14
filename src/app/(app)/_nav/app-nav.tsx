@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  BellRing,
   CalendarCheck,
   ChartColumn,
   Ellipsis,
   type LucideIcon,
+  MessageSquareText,
   ScrollText,
   UserCog,
   Users,
@@ -29,10 +31,12 @@ const ICONS: Record<NavKey, LucideIcon> = {
   today: CalendarCheck,
   clients: Users,
   groups: UsersRound,
+  reminders: BellRing,
   more: Ellipsis,
   reports: ChartColumn,
   audit: ScrollText,
   staff: UserCog,
+  reminderSettings: MessageSquareText,
 };
 
 // Class names are joined by hand, not with cn(): the merge engine would add ~9 KB to every

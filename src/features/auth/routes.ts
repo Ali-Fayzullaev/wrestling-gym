@@ -13,8 +13,13 @@ const PUBLIC_PATHS = [
 ] as const;
 /** Signed-in staff are sent home from these instead of seeing them again. */
 const GUEST_ONLY_PATHS = ["/login", "/reset-password"] as const;
-/** Money, staff and the audit log: owner only (spec 00, roles). */
-const OWNER_PATHS = ["/reports", "/audit", "/settings/staff"] as const;
+/** Money, staff, the audit log and reminder settings: owner only (spec 00, roles; step 09). */
+const OWNER_PATHS = [
+  "/reports",
+  "/audit",
+  "/settings/staff",
+  "/settings/reminders",
+] as const;
 
 export type RouteAccess = "public" | "staff" | "owner";
 

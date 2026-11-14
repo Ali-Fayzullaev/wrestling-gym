@@ -5,6 +5,10 @@ import type { Db } from "@/db/client";
 import type { Actor } from "@/features/auth/roles";
 import { PAYMENT_METHODS } from "@/features/payments/form-fields";
 import type { HistoryRow } from "@/features/payments/history";
+import {
+  parseReminderEvents,
+  type ReminderEvent,
+} from "@/features/reminders/service";
 import { businessDate } from "@/lib/dates";
 
 import type { ClientRow, GroupOption } from "./filters";
@@ -117,6 +121,8 @@ const clientScreenShape = z.object({
       created_by_name: z.string(),
     }),
   ),
+  // Checked by the reminders feature, which owns the event shape.
+  reminders: z.unknown(),
   groups: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
@@ -180,6 +186,8 @@ export type ClientScreen = {
   consents: Consent[];
   /** Payments and reversals, newest first. */
   payments: HistoryRow[];
+  /** Reminder events (chat opened, marked sent), newest first. */
+  reminders: ReminderEvent[];
   /** Active groups, for the edit form. */
   groups: ActiveGroup[];
 };
@@ -285,6 +293,7 @@ export async function getClient(
       createdBy: payment.created_by,
       createdByName: payment.created_by_name,
     })),
+    reminders: parseReminderEvents(screen.reminders),
     groups: screen.groups,
   };
 }

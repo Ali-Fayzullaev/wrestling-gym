@@ -232,14 +232,29 @@ describe("criterion 2: each policy allows its role and refuses the other", () =>
       expect(await affected(admin, rename)).toBe(0);
     });
 
-    it("message_templates: owner inserts and edits, admin cannot", async () => {
+    it("message_templates: owner edits texts, admin cannot; nobody adds one or changes its kind", async () => {
+      // One template per kind, shipped by the migrations (step 09).
       const insertTemplate = (actorId: string) => (tx: Tx) => tx`
         insert into public.message_templates (name, kind, body, updated_by)
         values ('Ещё один', 'overdue', 'Текст', ${actorId}) returning id
       `;
-      expect(await affected(owner, insertTemplate(SEED_STAFF.owner))).toBe(1);
+      for (const [actor, actorId] of [
+        [owner, SEED_STAFF.owner],
+        [admin, SEED_STAFF.admin],
+      ] as const) {
+        await expect(
+          asActor(sql, actor, insertTemplate(actorId)),
+        ).rejects.toMatchObject(PERMISSION_DENIED);
+      }
       await expect(
-        asActor(sql, admin, insertTemplate(SEED_STAFF.admin)),
+        asActor(
+          sql,
+          owner,
+          (tx) => tx`
+            update public.message_templates set kind = 'overdue', updated_by = ${SEED_STAFF.owner}
+            where kind = 'before_7'
+          `,
+        ),
       ).rejects.toMatchObject(PERMISSION_DENIED);
 
       const edit = (actorId: string) => (tx: Tx) => tx`

@@ -14,6 +14,8 @@ const STAFF_ROUTES = [
   "/clients",
   "/more",
   "/groups",
+  "/reminders",
+  "/reminders?tab=history",
   // A group screen: the member list and the transfer island.
   "/groups/10000000-0000-4000-8000-000000000001",
   // Client form, card (actions island) and edit form.
@@ -21,6 +23,8 @@ const STAFF_ROUTES = [
   "/clients/20000000-0000-4000-8000-000000000001",
   "/clients/20000000-0000-4000-8000-000000000001/edit",
 ];
+/** Owner-only screens, measured with the owner's session. */
+const OWNER_ROUTES = ["/settings/reminders"];
 const REPORT_DIR = ".perf";
 
 type Row = {
@@ -82,6 +86,8 @@ test("first-load JS stays within budget", async ({
     testInfo.project.name !== "desktop",
     "JS bundle is the same for every viewport",
   );
+  // A cold browser context per route plus two sign-ins: well past the default 30 s per test.
+  test.setTimeout(90_000);
 
   const rows: Row[] = [];
   for (const route of PUBLIC_ROUTES) rows.push(await measure(page, route));
@@ -91,6 +97,20 @@ test("first-load JS stays within budget", async ({
   for (const route of STAFF_ROUTES) {
     // A new context per route: empty HTTP cache, same signed-in session.
     const context = await browser.newContext({ storageState: session });
+    rows.push(await measure(await context.newPage(), route));
+    await context.close();
+  }
+
+  // Its own sign-in rate-limit bucket, like every test page gets from the fixture.
+  const ownerLogin = await browser.newContext({
+    extraHTTPHeaders: { "x-forwarded-for": "198.18.255.1" },
+  });
+  const ownerPage = await ownerLogin.newPage();
+  await loginAs(ownerPage, SEED_EMAILS.owner, SEED_PASSWORD);
+  const ownerSession = await ownerLogin.storageState();
+  await ownerLogin.close();
+  for (const route of OWNER_ROUTES) {
+    const context = await browser.newContext({ storageState: ownerSession });
     rows.push(await measure(await context.newPage(), route));
     await context.close();
   }

@@ -34,8 +34,9 @@ export const clientsText = {
     noPayments: "Оплат пока не было.",
     payments: "История оплат",
     reminders: "Напоминания",
-    remindersEmpty: "Раздел в разработке",
-    remindersEmptyText: "Здесь будут открытые чаты WhatsApp с напоминаниями.",
+    remindersEmpty: "Напоминаний пока не было",
+    remindersEmptyText:
+      "Когда сотрудник откроет чат WhatsApp с напоминанием, здесь появятся дата, тип и кто открыл.",
     consents: "Согласия",
     consentGiven: (date: string, by: string) =>
       `${date}, зафиксировал(а) ${by}`,

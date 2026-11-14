@@ -41,7 +41,12 @@ type Row = {
   ends_on: string | null;
 };
 
-type Screen = { counts: Counts; remind: Row[]; paid: Row[] };
+type Screen = {
+  counts: Counts;
+  remind: Row[];
+  paid: Row[];
+  reminder_context: unknown;
+};
 
 function addDays(isoDate: string, days: number): string {
   const date = new Date(`${isoDate}T00:00:00Z`);
@@ -271,7 +276,7 @@ describe("reminders already opened and archived clients", () => {
       await become(tx, admin);
       return screenOn(tx);
     });
-    expect(screen).toEqual({
+    expect(screen).toMatchObject({
       counts: { remind_today: 0, debtors: 0, expiring_week: 0, paid_today: 0 },
       remind: [],
       paid: [],
@@ -314,6 +319,8 @@ describe("access: another role is refused", () => {
       counts: { remind_today: 0, debtors: 0, expiring_week: 0, paid_today: 0 },
       remind: [],
       paid: [],
+      // RLS hides the gym settings and templates too.
+      reminder_context: { gym_name: null, reminder_days: null, templates: [] },
     });
   });
 

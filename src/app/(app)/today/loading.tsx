@@ -30,7 +30,7 @@ export default function TodayLoading() {
                 <Skeleton className="h-3.5 w-56" />
               </div>
               <div className="grid grid-cols-2 gap-2 md:w-[17rem]">
-                <span className="h-11" />
+                <Skeleton className="h-11" />
                 <Skeleton className="h-11" />
               </div>
             </div>
