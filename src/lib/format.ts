@@ -32,6 +32,11 @@ const timeFormatter = new Intl.DateTimeFormat("ru-RU", {
  * Amounts are integers in the database; anything else is a bug upstream.
  */
 export function formatMoney(amount: number): string {
+  return `${formatAmount(amount)}${NBSP}${CURRENCY}`;
+}
+
+/** Whole tenge without the currency sign, for texts that spell it out: `formatAmount(25000)`. */
+export function formatAmount(amount: number): string {
   if (!Number.isSafeInteger(amount)) {
     throw new RangeError("formatMoney expects whole tenge");
   }
@@ -40,7 +45,7 @@ export function formatMoney(amount: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
   // U+2212 minus: same width as digits, so reversal amounts line up in tabular columns.
   const sign = amount < 0 ? "−" : "";
-  return `${sign}${digits}${NBSP}${CURRENCY}`;
+  return `${sign}${digits}`;
 }
 
 /**

@@ -1,9 +1,9 @@
 import { CircleCheck, Wallet } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { PillNav } from "@/components/pill-nav";
 import { StatCard } from "@/components/stat-card";
 import { createServerDb } from "@/db/server";
 import { requireStaff } from "@/features/auth/require-staff";
@@ -12,6 +12,7 @@ import { PaidList } from "@/features/today/components/paid-list";
 import { RemindList } from "@/features/today/components/remind-list";
 import { getTodayScreen } from "@/features/today/service";
 import { paymentsText } from "@/i18n/payments";
+import { remindersText } from "@/i18n/reminders";
 import { ru } from "@/i18n/ru";
 import { todayText as t } from "@/i18n/today";
 import { formatWeekdayDate } from "@/lib/format";
@@ -20,6 +21,7 @@ import {
   cancelPaymentAction,
   recordPaymentAction,
 } from "../clients/payment-actions";
+import { openReminderAction } from "../reminders/actions";
 
 export const metadata: Metadata = {
   title: `${ru.pages.today} | ${ru.app.name}`,
@@ -94,20 +96,15 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
         <h2 id="today-list" className="sr-only">
           {t.lists[list]}
         </h2>
-        <nav aria-label={t.lists.label} className="flex gap-2">
-          {(["remind", "paid"] as const).map((key) => (
-            <Link
-              key={key}
-              href={LIST_HREF[key]}
-              aria-current={key === list ? "page" : undefined}
-              replace
-              scroll={false}
-              className="inline-flex h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring aria-[current=page]:border-primary aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground"
-            >
-              {t.lists[key]}
-            </Link>
-          ))}
-        </nav>
+        <PillNav
+          label={t.lists.label}
+          current={list}
+          items={(["remind", "paid"] as const).map((key) => ({
+            key,
+            href: LIST_HREF[key],
+            text: t.lists[key],
+          }))}
+        />
         {list === "remind" ? (
           <RemindList
             rows={screen.remind}
@@ -120,8 +117,15 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
             }
             today={now}
             labels={{ ...rowLabels, pay: paymentsText.pay }}
+            whatsappLabels={{
+              whatsapp: remindersText.whatsapp,
+              chatOpened: remindersText.chatOpened,
+              recordFailed: remindersText.recordFailed,
+              retry: remindersText.retry,
+            }}
             recordPayment={recordPaymentAction}
             cancelPayment={cancelPaymentAction}
+            openReminder={openReminderAction}
           />
         ) : screen.paid.length === 0 ? (
           <EmptyState

@@ -2,10 +2,12 @@ export const NAV_PATHS = {
   today: "/today",
   clients: "/clients",
   groups: "/groups",
+  reminders: "/reminders",
   more: "/more",
   reports: "/reports",
   audit: "/audit",
   staff: "/settings/staff",
+  reminderSettings: "/settings/reminders",
 } as const;
 
 export type NavKey = keyof typeof NAV_PATHS;
@@ -18,8 +20,18 @@ export const BOTTOM_NAV: readonly NavKey[] = [
   "more",
 ];
 /** Side menu on a computer: everything an employee may open, owner sections only for the owner. */
-export const SIDE_NAV: readonly NavKey[] = ["today", "clients", "groups"];
-export const OWNER_NAV: readonly NavKey[] = ["reports", "audit", "staff"];
+export const SIDE_NAV: readonly NavKey[] = [
+  "today",
+  "clients",
+  "groups",
+  "reminders",
+];
+export const OWNER_NAV: readonly NavKey[] = [
+  "reports",
+  "audit",
+  "reminderSettings",
+  "staff",
+];
 /** Bottom of the side menu: theme and sign-out live on the "More" screen, as on a phone. */
 export const SIDE_FOOTER_NAV: readonly NavKey[] = ["more"];
 

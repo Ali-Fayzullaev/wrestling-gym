@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import type { Db } from "@/db/client";
+import { REMINDER_KINDS, type ReminderKind } from "@/features/reminders/kinds";
+import {
+  buildReminderLink,
+  parseReminderContext,
+  type ReminderContext,
+} from "@/features/reminders/service";
 import { businessDate } from "@/lib/dates";
 
 // Shape of today_screen() (supabase/migrations/*_today_screen.sql). The database returns jsonb, so
@@ -15,6 +21,15 @@ const rowShape = z.object({
   ends_on: z.string().nullable(),
 });
 
+// What a "remind" row's wa.me link is built from.
+const reminderShape = z.object({
+  payment_id: z.string(),
+  kind: z.enum(REMINDER_KINDS),
+  phone: z.string(),
+  phone_owner: z.enum(["self", "parent"]),
+  parent_name: z.string().nullable(),
+});
+
 const screenShape = z.object({
   counts: z.object({
     remind_today: z.number(),
@@ -22,8 +37,9 @@ const screenShape = z.object({
     expiring_week: z.number(),
     paid_today: z.number(),
   }),
-  remind: z.array(rowShape),
+  remind: z.array(rowShape.extend({ reminder: reminderShape })),
   paid: z.array(rowShape),
+  reminder_context: z.unknown(),
 });
 
 export type TodayCounts = {
@@ -44,10 +60,20 @@ export type TodayRow = {
   endsOn: string | null;
 };
 
+/** The reminder due for a "remind" row: what the WhatsApp button opens and records. */
+export type TodayReminder = {
+  paymentId: string;
+  kind: ReminderKind;
+  /** wa.me link with the filled-in text; null when the template of this kind is missing. */
+  href: string | null;
+};
+
+export type TodayRemindRow = TodayRow & { reminder: TodayReminder };
+
 export type TodayScreen = {
   counts: TodayCounts;
   /** Reminders due today and not opened yet, soonest end first. */
-  remind: TodayRow[];
+  remind: TodayRemindRow[];
   /** Clients with a payment recorded today (not reversed), by name. */
   paid: TodayRow[];
 };
@@ -62,6 +88,31 @@ function toRow(row: z.infer<typeof rowShape>): TodayRow {
   };
 }
 
+function toRemindRow(
+  row: z.infer<typeof screenShape>["remind"][number],
+  context: ReminderContext,
+  now: Date,
+): TodayRemindRow {
+  const { reminder } = row;
+  const contact = {
+    firstName: row.first_name,
+    phoneOwner: reminder.phone_owner,
+    parentName: reminder.parent_name,
+    groupName: row.group_name,
+    price: row.price,
+    endsOn: row.ends_on,
+    phone: reminder.phone,
+  };
+  return {
+    ...toRow(row),
+    reminder: {
+      paymentId: reminder.payment_id,
+      kind: reminder.kind,
+      href: buildReminderLink(contact, reminder.kind, context, now),
+    },
+  };
+}
+
 /** Everything the Today screen shows, in one database request. */
 export async function getTodayScreen(db: Db, now: Date): Promise<TodayScreen> {
   const { data, error } = await db.rpc("today_screen", {
@@ -69,6 +120,7 @@ export async function getTodayScreen(db: Db, now: Date): Promise<TodayScreen> {
   });
   if (error) throw new Error(`today_screen failed: ${error.code}`);
   const screen = screenShape.parse(data);
+  const context = parseReminderContext(screen.reminder_context);
   return {
     counts: {
       remindToday: screen.counts.remind_today,
@@ -76,7 +128,7 @@ export async function getTodayScreen(db: Db, now: Date): Promise<TodayScreen> {
       expiringWeek: screen.counts.expiring_week,
       paidToday: screen.counts.paid_today,
     },
-    remind: screen.remind.map(toRow),
+    remind: screen.remind.map((row) => toRemindRow(row, context, now)),
     paid: screen.paid.map(toRow),
   };
 }

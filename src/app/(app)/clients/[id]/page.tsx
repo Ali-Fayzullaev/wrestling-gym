@@ -19,6 +19,7 @@ import { clientIdSchema } from "@/features/clients/schema";
 import { getClient } from "@/features/clients/service";
 import { PayButton } from "@/features/payments/components/pay-button";
 import { PaymentEntryActions } from "@/features/payments/components/payment-entry-actions";
+import { ReminderHistoryList } from "@/features/reminders/components/reminder-history-list";
 import {
   buildHistory,
   canCancel,
@@ -33,7 +34,7 @@ import { formatDate, formatTime } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 
 import { deleteClientAction, setClientArchivedAction } from "../actions";
-import { BackLink } from "../back-link";
+import { BackLink } from "@/components/back-link";
 import {
   cancelPaymentAction,
   recordPaymentAction,
@@ -225,7 +226,6 @@ export default async function ClientPage({
         </Section>
       </div>
 
-      {/* Reminders: step 09. */}
       <div className="grid gap-4 lg:grid-cols-2">
         <section
           aria-labelledby="payments-title"
@@ -263,11 +263,15 @@ export default async function ClientPage({
           <h2 id="reminders-title" className="text-lg font-semibold">
             {c.reminders}
           </h2>
-          <EmptyState
-            icon={BellRing}
-            title={c.remindersEmpty}
-            description={c.remindersEmptyText}
-          />
+          {screen.reminders.length === 0 ? (
+            <EmptyState
+              icon={BellRing}
+              title={c.remindersEmpty}
+              description={c.remindersEmptyText}
+            />
+          ) : (
+            <ReminderHistoryList events={screen.reminders} now={now} />
+          )}
         </section>
       </div>
     </>

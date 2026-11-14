@@ -345,6 +345,9 @@ isOneToOne: false
 "lock_group":
 { Args: { "p_group_id": string }; Returns: undefined
                            },
+"mark_reminder_sent":
+{ Args: { "p_event_id": string }; Returns: Json
+                           },
 "move_clients":
 { Args: { "p_client_ids": (string)[],"p_target_group_id": string }; Returns: {
               "moved": number,"target_capacity": number,"target_members": number
@@ -372,13 +375,31 @@ isOneToOne: false
 "record_payment":
 { Args: { "p_amount": number,"p_client_id": string,"p_idempotency_key": string,"p_method": string,"p_months"?: number }; Returns: Json
                            },
+"record_reminder_opened":
+{ Args: { "p_kind": string,"p_payment_id": string }; Returns: Json
+                           },
+"reminder_contact_json":
+{ Args: { "p_client": Omit<Database["public"]['Tables']["clients"]['Row'], Database["public"]['Tables']["clients"]['ComputedFields']>,"p_ends_on": string,"p_group_name": string,"p_kind": string,"p_payment_id": string,"p_price": number }; Returns: Json
+                           },
+"reminder_context":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"reminder_event_json":
+{ Args: { "p_event": Omit<Database["public"]['Tables']["reminder_events"]['Row'], Database["public"]['Tables']["reminder_events"]['ComputedFields']>,"p_marked_by_name": string,"p_opened_by_name": string }; Returns: Json
+                           },
 "reminder_kind_for":
 { Args: { "p_days_left": number,"p_reminder_days": (number)[] }; Returns: string
+                           },
+"reminder_settings_screen":
+{ Args: { "p_today"?: string }; Returns: Json
                            },
 "reminders_due":
 { Args: { "p_today"?: string }; Returns: {
               "client_id": string,"ends_on": string,"kind": string,"payment_id": string
             }[]
+                           },
+"reminders_screen":
+{ Args: { "p_date"?: string,"p_limit"?: number,"p_staff_id"?: string,"p_tab": string,"p_today"?: string }; Returns: Json
                            },
 "require_staff_role":
 { Args: { "p_roles": (string)[] }; Returns: undefined
@@ -397,6 +418,9 @@ isOneToOne: false
                            },
 "update_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_group_id": string,"p_name": string,"p_schedule": Json }; Returns: undefined
+                           },
+"update_reminder_settings":
+{ Args: { "p_reminder_days": (number)[],"p_templates": Json }; Returns: Json
                            }
           }
           Enums: {

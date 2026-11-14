@@ -13,7 +13,7 @@ import { ru } from "@/i18n/ru";
 import { formatPhone } from "@/lib/phone";
 
 import { checkPhoneAction, updateClientAction } from "../../actions";
-import { BackLink } from "../../back-link";
+import { BackLink } from "@/components/back-link";
 
 export const metadata: Metadata = {
   title: `${clientsText.form.editTitle} | ${ru.app.name}`,
