@@ -19,6 +19,7 @@ describe("activeNavKey", () => {
     ["/settings/staff", "more"],
     ["/reminders", "more"],
     ["/settings/reminders", "more"],
+    ["/clients/import", "clients"],
   ])("bottom menu: %s -> %s", (pathname, key) => {
     expect(activeNavKey(pathname, BOTTOM_NAV, "more")).toBe(key);
   });

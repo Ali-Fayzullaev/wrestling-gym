@@ -151,14 +151,14 @@ isOneToOne: false
                   ]
                 },"payments": {
                   Row: {
-                    "amount": number,"client_id": string,"created_at": string,"created_by": string,"id": string,"idempotency_key": string,"kind": string,"method": string,"period_end": string,"period_start": string,"reason": string | null,"reverses_id": string | null
+                    "amount": number,"client_id": string,"created_at": string,"created_by": string,"id": string,"idempotency_key": string,"kind": string,"method": string | null,"period_end": string,"period_start": string,"reason": string | null,"reverses_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"client_id": string,"created_at"?: string,"created_by"?: string,"id"?: string,"idempotency_key": string,"kind": string,"method": string,"period_end": string,"period_start": string,"reason"?: string | null,"reverses_id"?: string | null
+                    "amount": number,"client_id": string,"created_at"?: string,"created_by"?: string,"id"?: string,"idempotency_key": string,"kind": string,"method"?: string | null,"period_end": string,"period_start": string,"reason"?: string | null,"reverses_id"?: string | null
                   }
                   Update: {
-                    "amount"?: number,"client_id"?: string,"created_at"?: string,"created_by"?: string,"id"?: string,"idempotency_key"?: string,"kind"?: string,"method"?: string,"period_end"?: string,"period_start"?: string,"reason"?: string | null,"reverses_id"?: string | null
+                    "amount"?: number,"client_id"?: string,"created_at"?: string,"created_by"?: string,"id"?: string,"idempotency_key"?: string,"kind"?: string,"method"?: string | null,"period_end"?: string,"period_start"?: string,"reason"?: string | null,"reverses_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -335,6 +335,15 @@ isOneToOne: false
                            },
 "groups_screen":
 { Args: { "p_today"?: string }; Returns: Json
+                           },
+"import_clients":
+{ Args: { "p_file_hash": string,"p_new_groups"?: Json,"p_rows": Json,"p_today"?: string }; Returns: Json
+                           },
+"import_context":
+{ Args: { "p_file_hash": string,"p_phones": (string)[] }; Returns: Json
+                           },
+"import_group_key":
+{ Args: { "p_name": string }; Returns: string
                            },
 "insert_reversal":
 { Args: { "p_cancel": boolean,"p_idempotency_key": string,"p_payment_id": string,"p_reason": string }; Returns: Json

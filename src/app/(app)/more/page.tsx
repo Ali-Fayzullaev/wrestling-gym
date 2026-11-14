@@ -5,6 +5,7 @@ import {
   type LucideIcon,
   MessageSquareText,
   ScrollText,
+  Upload,
   UserCog,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -23,15 +24,23 @@ export const metadata: Metadata = {
   title: `${ru.pages.more} | ${ru.app.name}`,
 };
 
-type SectionLink = { key: NavKey; icon: LucideIcon };
+type SectionLink = { href: string; label: string; icon: LucideIcon };
 
-const WORK_LINKS: SectionLink[] = [{ key: "reminders", icon: BellRing }];
+const navLink = (key: NavKey, icon: LucideIcon): SectionLink => ({
+  href: NAV_PATHS[key],
+  label: ru.nav[key],
+  icon,
+});
 
+const WORK_LINKS: SectionLink[] = [navLink("reminders", BellRing)];
+
+// The import is reached from here and from the clients list, not from the menus.
 const OWNER_LINKS: SectionLink[] = [
-  { key: "reports", icon: ChartColumn },
-  { key: "audit", icon: ScrollText },
-  { key: "reminderSettings", icon: MessageSquareText },
-  { key: "staff", icon: UserCog },
+  navLink("reports", ChartColumn),
+  navLink("audit", ScrollText),
+  navLink("reminderSettings", MessageSquareText),
+  { href: "/clients/import", label: ru.pages.clientImport, icon: Upload },
+  navLink("staff", UserCog),
 ];
 
 /**
@@ -88,14 +97,14 @@ function LinkSection({
         {title}
       </h2>
       <ul className="flex flex-col divide-y rounded-xl border bg-card">
-        {links.map(({ key, icon: Icon }) => (
-          <li key={key}>
+        {links.map(({ href, label, icon: Icon }) => (
+          <li key={href}>
             <Link
-              href={NAV_PATHS[key]}
+              href={href}
               className="flex min-h-12 items-center gap-3 px-4 text-sm font-medium outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset"
             >
               <Icon aria-hidden className="size-5 text-muted-foreground" />
-              <span className="flex-1">{ru.nav[key]}</span>
+              <span className="flex-1">{label}</span>
               <ChevronRight
                 aria-hidden
                 className="size-4 text-muted-foreground"

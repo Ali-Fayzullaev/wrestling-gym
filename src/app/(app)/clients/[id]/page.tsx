@@ -299,20 +299,26 @@ function PaymentEntry({
       data-testid="payment-entry"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <Money
-          amount={payment.amount}
-          className={
-            reversal
-              ? "text-base font-semibold text-muted-foreground line-through"
-              : "text-base font-semibold"
-          }
-        />
+        {payment.method === null ? (
+          <span className="text-base font-semibold">{h.importBalance}</span>
+        ) : (
+          <Money
+            amount={payment.amount}
+            className={
+              reversal
+                ? "text-base font-semibold text-muted-foreground line-through"
+                : "text-base font-semibold"
+            }
+          />
+        )}
         <span className="text-muted-foreground">
           {h.paidAt(formatDate(paidAt, now), formatTime(paidAt))}
         </span>
       </div>
       <p>
-        {paymentsText.dialog.methods[payment.method]}
+        {payment.method === null
+          ? h.importBalanceNote
+          : paymentsText.dialog.methods[payment.method]}
         {" · "}
         <span className="tabular-nums">
           {h.period(

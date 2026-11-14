@@ -1,4 +1,4 @@
-import { Plus, UserRound } from "lucide-react";
+import { Plus, Upload, UserRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -12,6 +12,7 @@ import { ClientsList } from "@/features/clients/components/clients-list";
 import { filtersToSearch, parseFilters } from "@/features/clients/filters";
 import { listClients } from "@/features/clients/service";
 import { clientsText } from "@/i18n/clients";
+import { importText } from "@/i18n/import";
 import { ru } from "@/i18n/ru";
 
 import { cancelPaymentAction, recordPaymentAction } from "./payment-actions";
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 export default async function ClientsPage({
   searchParams,
 }: PageProps<"/clients">) {
-  await requireStaff(STAFF_ROLES);
+  const actor = await requireStaff(STAFF_ROLES);
   const now = new Date();
   const [screen, params] = await Promise.all([
     listClients(await createServerDb(), now),
@@ -32,10 +33,21 @@ export default async function ClientsPage({
   ]);
   const filters = parseFilters(params);
   const createButton = (
-    <Link href="/clients/new" className={buttonVariants()}>
-      <Plus aria-hidden />
-      {clientsText.create}
-    </Link>
+    <div className="flex flex-wrap gap-2">
+      {actor.role === "owner" ? (
+        <Link
+          href="/clients/import"
+          className={buttonVariants({ variant: "outline" })}
+        >
+          <Upload aria-hidden />
+          {importText.open}
+        </Link>
+      ) : null}
+      <Link href="/clients/new" className={buttonVariants()}>
+        <Plus aria-hidden />
+        {clientsText.create}
+      </Link>
+    </div>
   );
 
   return (

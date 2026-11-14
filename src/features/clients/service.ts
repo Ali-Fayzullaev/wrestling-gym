@@ -3,7 +3,10 @@ import { z } from "zod";
 import type { SubscriptionStatus } from "@/components/status-badge";
 import type { Db } from "@/db/client";
 import type { Actor } from "@/features/auth/roles";
-import { PAYMENT_METHODS } from "@/features/payments/form-fields";
+import {
+  PAYMENT_KINDS,
+  PAYMENT_METHODS,
+} from "@/features/payments/form-fields";
 import type { HistoryRow } from "@/features/payments/history";
 import {
   parseReminderEvents,
@@ -109,9 +112,9 @@ const clientScreenShape = z.object({
   payments: z.array(
     z.object({
       id: z.string(),
-      kind: z.enum(["payment", "reversal"]),
+      kind: z.enum(PAYMENT_KINDS),
       amount: z.number(),
-      method: z.enum(PAYMENT_METHODS),
+      method: z.enum(PAYMENT_METHODS).nullable(),
       period_start: z.string(),
       period_end: z.string(),
       reverses_id: z.string().nullable(),

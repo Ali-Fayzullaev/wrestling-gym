@@ -1,0 +1,147 @@
+"use client";
+
+import { CircleAlert, CircleCheck, Copy, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+
+import { importText } from "@/i18n/import";
+import { formatDate } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
+
+import type { PreviewRow, RowStatus } from "../rows";
+
+const t = importText;
+
+const STATUS_STYLE: Record<RowStatus, { icon: LucideIcon; className: string }> =
+  {
+    new: {
+      icon: CircleCheck,
+      className: "bg-status-active text-status-active-foreground",
+    },
+    duplicate: {
+      icon: Copy,
+      className: "bg-status-none text-status-none-foreground",
+    },
+    error: {
+      icon: CircleAlert,
+      className: "bg-status-expired text-status-expired-foreground",
+    },
+  };
+
+type Filter = "all" | RowStatus;
+const FILTERS: readonly Filter[] = ["all", "new", "duplicate", "error"];
+
+function RowBadge({ status }: { status: RowStatus }) {
+  const { icon: Icon, className } = STATUS_STYLE[status];
+  return (
+    <span
+      className={`inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${className}`}
+    >
+      <Icon aria-hidden className="size-3.5" />
+      {t.row.status[status]}
+    </span>
+  );
+}
+
+function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
+  const name = [row.lastName, row.firstName].filter(Boolean).join(" ");
+  return (
+    <li
+      className="flex flex-col gap-1 px-4 py-3 text-sm"
+      data-testid="import-row"
+      data-status={row.status}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium break-words">{name || "—"}</span>
+        <RowBadge status={row.status} />
+      </div>
+      <p className="text-muted-foreground">
+        {t.row.line(row.line)}
+        {" · "}
+        <span className="tabular-nums">
+          {row.phone ? formatPhone(row.phone) : "—"}
+        </span>
+        {" · "}
+        {row.groupName || t.row.noGroup}
+        {" · "}
+        <span className="tabular-nums">
+          {row.endsOn
+            ? t.row.endsOn(formatDate(row.endsOn, today))
+            : t.row.noDate}
+        </span>
+      </p>
+      {row.status === "error" ? (
+        <ul className="flex flex-col text-destructive">
+          {row.errors.map((error) => (
+            <li key={error}>{t.row.errors[error]}</li>
+          ))}
+        </ul>
+      ) : null}
+      {row.status === "duplicate" ? (
+        <p className="text-muted-foreground">
+          {row.duplicateOf === null
+            ? t.row.onFile
+            : t.row.repeatOf(row.duplicateOf)}
+        </p>
+      ) : null}
+      {row.status === "new" && row.groupName !== "" && row.groupId === null ? (
+        <p className="text-status-expiring-foreground">
+          {t.row.groupMissing(row.groupName)}
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
+/** Every row of the file with its status, filterable; errors are explained next to the row. */
+export function PreviewRows({
+  rows,
+  counts,
+  today,
+}: {
+  rows: readonly PreviewRow[];
+  counts: Record<RowStatus, number>;
+  today: Date;
+}) {
+  const [filter, setFilter] = useState<Filter>(
+    counts.error > 0 ? "error" : "all",
+  );
+  const shown =
+    filter === "all" ? rows : rows.filter((row) => row.status === filter);
+  const count = (key: Filter) => (key === "all" ? rows.length : counts[key]);
+  return (
+    <section aria-labelledby="import-rows" className="flex flex-col gap-3">
+      <h2 id="import-rows" className="sr-only">
+        {t.filter.label}
+      </h2>
+      <div
+        role="group"
+        aria-label={t.filter.label}
+        className="flex flex-wrap gap-2"
+      >
+        {FILTERS.map((key) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={filter === key}
+            onClick={() => setFilter(key)}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+          >
+            {t.filter[key]}
+            <span className="tabular-nums">{count(key)}</span>
+          </button>
+        ))}
+      </div>
+      {shown.length === 0 ? (
+        <p className="rounded-xl border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+          {t.filter.empty}
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y rounded-xl border bg-card">
+          {shown.map((row) => (
+            <RowItem key={row.line} row={row} today={today} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

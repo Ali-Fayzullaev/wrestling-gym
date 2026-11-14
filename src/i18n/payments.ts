@@ -33,6 +33,8 @@ export const paymentsText = {
     reversed: (date: string, name: string) => `Сторно ${date}, ${name}`,
     reason: (reason: string) => `Причина: ${reason}`,
     reversedBadge: "Сторно",
+    importBalance: "Перенос из тетради",
+    importBalanceNote: "Без оплаты в системе",
   },
   cancel: "Отменить",
   reverse: "Сторно",
