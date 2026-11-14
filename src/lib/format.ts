@@ -54,6 +54,19 @@ export function formatDate(date: Date | string, today: Date): string {
   return year === currentYear ? dayMonth : `${dayMonth} ${year}`;
 }
 
+const weekdayFormatter = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: BUSINESS_TIME_ZONE,
+  weekday: "long",
+});
+
+/** "Среда, 18 ноября": the weekday and date of an instant in Asia/Almaty, for screen greetings. */
+export function formatWeekdayDate(now: Date): string {
+  const weekday = weekdayFormatter.format(now);
+  const [, month, day] = calendarParts(now);
+  const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  return `${capitalized}, ${day}${NBSP}${MONTHS_GENITIVE[month - 1]}`;
+}
+
 /** "14:32" in Asia/Almaty. */
 export function formatTime(date: Date): string {
   return timeFormatter.format(date);

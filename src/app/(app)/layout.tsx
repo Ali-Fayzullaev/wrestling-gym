@@ -25,7 +25,13 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={<SideNavView isOwner={false} pathname={null} />}>
           <RoleAwareSideNav />
         </Suspense>
-        <div className="border-t px-3 pt-3">
+        <div className="flex flex-col gap-1 border-t px-3 pt-3">
+          {/* Who is signed in; the phone shows it on the "More" screen. */}
+          <p className="h-5 px-3 text-sm text-muted-foreground">
+            <Suspense fallback={null}>
+              <SignedInRole />
+            </Suspense>
+          </p>
           <LogoutButton />
         </div>
       </aside>
@@ -46,4 +52,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 async function RoleAwareSideNav() {
   const actor = await requireStaff(STAFF_ROLES);
   return <SideNav isOwner={actor.role === "owner"} />;
+}
+
+async function SignedInRole() {
+  const actor = await requireStaff(STAFF_ROLES);
+  return <span data-testid="actor-role">{ru.roles[actor.role]}</span>;
 }

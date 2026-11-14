@@ -134,6 +134,9 @@ test.describe("payment from the clients list", () => {
       await row.getByTestId("row-pay").click();
       await dialog(page).getByTestId("payment-confirm").dblclick();
       await expect(rowStatus(row)).toHaveText(ru.status.active);
+      // The row turns active optimistically; leave only after the server has saved the payment,
+      // otherwise the navigation can cut the Server Action short.
+      await expect(page.getByText(/Оплата сохранена/)).toBeVisible();
 
       await page.goto(`/clients/${clientId}`);
       await expect(page.getByTestId("payment-entry")).toHaveCount(1);

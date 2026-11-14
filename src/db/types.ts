@@ -358,6 +358,11 @@ isOneToOne: false
 "normalize_search":
 { Args: { "p_text": string }; Returns: string
                            },
+"paid_today":
+{ Args: { "p_today"?: string }; Returns: {
+              "client_id": string
+            }[]
+                           },
 "payment_json":
 { Args: { "p": Omit<Database["public"]['Tables']["payments"]['Row'], Database["public"]['Tables']["payments"]['ComputedFields']>,"p_created": boolean }; Returns: Json
                            },
@@ -370,6 +375,11 @@ isOneToOne: false
 "reminder_kind_for":
 { Args: { "p_days_left": number,"p_reminder_days": (number)[] }; Returns: string
                            },
+"reminders_due":
+{ Args: { "p_today"?: string }; Returns: {
+              "client_id": string,"ends_on": string,"kind": string,"payment_id": string
+            }[]
+                           },
 "require_staff_role":
 { Args: { "p_roles": (string)[] }; Returns: undefined
                            },
@@ -378,6 +388,9 @@ isOneToOne: false
                            },
 "set_client_archived":
 { Args: { "p_archived": boolean,"p_client_id": string }; Returns: boolean
+                           },
+"today_screen":
+{ Args: { "p_today"?: string }; Returns: Json
                            },
 "update_client":
 { Args: { "p_birth_date"?: string,"p_client_id": string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: undefined

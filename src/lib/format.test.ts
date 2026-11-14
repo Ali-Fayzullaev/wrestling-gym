@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDate, formatMoney, formatTime } from "./format";
+import {
+  formatDate,
+  formatMoney,
+  formatTime,
+  formatWeekdayDate,
+} from "./format";
 
 const NBSP = " ";
 
@@ -87,5 +92,30 @@ describe("formatTime", () => {
   it("shows 24-hour Almaty time", () => {
     expect(formatTime(new Date("2026-11-18T09:32:00Z"))).toBe("14:32");
     expect(formatTime(new Date("2026-11-17T19:05:00Z"))).toBe("00:05");
+  });
+});
+
+describe("formatWeekdayDate", () => {
+  it("names the weekday and date in Almaty", () => {
+    // 18 November 2026 is a Wednesday.
+    expect(formatWeekdayDate(new Date("2026-11-18T06:00:00Z"))).toBe(
+      "Среда, 18\u00a0ноября",
+    );
+  });
+
+  it("switches to the next day at midnight in Almaty, not in UTC", () => {
+    // 23:30 and 00:30 local time (UTC+5).
+    expect(formatWeekdayDate(new Date("2026-11-17T18:30:00Z"))).toBe(
+      "Вторник, 17\u00a0ноября",
+    );
+    expect(formatWeekdayDate(new Date("2026-11-17T19:30:00Z"))).toBe(
+      "Среда, 18\u00a0ноября",
+    );
+  });
+
+  it("keeps day and month together on one line", () => {
+    expect(formatWeekdayDate(new Date("2026-01-05T06:00:00Z"))).toBe(
+      "Понедельник, 5\u00a0января",
+    );
   });
 });
