@@ -95,3 +95,29 @@ describe("canReverse", () => {
     expect(canReverse(reversed, OWNER)).toBe(false);
   });
 });
+
+describe("opening balance from the notebook import", () => {
+  const balance = row({
+    id: "imp",
+    kind: "import_balance",
+    amount: 0,
+    method: null,
+    reason: "Перенос из тетради",
+    createdBy: OWNER.id,
+  });
+
+  it("is listed with the payments", () => {
+    const history = buildHistory([
+      balance,
+      row({ createdAt: "2026-11-14T08:59:00Z" }),
+    ]);
+    expect(history.map((entry) => entry.payment.id)).toEqual(["p1", "imp"]);
+  });
+
+  it("can be neither cancelled nor reversed (no money was received)", () => {
+    const [entry] = buildHistory([balance]);
+    if (!entry) throw new Error("fixture");
+    expect(canCancel(entry, OWNER, NOW)).toBe(false);
+    expect(canReverse(entry, OWNER)).toBe(false);
+  });
+});

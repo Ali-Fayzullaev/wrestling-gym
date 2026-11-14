@@ -93,6 +93,7 @@ export const ru = {
     reports: "Отчёты",
     audit: "Журнал действий",
     staff: "Сотрудники",
+    clientImport: "Импорт клиентов",
     placeholder: "Раздел появится в следующих шагах.",
     ownerSections: "Разделы владельца",
     workSections: "Разделы",

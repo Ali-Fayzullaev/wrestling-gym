@@ -5,6 +5,10 @@
 export const PAYMENT_METHODS = ["cash", "kaspi", "transfer"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+/** payments.kind; import_balance is the opening balance carried over from the notebook. */
+export const PAYMENT_KINDS = ["payment", "reversal", "import_balance"] as const;
+export type PaymentKind = (typeof PAYMENT_KINDS)[number];
+
 /** Same bound as record_payment(): a typo of an extra zero or two still fits, nonsense does not. */
 export const AMOUNT_MAX = 10_000_000;
 

@@ -20,7 +20,8 @@ const SEED_GROUP_NAME = "Дети 6–9 лет, утро";
 /** Seed client 1 (supabase/seed.sql): phone +77000000001. */
 const SEED_CLIENT = "20000000-0000-4000-8000-000000000001";
 const SEED_PHONE = "+77000000001";
-const UUID_PATH = /^\/clients(\/[0-9a-f-]{36}(\/edit)?|\/new)?$/;
+// Client screens: ids only; the fixed paths carry no data (the owner's list prefetches the import).
+const UUID_PATH = /^\/clients(\/[0-9a-f-]{36}(\/edit)?|\/new|\/import)?$/;
 
 type Supabase = Parameters<typeof serviceClient>[0];
 

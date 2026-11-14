@@ -70,7 +70,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 07 | [07-payments.md](07-payments.md) | Оплаты, сторно, идемпотентность, период | 06, D-03 | done |
 | 08 | [08-today.md](08-today.md) | Главный экран «Сегодня» | 07 | done |
 | 09 | [09-reminders.md](09-reminders.md) | Напоминания wa.me, шаблоны, события | 08, D-05 | done |
-| 10 | [10-import.md](10-import.md) | Импорт CSV/Excel | 06 | todo |
+| 10 | [10-import.md](10-import.md) | Импорт CSV/Excel | 06 | done |
 | 11 | [11-reports.md](11-reports.md) | Отчёты и экспорт | 07 | todo |
 | 12 | [12-audit-settings.md](12-audit-settings.md) | Журнал действий и настройки | 03 | todo |
 | 13 | [13-deploy.md](13-deploy.md) | Деплой, домен, заголовки, бэкапы, Lighthouse | 08 | todo |
