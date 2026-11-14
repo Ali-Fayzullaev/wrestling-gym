@@ -16,6 +16,10 @@ const STAFF_ROUTES = [
   "/groups",
   // A group screen: the member list and the transfer island.
   "/groups/10000000-0000-4000-8000-000000000001",
+  // Client form, card (actions island) and edit form.
+  "/clients/new",
+  "/clients/20000000-0000-4000-8000-000000000001",
+  "/clients/20000000-0000-4000-8000-000000000001/edit",
 ];
 const REPORT_DIR = ".perf";
 
