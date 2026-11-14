@@ -29,6 +29,7 @@ test.describe("sign-in", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: ru.pages.today }),
     ).toBeVisible();
+    await openMoreOnPhone(page);
     await expect(actorRole(page)).toHaveText(ru.roles.owner);
 
     const sessionCookies = (await context.cookies()).filter((cookie) =>
@@ -187,7 +188,6 @@ test.describe("session", () => {
     page,
   }) => {
     await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
-    await expect(actorRole(page)).toHaveText(ru.roles.admin);
     await openMoreOnPhone(page);
     await expect(actorRole(page)).toHaveText(ru.roles.admin);
     await expect(page.getByRole("link", { name: ru.nav.reports })).toHaveCount(
@@ -197,7 +197,6 @@ test.describe("session", () => {
     await expect(page).toHaveURL(/\/login$/);
 
     await loginAs(page, SEED_EMAILS.owner, SEED_PASSWORD);
-    await expect(actorRole(page)).toHaveText(ru.roles.owner);
     await openMoreOnPhone(page);
     await expect(actorRole(page)).toHaveText(ru.roles.owner);
     await page.waitForLoadState("networkidle");
