@@ -40,7 +40,16 @@ const ICONS: Record<NavKey, LucideIcon> = {
 
 /** Fixed to the bottom of a phone screen, above the home bar; hidden from md up. */
 export function BottomNav() {
-  const active = activeNavKey(usePathname(), BOTTOM_NAV, "more");
+  return (
+    <BottomNavView active={activeNavKey(usePathname(), BOTTOM_NAV, "more")} />
+  );
+}
+
+/**
+ * The bottom menu for a given current item. With `active={null}` it is the Suspense fallback on
+ * routes with dynamic segments, where the path is only known at request time.
+ */
+export function BottomNavView({ active }: { active: NavKey | null }) {
   return (
     <nav
       aria-label={ru.nav.label}
@@ -79,21 +88,36 @@ export function BottomNav() {
 
 /** Side menu on a computer; owner sections are passed in once the role is known. */
 export function SideNav({ isOwner }: { isOwner: boolean }) {
-  const pathname = usePathname();
+  return <SideNavView isOwner={isOwner} pathname={usePathname()} />;
+}
+
+/** The side menu for a given path; `pathname={null}` marks nothing current (Suspense fallback). */
+export function SideNavView({
+  isOwner,
+  pathname,
+}: {
+  isOwner: boolean;
+  pathname: string | null;
+}) {
   return (
     <nav aria-label={ru.nav.label} className="flex flex-1 flex-col gap-4 px-3">
-      <SideNavList items={SIDE_NAV} active={activeNavKey(pathname, SIDE_NAV)} />
+      <SideNavList
+        items={SIDE_NAV}
+        active={pathname === null ? null : activeNavKey(pathname, SIDE_NAV)}
+      />
       {isOwner ? (
         <SideNavList
           items={OWNER_NAV}
-          active={activeNavKey(pathname, OWNER_NAV)}
+          active={pathname === null ? null : activeNavKey(pathname, OWNER_NAV)}
           heading={ru.pages.ownerSections}
         />
       ) : null}
       <div className="mt-auto">
         <SideNavList
           items={SIDE_FOOTER_NAV}
-          active={activeNavKey(pathname, SIDE_FOOTER_NAV)}
+          active={
+            pathname === null ? null : activeNavKey(pathname, SIDE_FOOTER_NAV)
+          }
         />
       </div>
     </nav>

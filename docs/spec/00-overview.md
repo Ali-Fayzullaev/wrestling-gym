@@ -65,7 +65,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 02 | [02-database.md](02-database.md) | Схема, миграции, RLS, view статусов, сиды, тесты политик | 01 | done |
 | 03 | [03-auth.md](03-auth.md) | Вход, роли, защита маршрутов, лимит попыток | 02 | done |
 | 04 | [04-design-system.md](04-design-system.md) | Токены, темы, шрифт, компоненты, макет | 01 | done |
-| 05 | [05-groups.md](05-groups.md) | Группы | 03, 04 | todo |
+| 05 | [05-groups.md](05-groups.md) | Группы | 03, 04 | done |
 | 06 | [06-clients.md](06-clients.md) | Клиенты: список, поиск, фильтры, карточка, архив | 05 | todo |
 | 07 | [07-payments.md](07-payments.md) | Оплаты, сторно, идемпотентность, период | 06, D-03 | todo |
 | 08 | [08-today.md](08-today.md) | Главный экран «Сегодня» | 07 | todo |
