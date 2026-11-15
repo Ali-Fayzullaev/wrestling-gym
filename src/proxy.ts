@@ -11,11 +11,47 @@ import {
   HOME_PATH,
   LOGIN_PATH,
 } from "@/features/auth/routes";
+import {
+  contentSecurityPolicy,
+  createNonce,
+  sha256Source,
+  STATIC_SECURITY_HEADERS,
+} from "@/lib/security-headers";
+import { themeInitScript } from "@/lib/theme";
 
 // Next 16 renamed middleware.ts to proxy.ts. Runs before every page and Server Action request:
 // refreshes the session cookie, ends the session of deactivated staff on the very next request,
-// sends guests to sign-in and answers 403 on owner-only pages.
+// sends guests to sign-in and answers 403 on owner-only pages. It also sets the security headers.
 export async function proxy(request: NextRequest) {
+  const csp = await requestPolicy(request);
+  // Next.js reads the nonce from the request's CSP and puts it on its own scripts.
+  request.headers.set("content-security-policy", csp);
+  const response = await navigate(request);
+  response.headers.set("content-security-policy", csp);
+  for (const { key, value } of STATIC_SECURITY_HEADERS) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
+// The theme script in the root layout is the same on every request: allowed by its hash, so the
+// layout does not have to read the nonce.
+const themeScriptSource = sha256Source(themeInitScript);
+
+async function requestPolicy(request: NextRequest): Promise<string> {
+  const themeScript = await themeScriptSource;
+  const proto =
+    request.headers.get("x-forwarded-proto") ??
+    request.nextUrl.protocol.replace(":", "");
+  return contentSecurityPolicy({
+    nonce: createNonce(),
+    scriptHashes: [themeScript],
+    isDev: process.env.NODE_ENV === "development",
+    isHttps: proto === "https",
+  });
+}
+
+async function navigate(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
   const { url, publishableKey } = supabaseEnv();
   const db = createServerClient<Database>(url, publishableKey, {

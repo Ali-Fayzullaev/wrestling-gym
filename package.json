@@ -21,6 +21,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/db/types.ts",
+    "owner:create": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/create-owner.mts",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit && pnpm test:int && pnpm build && E2E_PREBUILT=1 pnpm test:e2e"
   },
   "dependencies": {

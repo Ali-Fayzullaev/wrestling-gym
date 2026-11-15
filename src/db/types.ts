@@ -294,6 +294,9 @@ isOneToOne: false
 "begin_export":
 { Args: { "p_details": Json,"p_entity": string,"p_format": string }; Returns: undefined
                            },
+"bootstrap_owner":
+{ Args: { "p_full_name": string,"p_id": string }; Returns: undefined
+                           },
 "cancel_recent_payment":
 { Args: { "p_idempotency_key": string,"p_payment_id": string }; Returns: Json
                            },

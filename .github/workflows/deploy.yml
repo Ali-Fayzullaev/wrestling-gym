@@ -1,0 +1,63 @@
+name: Deploy production
+
+# Runs after CI is green on main: first the database migrations, then the app, so new code never
+# meets an old schema. Preview deployments for pull requests come from the Vercel Git integration;
+# production deploys only from here (vercel.json turns Git deploys of main off).
+#
+# STUB(D-06): stays off until the customer decides on hosting. To turn it on, create the
+# `production` environment in the repository settings with the secrets and variables listed in
+# docs/runbook.md, then set the repository variable PRODUCTION_ENABLED=true.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Migrations, then Vercel production
+    if: >-
+      vars.PRODUCTION_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The commit CI tested, not whatever main points at by now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply database migrations
+        run: |
+          pnpm supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+          pnpm supabase db push
+
+      - name: Build and deploy to Vercel production
+        run: |
+          pnpm dlx vercel@65.14.0 pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm dlx vercel@65.14.0 build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm dlx vercel@65.14.0 deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
