@@ -1,8 +1,10 @@
 name: Backup
 
 # Every night: dump the production data, prove the dump restores into a fresh database with the
-# same row counts, encrypt it with age and keep it 30 days as a private workflow artifact.
-# The private key never reaches GitHub: only its owner can decrypt (docs/runbook.md).
+# same row counts, encrypt it with age and keep it 30 days as a workflow artifact.
+# The repository is public, so any signed-in GitHub user can download the artifact and read the job
+# log: the artifact is useless without the age private key, which never reaches GitHub (only its
+# owner can decrypt, docs/runbook.md), and the scripts print no row counts or data to the log.
 #
 # STUB(D-06): stays off until production exists. Needs the `production` environment with the
 # secret PRODUCTION_DATABASE_URL and the variable BACKUP_AGE_RECIPIENT, and the repository
