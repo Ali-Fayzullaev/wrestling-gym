@@ -64,7 +64,7 @@
 | Локальный `.env.local` для `pnpm dev` | значения `API_URL`, `PUBLISHABLE_KEY`, `SECRET_KEY` из `pnpm supabase status` в `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (e2e берёт их сам) |
 | Сборка | `pnpm build` |
 | Деплой | только через CI: зелёный CI на `main` → миграции → Vercel production (`.github/workflows/deploy.yml`, пока выключен, D-06) |
-| Первый владелец в новой БД | `SUPABASE_URL=... SUPABASE_SECRET_KEY=... pnpm owner:create --email ... --name "..." --site https://<домен>` |
+| Первый владелец в новой БД | `SUPABASE_URL=... SUPABASE_SECRET_KEY=... pnpm owner:create --email ... --name "..."` (пароль: скрытый ввод или `< файл`) |
 | Бэкап и восстановление | `scripts/backup/dump.sh <папка>` / `scripts/backup/restore.sh <папка>` с `DATABASE_URL`; порядок в `docs/runbook.md` |
 
 ## Структура и направление зависимостей
