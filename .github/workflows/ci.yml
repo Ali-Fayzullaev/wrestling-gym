@@ -47,8 +47,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Start Supabase (only services the tests need)
-        run: pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta,mailpit
+      - name: Start Supabase (only services the tests need; Mailpit for staff invite emails)
+        run: pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta
       - run: pnpm db:reset
       - run: pnpm test:int
       - if: always()
