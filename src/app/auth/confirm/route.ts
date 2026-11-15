@@ -1,17 +1,18 @@
 import type { NextRequest } from "next/server";
 
 import { createServerDb } from "@/db/server";
-import { verifyRecoveryToken } from "@/features/auth/service";
+import { verifyEmailToken } from "@/features/auth/service";
 
-// Target of the reset-password email: verifies the one-time token on the server (works from any
-// device, unlike a PKCE code) and opens the new-password form with a fresh session.
+// Target of the reset-password and invitation emails: verifies the one-time token on the server
+// (works from any device, unlike a PKCE code) and opens the new-password form with a fresh session.
 export async function GET(request: NextRequest) {
   const tokenHash = request.nextUrl.searchParams.get("token_hash");
   const type = request.nextUrl.searchParams.get("type");
 
-  if (type === "recovery" && tokenHash) {
-    const verified = await verifyRecoveryToken(
+  if ((type === "recovery" || type === "invite") && tokenHash) {
+    const verified = await verifyEmailToken(
       await createServerDb(),
+      type,
       tokenHash,
     );
     if (verified) return seeOther("/update-password");

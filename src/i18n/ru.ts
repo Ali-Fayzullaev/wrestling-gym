@@ -60,8 +60,7 @@ export const ru = {
     more: "Ещё",
     reports: "Отчёты",
     audit: "Журнал",
-    staff: "Сотрудники",
-    reminderSettings: "Настройки напоминаний",
+    settings: "Настройки",
   },
   theme: {
     label: "Тема",
@@ -93,6 +92,7 @@ export const ru = {
     reports: "Отчёты",
     audit: "Журнал действий",
     staff: "Сотрудники",
+    settings: "Настройки",
     clientImport: "Импорт клиентов",
     placeholder: "Раздел появится в следующих шагах.",
     ownerSections: "Разделы владельца",

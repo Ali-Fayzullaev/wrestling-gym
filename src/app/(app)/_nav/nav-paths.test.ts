@@ -19,6 +19,8 @@ describe("activeNavKey", () => {
     ["/settings/staff", "more"],
     ["/reminders", "more"],
     ["/settings/reminders", "more"],
+    ["/settings", "more"],
+    ["/audit", "more"],
     ["/clients/import", "clients"],
   ])("bottom menu: %s -> %s", (pathname, key) => {
     expect(activeNavKey(pathname, BOTTOM_NAV, "more")).toBe(key);
@@ -39,8 +41,11 @@ describe("activeNavKey", () => {
 
   it.each([
     ["/reports", "reports"],
-    ["/settings/staff", "staff"],
-    ["/settings/reminders", "reminderSettings"],
+    ["/audit", "audit"],
+    ["/settings", "settings"],
+    ["/settings/staff", "settings"],
+    ["/settings/reminders", "settings"],
+    ["/settingsx", null],
     ["/today", null],
   ])("side menu, owner part: %s -> %s", (pathname, key) => {
     expect(activeNavKey(pathname, OWNER_NAV)).toBe(key);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Db } from "@/db/client";
+import { writeAudit } from "@/features/audit/service";
 
 import { type Actor, isStaffRole, type StaffRole } from "./roles";
 
@@ -89,21 +90,6 @@ async function currentStaffRole(db: Db): Promise<StaffRole | null> {
   return isStaffRole(data) ? data : null;
 }
 
-/** Writes without `returning`: admins may add audit rows but RLS hides them from reading back. */
-async function writeAudit(
-  db: Db,
-  actorId: string,
-  action: "staff.login" | "staff.password_change",
-): Promise<boolean> {
-  const { error } = await db.from("audit_log").insert({
-    actor_id: actorId,
-    action,
-    entity: "staff",
-    entity_id: actorId,
-  });
-  return error === null;
-}
-
 /** Who is calling and whether their role is one of `roles`. */
 export async function authorizeStaff(
   db: Db,
@@ -171,7 +157,10 @@ export async function signIn(
     () => false,
   );
   // Every sign-in is counted and audited; if either record fails, the sign-in does not happen.
-  if (!recorded || !(await writeAudit(deps.db, data.user.id, "staff.login"))) {
+  if (
+    !recorded ||
+    !(await writeAudit(deps.db, "staff.login", "staff", data.user.id))
+  ) {
     await deps.db.auth.signOut({ scope: "local" });
     return { ok: false, error: "unavailable" };
   }
@@ -224,18 +213,19 @@ export async function updatePassword(
       return { ok: false, error: "weak_password" };
     return { ok: false, error: "unavailable" };
   }
-  await writeAudit(db, actor.id, "staff.password_change");
+  await writeAudit(db, "staff.password_change", "staff", actor.id);
   return { ok: true };
 }
 
-/** Verifies the token_hash from the reset email and starts a session for that user. */
-export async function verifyRecoveryToken(
+/**
+ * Verifies the token_hash from the reset or invitation email and starts a session for that user,
+ * who then sets a password.
+ */
+export async function verifyEmailToken(
   db: Db,
+  type: "recovery" | "invite",
   tokenHash: string,
 ): Promise<boolean> {
-  const { error } = await db.auth.verifyOtp({
-    type: "recovery",
-    token_hash: tokenHash,
-  });
+  const { error } = await db.auth.verifyOtp({ type, token_hash: tokenHash });
   return error === null;
 }

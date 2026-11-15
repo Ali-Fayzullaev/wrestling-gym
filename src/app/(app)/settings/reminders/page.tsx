@@ -40,7 +40,7 @@ export default async function ReminderSettingsPage() {
 
   return (
     <>
-      <BackLink href="/reminders" label={ru.pages.reminders} />
+      <BackLink href="/settings" label={ru.pages.settings} />
       <PageHeader
         title={ru.pages.reminderSettings}
         description={remindersText.settings.description}

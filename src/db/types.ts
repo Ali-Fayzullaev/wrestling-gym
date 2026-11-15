@@ -264,10 +264,16 @@ isOneToOne: false
             "add_client_consents":
 { Args: { "p_client_id": string,"p_kinds": (string)[] }; Returns: (string)[]
                            },
+"add_staff":
+{ Args: { "p_full_name": string,"p_id": string,"p_role": string }; Returns: undefined
+                           },
 "archive_group":
 { Args: { "p_force": boolean,"p_group_id": string }; Returns: {
               "active_clients": number,"archived": boolean
             }[]
+                           },
+"audit_feed":
+{ Args: { "p_action"?: string,"p_actor"?: string,"p_before_at"?: string,"p_before_id"?: string,"p_from"?: string,"p_limit"?: number,"p_to"?: string }; Returns: Json
                            },
 "auth_throttle_begin":
 { Args: { "p_action": string,"p_email_hash": string,"p_ip_hash": string,"p_now": string }; Returns: {
@@ -436,6 +442,9 @@ isOneToOne: false
 "set_client_archived":
 { Args: { "p_archived": boolean,"p_client_id": string }; Returns: boolean
                            },
+"staff_screen":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "today_screen":
 { Args: { "p_today"?: string }; Returns: Json
                            },
@@ -445,8 +454,17 @@ isOneToOne: false
 "update_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_group_id": string,"p_name": string,"p_schedule": Json }; Returns: undefined
                            },
+"update_gym_settings":
+{ Args: { "p_gym_name": string,"p_gym_whatsapp": string }; Returns: Json
+                           },
 "update_reminder_settings":
 { Args: { "p_reminder_days": (number)[],"p_templates": Json }; Returns: Json
+                           },
+"update_staff_access":
+{ Args: { "p_active": boolean,"p_role": string,"p_staff_id": string }; Returns: Json
+                           },
+"write_audit":
+{ Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id"?: string }; Returns: undefined
                            }
           }
           Enums: {

@@ -26,6 +26,7 @@ export function GroupOwnerActions({
   coaches,
   update,
   archive,
+  returnTo = "/groups",
 }: {
   groupId: string;
   values: GroupFormValues;
@@ -33,6 +34,8 @@ export function GroupOwnerActions({
   coaches: Coach[];
   update: (form: FormData) => Promise<ActionResult<null>>;
   archive: (input: ArchiveGroupInput) => Promise<ActionResult<ArchiveOutcome>>;
+  /** Where archiving leads: the group list from a group screen, Settings from Settings. */
+  returnTo?: string;
 }) {
   const [requested, setRequested] = useState<ReadonlySet<Dialog>>(new Set());
   const [open, setOpen] = useState<Dialog>(null);
@@ -84,6 +87,7 @@ export function GroupOwnerActions({
             open={open === "archive"}
             onOpenChange={onOpenChange("archive")}
             archive={archive}
+            returnTo={returnTo}
           />
         ) : null}
       </Suspense>

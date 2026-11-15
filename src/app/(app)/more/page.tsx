@@ -3,10 +3,9 @@ import {
   ChartColumn,
   ChevronRight,
   type LucideIcon,
-  MessageSquareText,
   ScrollText,
+  Settings,
   Upload,
-  UserCog,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -34,13 +33,13 @@ const navLink = (key: NavKey, icon: LucideIcon): SectionLink => ({
 
 const WORK_LINKS: SectionLink[] = [navLink("reminders", BellRing)];
 
-// The import is reached from here and from the clients list, not from the menus.
+// Reminder settings and staff live inside "Settings". The import is reached from here and from
+// the clients list, not from the side menu.
 const OWNER_LINKS: SectionLink[] = [
   navLink("reports", ChartColumn),
   navLink("audit", ScrollText),
-  navLink("reminderSettings", MessageSquareText),
+  navLink("settings", Settings),
   { href: "/clients/import", label: ru.pages.clientImport, icon: Upload },
-  navLink("staff", UserCog),
 ];
 
 /**

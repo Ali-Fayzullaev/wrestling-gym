@@ -19,6 +19,15 @@ if (!process.env.E2E_SUPABASE_URL) {
   process.env.E2E_MAILPIT_URL = local.mailpitUrl;
 }
 
+const PHONE = {
+  ...devices["Desktop Chrome"],
+  viewport: { width: 390, height: 844 },
+  isMobile: true,
+  hasTouch: true,
+  deviceScaleFactor: 3,
+};
+const GLOBAL_SETTINGS_SPEC = /settings-global\.spec\.ts$/;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -35,20 +44,23 @@ export default defineConfig({
   projects: [
     {
       name: "mobile",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 390, height: 844 },
-        isMobile: true,
-        hasTouch: true,
-        deviceScaleFactor: 3,
-      },
+      testIgnore: GLOBAL_SETTINGS_SPEC,
+      use: PHONE,
     },
     {
       name: "desktop",
+      testIgnore: GLOBAL_SETTINGS_SPEC,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 900 },
       },
+    },
+    // Changes gym-wide settings other tests read (name, reminder days): runs alone, afterwards.
+    {
+      name: "global-settings",
+      testMatch: GLOBAL_SETTINGS_SPEC,
+      dependencies: ["mobile", "desktop"],
+      use: PHONE,
     },
   ],
   webServer: {

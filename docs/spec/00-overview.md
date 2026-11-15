@@ -72,7 +72,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 09 | [09-reminders.md](09-reminders.md) | Напоминания wa.me, шаблоны, события | 08, D-05 | done |
 | 10 | [10-import.md](10-import.md) | Импорт CSV/Excel | 06 | done |
 | 11 | [11-reports.md](11-reports.md) | Отчёты и экспорт | 07 | done |
-| 12 | [12-audit-settings.md](12-audit-settings.md) | Журнал действий и настройки | 03 | todo |
+| 12 | [12-audit-settings.md](12-audit-settings.md) | Журнал действий и настройки | 03 | done |
 | 13 | [13-deploy.md](13-deploy.md) | Деплой, домен, заголовки, бэкапы, Lighthouse | 08 | todo |
 | 14 | [14-acceptance.md](14-acceptance.md) | Приёмка на телефоне администратора | все | todo |
 

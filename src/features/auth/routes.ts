@@ -14,14 +14,13 @@ const PUBLIC_PATHS = [
 /** Signed-in staff are sent home from these instead of seeing them again. */
 const GUEST_ONLY_PATHS = ["/login", "/reset-password"] as const;
 /**
- * Money, staff, the audit log, reminder settings and the client import: owner only (spec 00,
- * roles; steps 09, 10).
+ * Money, the audit log, all settings (gym, groups and prices, reminders, staff) and the client
+ * import: owner only (spec 00, roles; steps 09, 10, 12).
  */
 const OWNER_PATHS = [
   "/reports",
   "/audit",
-  "/settings/staff",
-  "/settings/reminders",
+  "/settings",
   "/clients/import",
 ] as const;
 
