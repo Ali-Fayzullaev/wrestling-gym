@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { connection } from "next/server";
 
 import { ru } from "@/i18n/ru";
 import { themeInitScript } from "@/lib/theme";
@@ -29,7 +30,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Every page renders per request: Next.js puts the CSP nonce from the proxy on its scripts only
+  // during a request, so a prerendered page would ship scripts the browser refuses to run.
+  await connection();
   return (
     // The head script adds the theme class and data-theme before the first paint.
     <html

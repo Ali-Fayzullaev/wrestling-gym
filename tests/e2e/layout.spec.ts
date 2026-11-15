@@ -158,10 +158,14 @@ test.describe("theme", () => {
     // parsing, before anything in the body is painted, so a theme set later would flash.
     await page.route("**/more", async (route) => {
       const response = await route.fetch();
+      // The CSP runs only scripts with this response's nonce.
+      const nonce = /'nonce-([^']+)'/.exec(
+        response.headers()["content-security-policy"] ?? "",
+      )?.[1];
       const body = (await response.text()).replace(
         /<body[^>]*>/,
         (tag) =>
-          `${tag}<script>window.__firstPaintClass=document.documentElement.className</script>`,
+          `${tag}<script nonce="${nonce}">window.__firstPaintClass=document.documentElement.className</script>`,
       );
       await route.fulfill({ response, body });
     });

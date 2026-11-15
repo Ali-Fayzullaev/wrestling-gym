@@ -1,0 +1,92 @@
+name: Backup
+
+# Every night: dump the production data, prove the dump restores into a fresh database with the
+# same row counts, encrypt it with age and keep it 30 days as a private workflow artifact.
+# The private key never reaches GitHub: only its owner can decrypt (docs/runbook.md).
+#
+# STUB(D-06): stays off until production exists. Needs the `production` environment with the
+# secret PRODUCTION_DATABASE_URL and the variable BACKUP_AGE_RECIPIENT, and the repository
+# variable PRODUCTION_ENABLED=true.
+
+on:
+  schedule:
+    # 21:30 UTC is 02:30 in Shymkent (UTC+5), when nobody works.
+    - cron: "30 21 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Dump, verify restore, encrypt
+    if: vars.PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install the PostgreSQL 17 client and age
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq postgresql-common age
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -yq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Dump production
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: scripts/backup/dump.sh "$RUNNER_TEMP/dump"
+
+      - name: Restore into a fresh local database and compare row counts
+        run: |
+          pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta,mailpit
+          pnpm supabase db reset --no-seed
+          DATABASE_URL="$(pnpm -s supabase status -o env | sed -n 's/^DB_URL="\(.*\)"$/\1/p')" \
+            scripts/backup/restore.sh "$RUNNER_TEMP/dump"
+          pnpm supabase stop --no-backup
+
+      - name: Encrypt
+        env:
+          RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          name="backup-$(date -u +%Y-%m-%d)"
+          echo "NAME=$name" >> "$GITHUB_ENV"
+          tar -C "$RUNNER_TEMP" -czf - dump | age --recipient "$RECIPIENT" > "$RUNNER_TEMP/$name.tar.gz.age"
+          # Only the encrypted file leaves this job.
+          rm -rf "$RUNNER_TEMP/dump"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ runner.temp }}/${{ env.NAME }}.tar.gz.age
+          retention-days: 30
+          if-no-files-found: error
+
+  report-failure:
+    name: Open an issue when the backup fails
+    needs: backup
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "${{ github.repository }}" \
+            --title "Backup failed $(date -u +%Y-%m-%d)" \
+            --body "The nightly backup failed: $RUN_URL. Restore steps and checks: docs/runbook.md."
