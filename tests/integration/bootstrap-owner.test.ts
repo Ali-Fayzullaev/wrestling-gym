@@ -114,12 +114,12 @@ describe("bootstrap_owner in the database", () => {
 });
 
 describe("bootstrapOwner (the create-owner script)", () => {
-  it("refuses on a database with staff and sends no invitation", async () => {
+  it("refuses on a database with staff and creates no account", async () => {
     const email = `owner-${randomUUID()}@example.test`;
     const result = await bootstrapOwner(service, {
       email,
       fullName: "Второй Владелец",
-      redirectTo: "http://127.0.0.1:3100/auth/confirm",
+      password: "correct horse",
     });
     expect(result).toEqual({ ok: false, error: "already_bootstrapped" });
 
