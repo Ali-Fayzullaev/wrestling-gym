@@ -24,7 +24,14 @@ const STAFF_ROUTES = [
   "/clients/20000000-0000-4000-8000-000000000001/edit",
 ];
 /** Owner-only screens, measured with the owner's session. */
-const OWNER_ROUTES = ["/settings/reminders", "/clients/import", "/reports"];
+const OWNER_ROUTES = [
+  "/settings",
+  "/settings/reminders",
+  "/settings/staff",
+  "/audit",
+  "/clients/import",
+  "/reports",
+];
 const REPORT_DIR = ".perf";
 
 type Row = {

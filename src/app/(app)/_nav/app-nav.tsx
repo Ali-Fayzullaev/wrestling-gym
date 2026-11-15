@@ -6,9 +6,8 @@ import {
   ChartColumn,
   Ellipsis,
   type LucideIcon,
-  MessageSquareText,
   ScrollText,
-  UserCog,
+  Settings,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -35,8 +34,7 @@ const ICONS: Record<NavKey, LucideIcon> = {
   more: Ellipsis,
   reports: ChartColumn,
   audit: ScrollText,
-  staff: UserCog,
-  reminderSettings: MessageSquareText,
+  settings: Settings,
 };
 
 // Class names are joined by hand, not with cn(): the merge engine would add ~9 KB to every

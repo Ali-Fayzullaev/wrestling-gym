@@ -42,8 +42,9 @@ function invalidFields(issues: { path: PropertyKey[] }[]): GroupField[] {
 }
 
 function refreshGroups() {
-  // "layout" covers /groups and every /groups/[id] below it.
+  // "layout" covers /groups and every /groups/[id] below it; "Settings" lists groups with prices.
   revalidatePath("/groups", "layout");
+  revalidatePath("/settings");
 }
 
 // Order in every action: session and role, then Zod, then the service, then revalidation.

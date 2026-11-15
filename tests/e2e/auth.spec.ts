@@ -142,6 +142,7 @@ test.describe("roles", () => {
   for (const path of [
     "/reports",
     "/audit",
+    "/settings",
     "/settings/staff",
     "/settings/reminders",
   ]) {

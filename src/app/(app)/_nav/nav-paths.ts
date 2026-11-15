@@ -6,8 +6,7 @@ export const NAV_PATHS = {
   more: "/more",
   reports: "/reports",
   audit: "/audit",
-  staff: "/settings/staff",
-  reminderSettings: "/settings/reminders",
+  settings: "/settings",
 } as const;
 
 export type NavKey = keyof typeof NAV_PATHS;
@@ -26,12 +25,7 @@ export const SIDE_NAV: readonly NavKey[] = [
   "groups",
   "reminders",
 ];
-export const OWNER_NAV: readonly NavKey[] = [
-  "reports",
-  "audit",
-  "reminderSettings",
-  "staff",
-];
+export const OWNER_NAV: readonly NavKey[] = ["reports", "audit", "settings"];
 /** Bottom of the side menu: theme and sign-out live on the "More" screen, as on a phone. */
 export const SIDE_FOOTER_NAV: readonly NavKey[] = ["more"];
 

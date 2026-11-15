@@ -30,12 +30,15 @@ export default function ArchiveGroupDialog({
   open,
   onOpenChange,
   archive,
+  returnTo,
 }: {
   groupId: string;
   members: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   archive: (input: ArchiveGroupInput) => Promise<ActionResult<ArchiveOutcome>>;
+  /** The screen to show after archiving: the archived group's own screen is gone. */
+  returnTo: string;
 }) {
   const router = useRouter();
   const [clients, setClients] = useState(members);
@@ -56,7 +59,7 @@ export default function ArchiveGroupDialog({
       }
       toast.success(a.done);
       onOpenChange(false);
-      router.replace("/groups");
+      router.replace(returnTo);
     });
   }
 
