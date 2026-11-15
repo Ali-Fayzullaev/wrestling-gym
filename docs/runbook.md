@@ -10,10 +10,12 @@
 
 | Часть | Где | Настройка |
 | --- | --- | --- |
-| База и вход | Supabase, регион `eu-central-1` (Франкфурт) | тариф по D-06 |
-| Приложение | Vercel, функции в `fra1` (Франкфурт) | [vercel.json](../vercel.json) |
+| Адрес | `https://adilkhan-club.vercel.app` (бесплатный адрес Vercel, D-12) | ниже везде `<домен>` = `adilkhan-club.vercel.app` |
+| База и вход | Supabase, проект `wrestling-gym` (ref `iefenyuzpuigsytndfoy`), регион `eu-central-1` (Франкфурт) | тариф Free (D-06) |
+| Приложение | Vercel, тариф Hobby (D-06) | |
+| Функции | Vercel, регион `fra1` (Франкфурт) | [vercel.json](../vercel.json) |
 | Схема БД | только миграции из `supabase/migrations` | применяет [deploy.yml](../.github/workflows/deploy.yml) |
-| Деплой | preview на каждый PR (Vercel Git), production после зелёного CI на `main` | [deploy.yml](../.github/workflows/deploy.yml) |
+| Деплой | production после зелёного CI на `main`; preview выключены (Git-интеграция Vercel не подключена: на Supabase Free нет слота для dev-проекта, а preview на production-данных недопустим) | [deploy.yml](../.github/workflows/deploy.yml) |
 | Бэкап | каждую ночь в 02:30 по Шымкенту | [backup.yml](../.github/workflows/backup.yml) |
 | Заголовки безопасности | CSP с nonce, HSTS и другие | [src/proxy.ts](../src/proxy.ts), [src/lib/security-headers.ts](../src/lib/security-headers.ts) |
 
@@ -41,6 +43,16 @@
    входа и сброса пароля по email и IP (таблица `auth_attempts`).
 7. Project Settings → Data API: убедиться, что открыта только схема `public`.
 8. Advisors (Security и Performance): нет предупреждений уровня ERROR.
+
+Как это сделано 2026-11-15 для `iefenyuzpuigsytndfoy`: п. 2, 3, 7 выставлены через
+`supabase config push --remote=<ref> --workdir <папка>` с копией `supabase/config.toml`, где изменены только
+`site_url`, `additional_redirect_urls`, `[auth.email] enable_confirmations = true`, `[api] schemas = ["public"]`,
+а значения, отличные от production-умолчаний (лимиты, MFA, пулер, storage), приведены к ним. Перед push
+`supabase config diff` должен показывать только нужные строки, после push: «No config differences found».
+
+На Supabase Free со встроенной почтой шаблоны писем (п. 4) менять нельзя (`entitlement_required`), и письма
+уходят только участникам организации. Поэтому п. 4 выполняется после п. 5 (свой SMTP); до этого приглашения
+и сброс пароля не работают.
 
 ### 2.2. GitHub
 
@@ -70,7 +82,9 @@ Settings → Environments → создать `production`, в нём:
    | `SUPABASE_SECRET_KEY` | production-проект (Sensitive) | dev-проект (Sensitive) |
 
    Ни одна переменная не начинается с `NEXT_PUBLIC_`: в браузер ничего не уходит.
-3. Domains: добавить `<домен>` и `www.<домен>` с редиректом `www` → без `www` (308). HTTPS выдаёт Vercel.
+3. Domains: адрес `adilkhan-club.vercel.app` задаётся именем проекта, HTTPS выдаёт Vercel, `www` не нужен.
+   Когда появится свой домен (D-12): добавить `<домен>` и `www.<домен>` с редиректом `www` → без `www` (308),
+   затем поменять Site URL и Redirect URLs в Supabase (2.1, п. 3).
 4. Deployment Protection для preview: Vercel Authentication включена (preview работает с dev-данными,
    но посторонним он не нужен).
 5. Git-деплой ветки `main` выключен в `vercel.json`: production выкатывает только CI, после миграций.
