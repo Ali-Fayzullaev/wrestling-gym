@@ -60,8 +60,7 @@
 | Новая миграция | `pnpm supabase migration new <name>` |
 | Генерация типов | `pnpm db:types` (пишет в `src/db/types.ts`) |
 | Advisors Supabase (локально) | `pnpm supabase db advisors` |
-| Supabase без лишних сервисов (как в CI, интеграция) | `pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta,mailpit` |
-| Supabase для e2e и `pnpm check` (с Mailpit для письма сброса пароля) | `pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta` |
+| Supabase без лишних сервисов, как в CI (Mailpit нужен для писем сброса пароля и приглашений) | `pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta` |
 | Локальный `.env.local` для `pnpm dev` | значения `API_URL`, `PUBLISHABLE_KEY`, `SECRET_KEY` из `pnpm supabase status` в `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (e2e берёт их сам) |
 | Сборка | `pnpm build` |
 | Деплой | только через CI: зелёный CI на `main` → миграции → Vercel production (`.github/workflows/deploy.yml`, пока выключен, D-06) |
