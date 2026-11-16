@@ -18,5 +18,6 @@ pg_dump "$DATABASE_URL" --data-only --format=custom --no-owner --no-privileges \
 psql "$DATABASE_URL" --no-psqlrc --quiet --tuples-only --no-align --field-separator=$'\t' \
   --set=ON_ERROR_STOP=1 --file="$here/row-counts.sql" > "$out_dir/counts.tsv"
 
-# Table names and counts only: safe to show in the job log.
-cat "$out_dir/counts.tsv"
+# The job log of a public repository is public: row counts tell how many clients and payments the
+# gym has, so the log gets the number of tables only.
+echo "Dumped $(wc -l < "$out_dir/counts.tsv" | tr -d ' ') tables."

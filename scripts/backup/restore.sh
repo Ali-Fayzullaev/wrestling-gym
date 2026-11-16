@@ -25,9 +25,18 @@ trap 'rm -f "$actual"' EXIT
 psql "$DATABASE_URL" --no-psqlrc --quiet --tuples-only --no-align --field-separator=$'\t' \
   --set=ON_ERROR_STOP=1 --file="$here/row-counts.sql" > "$actual"
 
-if diff -u "$dump_dir/counts.tsv" "$actual"; then
+# Table names only, never counts: the job log of a public repository is public.
+mismatched="$(awk -F '\t' '
+  NR == FNR { expected[$1] = $2; next }
+  { restored[$1] = $2 }
+  END {
+    for (t in expected) if (!(t in restored) || expected[t] != restored[t]) print t
+    for (t in restored) if (!(t in expected)) print t
+  }' "$dump_dir/counts.tsv" "$actual" | sort)"
+if [ -z "$mismatched" ]; then
   echo "Restore verified: every table has the same number of rows as in the backup."
 else
-  echo "Restore differs from the backup (see above)." >&2
+  echo "Restore differs from the backup in these tables:" >&2
+  echo "$mismatched" >&2
   exit 1
 fi
