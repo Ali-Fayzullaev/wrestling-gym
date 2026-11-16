@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function SettingsLoading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <Skeleton aria-hidden className="h-80 rounded-xl" />
       <Skeleton aria-hidden className="h-96 rounded-xl" />
       <Skeleton aria-hidden className="h-40 rounded-xl" />

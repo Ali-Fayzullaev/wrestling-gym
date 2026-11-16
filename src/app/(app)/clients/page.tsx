@@ -1,4 +1,4 @@
-import { Plus, Upload, UserRound } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -55,10 +55,14 @@ export default async function ClientsPage({
 
   return (
     <>
-      <PageHeader title={messages.pages.clients} actions={createButton} />
+      <PageHeader
+        title={messages.pages.clients}
+        mascot="hello"
+        actions={createButton}
+      />
       {screen.total === 0 ? (
         <EmptyState
-          icon={UserRound}
+          mood="hello"
           title={messages.clientsList.emptyTitle}
           description={messages.clientsList.emptyText}
         />

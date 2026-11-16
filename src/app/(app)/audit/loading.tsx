@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AuditLoading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <Skeleton aria-hidden className="h-48 rounded-xl md:h-28" />
       <ListSkeleton rows={8} />
     </>

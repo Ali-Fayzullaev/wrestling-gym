@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function RemindersLoading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <Skeleton aria-hidden className="h-[2.875rem] rounded-xl" />
       <div aria-hidden className="flex gap-2">
         <Skeleton className="h-11 w-28 rounded-full" />

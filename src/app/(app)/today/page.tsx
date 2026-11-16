@@ -1,4 +1,3 @@
-import { CircleCheck, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/empty-state";
@@ -14,6 +13,7 @@ import { getTodayScreen } from "@/features/today/service";
 import { getI18n } from "@/i18n/server";
 import { Texts } from "@/i18n/texts";
 import { formatWeekdayDate } from "@/lib/format";
+import type { MascotMood } from "@/lib/mascot";
 
 import {
   cancelPaymentAction,
@@ -35,6 +35,19 @@ const LIST_HREF: Record<ListKey, string> = {
 
 function parseList(value: string | string[] | undefined): ListKey {
   return value === "paid" ? "paid" : "remind";
+}
+
+/**
+ * The mascot reads the counters: ready for work while someone needs a reminder or owes, glad once
+ * the day's payments come in, calm when there is nothing to do.
+ */
+function todayMood(counts: {
+  remindToday: number;
+  debtors: number;
+  paidToday: number;
+}): MascotMood {
+  if (counts.remindToday > 0 || counts.debtors > 0) return "focus";
+  return counts.paidToday > 0 ? "champion" : "ok";
 }
 
 /**
@@ -60,6 +73,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
       <PageHeader
         title={messages.pages.today}
         description={formatWeekdayDate(now, locale)}
+        mascot={todayMood(counts)}
       />
 
       <section aria-label={t.counters.label}>
@@ -116,7 +130,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
               rows={screen.remind}
               empty={
                 <EmptyState
-                  icon={CircleCheck}
+                  mood="ok"
                   title={t.remindEmptyTitle}
                   description={t.remindEmptyText}
                 />
@@ -136,7 +150,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
           </Texts>
         ) : screen.paid.length === 0 ? (
           <EmptyState
-            icon={Wallet}
+            mood="focus"
             title={t.paidEmptyTitle}
             description={t.paidEmptyText}
           />

@@ -77,6 +77,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 14 | [14-acceptance.md](14-acceptance.md) | Приёмка на телефоне администратора | все | blocked: прогон с заказчиком |
 | 15 | [15-staff-passwords.md](15-staff-passwords.md) | Сотрудники по паролю без писем, смена пароля при первом входе | 12, 13, D-14 | done |
 | 16 | [16-languages.md](16-languages.md) | Казахский и узбекский (кириллица) | 15, D-04, D-13 | done |
+| 17 | [17-mascot.md](17-mascot.md) | Персонаж с эмоциями на всех экранах | 04, 16, D-15 | done |
 
 Статусы: `todo` → `in-progress` → `done` (или `blocked: <причина>`).
 

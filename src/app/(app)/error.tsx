@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCw, TriangleAlert } from "lucide-react";
+import { RotateCw } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { useText } from "@/i18n/client";
@@ -20,7 +20,7 @@ export default function ErrorPage({
   const common = useText("common");
   return (
     <EmptyState
-      icon={TriangleAlert}
+      mood="oops"
       title={errors.pageTitle}
       description={errors.pageText}
       action={

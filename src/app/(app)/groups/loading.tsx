@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function GroupsLoading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <div aria-hidden className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }, (_, index) => (
           <Skeleton key={index} className="h-[11.5rem] rounded-xl" />

@@ -1,4 +1,3 @@
-import { Users } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -214,7 +213,7 @@ export default async function DevUiPage() {
 
       <Section title={d.empty}>
         <EmptyState
-          icon={Users}
+          mood="hello"
           title={d.emptyTitle}
           description={d.emptyText}
           action={<Button>{d.emptyAction}</Button>}

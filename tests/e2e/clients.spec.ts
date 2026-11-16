@@ -344,8 +344,9 @@ test.describe("deletion", () => {
       // The card streams, so a missing client is a not-found page rather than a 404 status.
       await page.goto(`/clients/${id}`);
       await expect(
-        page.getByText("This page could not be found."),
+        page.getByRole("heading", { level: 1, name: ru.notFound.title }),
       ).toBeVisible();
+      await expect(page.locator('img[data-mascot="lost"]')).toBeVisible();
     } finally {
       await removeClients(supabase, [lastName]);
     }

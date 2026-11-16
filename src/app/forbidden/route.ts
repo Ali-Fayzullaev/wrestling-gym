@@ -25,6 +25,7 @@ a { display: inline-flex; align-items: center; min-height: 44px; color: inherit;
 </head>
 <body>
 <main>
+<img src="/mascot/stop.svg" alt="" aria-hidden="true" width="112" height="112">
 <h1>${t.forbidden.title}</h1>
 <p>${t.forbidden.text}</p>
 <a href="/today">${t.forbidden.back}</a>

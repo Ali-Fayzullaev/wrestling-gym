@@ -1,4 +1,3 @@
-import { UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/empty-state";
@@ -35,10 +34,14 @@ export default async function GroupsPage() {
 
   return (
     <Texts ns={["groups"]}>
-      <PageHeader title={messages.pages.groups} actions={createButton} />
+      <PageHeader
+        title={messages.pages.groups}
+        mascot="ok"
+        actions={createButton}
+      />
       {groups.length === 0 ? (
         <EmptyState
-          icon={UsersRound}
+          mood="hello"
           title={groupsText.emptyTitle}
           description={isOwner ? groupsText.emptyOwner : groupsText.emptyAdmin}
         />
