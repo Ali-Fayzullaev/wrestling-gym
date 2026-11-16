@@ -1,6 +1,6 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { type FormEvent, useId, useState, useTransition } from "react";
 
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
@@ -13,23 +13,29 @@ import {
   type StaffField,
   type StaffResult,
 } from "../form-fields";
+import { TextField } from "./text-field";
 
-const t = staffText.invite;
+const t = staffText.add;
 
 type Message = { tone: "ok" | "error"; text: string } | null;
 
-export type InviteStaff = (input: {
+export type AddStaff = (input: {
   email: string;
   fullName: string;
   role: StaffRole;
+  password: string;
 }) => Promise<StaffResult>;
 
-/** "Add employee": email, name and role; Supabase Auth sends the invitation email. */
-export function InviteStaffForm({ invite }: { invite: InviteStaff }) {
+/**
+ * "Add employee": email, name, role and a temporary password the owner hands over in person
+ * (D-14, no email). The employee replaces it with their own at the first sign-in.
+ */
+export function AddStaffForm({ add }: { add: AddStaff }) {
   const id = useId();
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<StaffRole>("admin");
+  const [password, setPassword] = useState("");
   const [invalid, setInvalid] = useState<StaffField[]>([]);
   const [emailTaken, setEmailTaken] = useState(false);
   const [message, setMessage] = useState<Message>(null);
@@ -40,18 +46,24 @@ export function InviteStaffForm({ invite }: { invite: InviteStaff }) {
     setMessage(null);
     startTransition(async () => {
       try {
-        const result = await invite({ email, fullName, role });
+        const result = await add({ email, fullName, role, password });
         if (result.ok) {
           setInvalid([]);
           setEmailTaken(false);
           setEmail("");
           setFullName("");
           setRole("admin");
-          setMessage({ tone: "ok", text: t.sent });
+          setPassword("");
+          setMessage({ tone: "ok", text: t.added });
           return;
         }
         setInvalid(result.fields ?? []);
         setEmailTaken(result.error === "email_taken");
+        if (result.error === "weak_password") {
+          setInvalid(["password"]);
+          setMessage({ tone: "error", text: staffText.errors.weak_password });
+          return;
+        }
         if (result.error !== "invalid" && result.error !== "email_taken") {
           setMessage({ tone: "error", text: staffText.errors[result.error] });
         }
@@ -121,63 +133,33 @@ export function InviteStaffForm({ invite }: { invite: InviteStaff }) {
           {t.roleHint}
         </p>
       </div>
+      <TextField
+        id={`${id}-password`}
+        label={t.password}
+        hint={t.passwordHint}
+        error={invalid.includes("password") ? t.errors.password : null}
+        value={password}
+        onChange={setPassword}
+        // Visible on purpose: the owner reads it out or writes it down for the employee.
+        type="text"
+        autoComplete="off"
+        spellCheck={false}
+        autoCapitalize="none"
+        maxLength={72}
+      />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" className={buttonVariants()} disabled={pending}>
-          <Send aria-hidden />
+          <UserPlus aria-hidden />
           {pending ? t.pending : t.submit}
         </button>
         <p
           role="status"
-          data-testid="invite-status"
+          data-testid="add-staff-status"
           className={`text-sm ${message?.tone === "ok" ? "text-status-active-foreground" : "text-status-expired-foreground"}`}
         >
           {message?.text}
         </p>
       </div>
     </form>
-  );
-}
-
-function TextField({
-  id,
-  label,
-  hint,
-  error,
-  value,
-  onChange,
-  ...input
-}: {
-  id: string;
-  label: string;
-  hint: string;
-  error: string | null;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  autoComplete?: string;
-  maxLength?: number;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={`${id}-hint`}
-        className={`${inputClassName} max-w-md`}
-        {...input}
-      />
-      <p id={`${id}-hint`} className="text-sm text-muted-foreground">
-        {error ? (
-          <span className="text-status-expired-foreground">{error}</span>
-        ) : (
-          hint
-        )}
-      </p>
-    </div>
   );
 }

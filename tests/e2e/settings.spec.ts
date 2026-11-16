@@ -12,51 +12,106 @@ import {
   SEED_PASSWORD,
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
-import { latestEmailHtml, loginAs } from "./support/auth";
+import { formAlert, loginAs, submitLogin } from "./support/auth";
 
 const SERVER_ROUND_TRIP = { timeout: 10_000 };
+// Auth hashes the password (bcrypt) before answering; under a full parallel run that takes seconds.
+const AUTH_ROUND_TRIP = { timeout: 30_000 };
 
 test.describe("staff", () => {
-  test("criterion 5: the owner invites an employee, changes the role and deactivates", async ({
+  test("criterion 1: the owner adds an employee with a temporary password; the employee must replace it first", async ({
     page,
     browser,
     supabase,
     consoleErrors,
   }) => {
+    // Three sign-ins and three Auth password writes: longer than the default test time under load.
+    test.slow();
     // A throwaway owner: the seed owner's access stays as it is for parallel tests.
     const owner = await createTempStaff(supabase, "owner");
-    const email = `invited-${randomUUID()}@example.test`;
-    const name = `Приглашённый ${randomUUID().slice(0, 6)}`;
+    const email = `added-${randomUUID()}@example.test`;
+    const name = `Добавленный ${randomUUID().slice(0, 6)}`;
+    const temporary = `temp-${randomUUID().slice(0, 8)}`;
     await loginAs(page, owner.email, owner.password);
 
     await page.goto("/settings");
     await page.getByRole("link", { name: settingsText.staff.open }).click();
     await expect(page).toHaveURL(/\/settings\/staff$/);
 
-    await page.getByLabel(staffText.invite.email).fill(email);
-    await page.getByLabel(staffText.invite.fullName).fill(name);
-    await page.getByLabel(staffText.invite.role).selectOption("admin");
-    await page.getByRole("button", { name: staffText.invite.submit }).click();
-    // Auth sends the email before answering; under a full parallel run that takes seconds.
-    await expect(page.getByTestId("invite-status")).toHaveText(
-      staffText.invite.sent,
-      { timeout: 30_000 },
+    await page.getByLabel(staffText.add.email).fill(email);
+    await page.getByLabel(staffText.add.fullName).fill(name);
+    await page
+      .getByLabel(staffText.add.role, { exact: true })
+      .selectOption("admin");
+    await page.getByLabel(staffText.add.password).fill(temporary);
+    await page.getByRole("button", { name: staffText.add.submit }).click();
+    await expect(page.getByTestId("add-staff-status")).toHaveText(
+      staffText.add.added,
+      AUTH_ROUND_TRIP,
     );
+    // The password does not stay on the screen after it is saved.
+    await expect(page.getByLabel(staffText.add.password)).toHaveValue("");
+    expect(page.url()).not.toContain(temporary);
 
     const row = page.getByTestId("staff-row").filter({ hasText: email });
     await expect(row).toContainText(name);
     await expect(row.getByTestId("staff-role")).toHaveText(ru.roles.admin);
-    await expect(row).toContainText(staffText.list.invited);
+    await expect(row.getByTestId("staff-temporary-password")).toHaveText(
+      staffText.list.mustChangePassword,
+    );
 
-    // The invitation link opens the new-password form with a session of the invited employee.
-    const html = await latestEmailHtml(supabase.mailpitUrl, email);
-    const link = /href="([^"]+type=invite)"/.exec(html)?.[1];
-    expect(link).toContain("/auth/confirm?token_hash=");
-    const invited = await browser.newContext();
-    const invitedPage = await invited.newPage();
-    await invitedPage.goto(link?.replaceAll("&amp;", "&") ?? "");
-    await expect(invitedPage).toHaveURL(/\/update-password$/);
-    await invited.close();
+    // The employee signs in on their own phone and is kept on the password form.
+    const employee = await browser.newContext();
+    const employeePage = await employee.newPage();
+    await employeePage.goto("/login");
+    await submitLogin(employeePage, email, temporary);
+    await expect(employeePage).toHaveURL(/\/update-password$/);
+    await expect(
+      employeePage.getByRole("heading", {
+        level: 1,
+        name: ru.auth.update.requiredTitle,
+      }),
+    ).toBeVisible();
+    for (const path of ["/today", "/clients", "/settings/staff"]) {
+      await employeePage.goto(path);
+      await expect(employeePage, path).toHaveURL(/\/update-password$/);
+    }
+    const own = `own-${randomUUID().slice(0, 8)}`;
+    await employeePage.getByLabel(ru.auth.update.password).fill(own);
+    await employeePage.getByLabel(ru.auth.update.confirm).fill(own);
+    await employeePage
+      .getByRole("button", { name: ru.auth.update.submit })
+      .click();
+    await expect(employeePage).toHaveURL(/\/today$/, AUTH_ROUND_TRIP);
+    await employee.close();
+
+    await page.reload();
+    await expect(row.getByTestId("staff-temporary-password")).toHaveCount(0);
+
+    // Forgotten password: the owner sets a new temporary one.
+    const reset = `reset-${randomUUID().slice(0, 8)}`;
+    await row
+      .getByRole("button", { name: staffText.list.resetPassword })
+      .click();
+    const dialog = page.getByRole("dialog").filter({ visible: true });
+    await expect(dialog).toContainText(staffText.reset.title(name));
+    await dialog.getByLabel(staffText.reset.password).fill(reset);
+    await dialog.getByRole("button", { name: staffText.reset.submit }).click();
+    await expect(row).toContainText(staffText.reset.done, AUTH_ROUND_TRIP);
+    await expect(row.getByTestId("staff-temporary-password")).toHaveText(
+      staffText.list.mustChangePassword,
+    );
+
+    const again = await browser.newContext();
+    const againPage = await again.newPage();
+    await againPage.goto("/login");
+    await submitLogin(againPage, email, own);
+    await expect(formAlert(againPage)).toHaveText(
+      ru.auth.login.invalidCredentials,
+    );
+    await submitLogin(againPage, email, reset);
+    await expect(againPage).toHaveURL(/\/update-password$/);
+    await again.close();
 
     await row.getByRole("button", { name: staffText.list.makeOwner }).click();
     await expect(row.getByTestId("staff-role")).toHaveText(
@@ -77,12 +132,27 @@ test.describe("staff", () => {
     await expect(
       row.getByRole("button", { name: staffText.list.activate }),
     ).toBeVisible();
+    await expect(
+      row.getByRole("button", { name: staffText.list.resetPassword }),
+    ).toHaveCount(0);
 
     // The owner's own row offers no buttons: another owner changes it.
-    const own = page.getByTestId("staff-row").filter({ hasText: owner.email });
-    await expect(own).toContainText(staffText.list.selfNote);
-    await expect(own.getByRole("button")).toHaveCount(0);
+    const self = page.getByTestId("staff-row").filter({ hasText: owner.email });
+    await expect(self).toContainText(staffText.list.selfNote);
+    await expect(self.getByRole("button")).toHaveCount(0);
     expect(consoleErrors).toEqual([]);
+  });
+
+  test("criterion 3: an admin cannot open the staff screen or call its actions", async ({
+    page,
+  }) => {
+    await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+    const response = await page.goto("/settings/staff");
+    expect(response?.status()).toBe(403);
+    await expect(page.getByLabel(staffText.add.password)).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: staffText.list.resetPassword }),
+    ).toHaveCount(0);
   });
 });
 

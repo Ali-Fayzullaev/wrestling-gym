@@ -5,10 +5,11 @@ import { decideNavigation, routeAccess } from "./routes";
 describe("routeAccess", () => {
   it.each([
     ["/login", "public"],
-    ["/reset-password", "public"],
-    ["/auth/confirm", "public"],
     // Ending a session must work without one too (expired cookie): the handler just redirects.
     ["/auth/sign-out", "public"],
+    // Password reset by email is gone (D-14): these are ordinary unknown pages now.
+    ["/reset-password", "staff"],
+    ["/auth/confirm", "staff"],
     ["/reports", "owner"],
     ["/reports/2026-11", "owner"],
     ["/audit", "owner"],
@@ -33,17 +34,38 @@ describe("routeAccess", () => {
 
 describe("decideNavigation", () => {
   const guest = { signedIn: false } as const;
-  const owner = { signedIn: true, role: "owner" } as const;
-  const admin = { signedIn: true, role: "admin" } as const;
-  const inactive = { signedIn: true, role: null } as const;
+  const owner = {
+    signedIn: true,
+    role: "owner",
+    mustChangePassword: false,
+  } as const;
+  const admin = {
+    signedIn: true,
+    role: "admin",
+    mustChangePassword: false,
+  } as const;
+  const inactive = {
+    signedIn: true,
+    role: null,
+    mustChangePassword: false,
+  } as const;
+  const temporary = {
+    signedIn: true,
+    role: "admin",
+    mustChangePassword: true,
+  } as const;
+  const temporaryOwner = { ...temporary, role: "owner" } as const;
 
   it("sends guests to sign-in except on public pages", () => {
     expect(decideNavigation("/clients", guest)).toEqual({ kind: "login" });
     expect(decideNavigation("/reports", guest)).toEqual({ kind: "login" });
-    expect(decideNavigation("/login", guest)).toEqual({ kind: "continue" });
-    expect(decideNavigation("/auth/confirm", guest)).toEqual({
-      kind: "continue",
+    expect(decideNavigation("/update-password", guest)).toEqual({
+      kind: "login",
     });
+    expect(decideNavigation("/reset-password", guest)).toEqual({
+      kind: "login",
+    });
+    expect(decideNavigation("/login", guest)).toEqual({ kind: "continue" });
   });
 
   it("ends the session of someone who is no longer active staff", () => {
@@ -67,11 +89,30 @@ describe("decideNavigation", () => {
   it("lets staff through to staff pages and sends them home from sign-in", () => {
     expect(decideNavigation("/clients", admin)).toEqual({ kind: "continue" });
     expect(decideNavigation("/login", owner)).toEqual({ kind: "home" });
-    expect(decideNavigation("/reset-password", admin)).toEqual({
-      kind: "home",
-    });
-    expect(decideNavigation("/auth/confirm", admin)).toEqual({
+    expect(decideNavigation("/update-password", admin)).toEqual({
       kind: "continue",
     });
+  });
+
+  it("keeps an employee with a temporary password on the password form", () => {
+    for (const session of [temporary, temporaryOwner]) {
+      for (const path of [
+        "/today",
+        "/clients",
+        "/settings/staff",
+        "/login",
+        "/update-passwordx",
+      ]) {
+        expect(decideNavigation(path, session)).toEqual({
+          kind: "change-password",
+        });
+      }
+      expect(decideNavigation("/update-password", session)).toEqual({
+        kind: "continue",
+      });
+      expect(decideNavigation("/auth/sign-out", session)).toEqual({
+        kind: "continue",
+      });
+    }
   });
 });

@@ -9,10 +9,7 @@ type Fixtures = {
   consoleErrors: string[];
   /** Address the app sees for this test; each test gets its own sign-in rate-limit bucket. */
   clientIp: string;
-  supabase: Pick<
-    LocalSupabase,
-    "apiUrl" | "publishableKey" | "secretKey" | "mailpitUrl"
-  >;
+  supabase: Pick<LocalSupabase, "apiUrl" | "publishableKey" | "secretKey">;
 };
 
 function env(name: string): string {
@@ -46,7 +43,6 @@ export const test = base.extend<Fixtures>({
       apiUrl: env("E2E_SUPABASE_URL"),
       publishableKey: env("E2E_SUPABASE_PUBLISHABLE_KEY"),
       secretKey: env("E2E_SUPABASE_SECRET_KEY"),
-      mailpitUrl: env("E2E_MAILPIT_URL"),
     });
   },
 });

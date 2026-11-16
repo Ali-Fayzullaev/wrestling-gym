@@ -4,12 +4,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { sessionCookieOptions } from "@/db/cookie-options";
 import { supabaseEnv } from "@/db/env";
 import type { Database } from "@/db/types";
-import { isStaffRole, type StaffRole } from "@/features/auth/roles";
+import { parseStaffAccess } from "@/features/auth/access";
 import {
   decideNavigation,
   FORBIDDEN_PATH,
   HOME_PATH,
   LOGIN_PATH,
+  PASSWORD_CHANGE_PATH,
+  type SessionState,
 } from "@/features/auth/routes";
 import {
   contentSecurityPolicy,
@@ -21,7 +23,8 @@ import { themeInitScript } from "@/lib/theme";
 
 // Next 16 renamed middleware.ts to proxy.ts. Runs before every page and Server Action request:
 // refreshes the session cookie, ends the session of deactivated staff on the very next request,
-// sends guests to sign-in and answers 403 on owner-only pages. It also sets the security headers.
+// sends guests to sign-in, keeps an employee with a temporary password on the password form and
+// answers 403 on owner-only pages. It also sets the security headers.
 export async function proxy(request: NextRequest) {
   const csp = await requestPolicy(request);
   // Next.js reads the nonce from the request's CSP and puts it on its own scripts.
@@ -73,17 +76,19 @@ async function navigate(request: NextRequest): Promise<NextResponse> {
 
   const { data } = await db.auth.getClaims();
   const signedIn = Boolean(data?.claims.sub);
-  let role: StaffRole | null = null;
+  let session: SessionState = { signedIn: false };
   if (signedIn) {
-    const { data: staffRole } = await db.rpc("current_staff_role");
-    role = isStaffRole(staffRole) ? staffRole : null;
+    const { data: staffAccess } = await db.rpc("current_staff_access");
+    const access = parseStaffAccess(staffAccess);
+    session = {
+      signedIn: true,
+      role: access?.role ?? null,
+      mustChangePassword: access?.mustChangePassword ?? false,
+    };
   }
 
   const { pathname, search } = request.nextUrl;
-  const navigation = decideNavigation(
-    pathname,
-    signedIn ? { signedIn: true, role } : { signedIn: false },
-  );
+  const navigation = decideNavigation(pathname, session);
 
   switch (navigation.kind) {
     case "continue":
@@ -106,6 +111,12 @@ async function navigate(request: NextRequest): Promise<NextResponse> {
       return carryCookies(
         response,
         NextResponse.redirect(new URL(HOME_PATH, request.url)),
+      );
+    case "change-password":
+      response.headers.set("cache-control", "private, no-store");
+      return carryCookies(
+        response,
+        NextResponse.redirect(new URL(PASSWORD_CHANGE_PATH, request.url)),
       );
     case "forbidden":
       return carryCookies(

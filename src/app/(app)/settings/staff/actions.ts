@@ -1,16 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import { createAdminDb } from "@/db/admin";
 import { createServerDb } from "@/db/server";
 import { requireStaff } from "@/features/auth/require-staff";
 import type { StaffField, StaffResult } from "@/features/staff/form-fields";
-import { inviteStaffSchema, staffAccessSchema } from "@/features/staff/schema";
-import { inviteStaff, updateStaffAccess } from "@/features/staff/service";
+import {
+  addStaffSchema,
+  resetStaffPasswordSchema,
+  staffAccessSchema,
+} from "@/features/staff/schema";
+import {
+  addStaff,
+  resetStaffPassword,
+  updateStaffAccess,
+} from "@/features/staff/service";
 
-const INVITE_FIELDS = new Set<string>(["email", "fullName", "role"]);
+const FORM_FIELDS = new Set<string>(["email", "fullName", "role", "password"]);
 
 function refreshStaff() {
   revalidatePath("/settings/staff");
@@ -19,27 +26,52 @@ function refreshStaff() {
   revalidatePath("/groups", "layout");
 }
 
-/** Owner only. The service_role client is created here, on the server, and never leaves it. */
-export async function inviteStaffAction(raw: unknown): Promise<StaffResult> {
-  await requireStaff(["owner"]);
-  const parsed = inviteStaffSchema.safeParse(raw);
-  if (!parsed.success) {
-    const fields = new Set<StaffField>();
-    for (const issue of parsed.error.issues) {
-      const field = issue.path[0];
-      if (typeof field === "string" && INVITE_FIELDS.has(field))
-        fields.add(field as StaffField);
-    }
-    return { ok: false, error: "invalid", fields: [...fields] };
+/** Field names of a failed parse; the issues themselves may echo the typed password. */
+function invalidFields(issues: { path: PropertyKey[] }[]): StaffField[] {
+  const fields = new Set<StaffField>();
+  for (const issue of issues) {
+    const field = issue.path[0];
+    if (typeof field === "string" && FORM_FIELDS.has(field))
+      fields.add(field as StaffField);
   }
-  const requestHeaders = await headers();
-  // Next has already checked that Origin matches Host for this Server Action; Supabase Auth
-  // additionally accepts only redirect URLs from its allow list.
-  const origin =
-    requestHeaders.get("origin") ?? `https://${requestHeaders.get("host")}`;
-  const result = await inviteStaff(
+  return [...fields];
+}
+
+/** Owner only. The service_role client is created here, on the server, and never leaves it. */
+export async function addStaffAction(raw: unknown): Promise<StaffResult> {
+  await requireStaff(["owner"]);
+  const parsed = addStaffSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "invalid",
+      fields: invalidFields(parsed.error.issues),
+    };
+  }
+  const result = await addStaff(
     { db: await createServerDb(), admin: createAdminDb() },
-    { ...parsed.data, redirectTo: `${origin}/auth/confirm` },
+    parsed.data,
+  );
+  if (result.ok) refreshStaff();
+  return result;
+}
+
+/** Owner only: a new temporary password for another employee. */
+export async function resetStaffPasswordAction(
+  raw: unknown,
+): Promise<StaffResult> {
+  await requireStaff(["owner"]);
+  const parsed = resetStaffPasswordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "invalid",
+      fields: invalidFields(parsed.error.issues),
+    };
+  }
+  const result = await resetStaffPassword(
+    { db: await createServerDb(), admin: createAdminDb() },
+    parsed.data,
   );
   if (result.ok) refreshStaff();
   return result;

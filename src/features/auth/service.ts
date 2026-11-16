@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
 
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
+
 import type { Db } from "@/db/client";
-import { writeAudit } from "@/features/audit/service";
+import { writeAuditAs } from "@/features/audit/service";
 
-import { type Actor, isStaffRole, type StaffRole } from "./roles";
+import { parseStaffAccess, type StaffAccess } from "./access";
+import type { Actor, StaffRole } from "./roles";
 
-export type AuthAction = "login" | "password_reset";
+export type AuthAction = "login";
 
 export type Throttle =
   | { allowed: true }
@@ -13,10 +16,22 @@ export type Throttle =
 
 export type Authorization =
   | { ok: true; actor: Actor }
-  | { ok: false; reason: "unauthenticated" | "inactive" | "forbidden" };
+  | {
+      ok: false;
+      reason:
+        | "unauthenticated"
+        | "inactive"
+        | "forbidden"
+        | "password_change_required";
+    };
+
+/** Who may set their own password: any active employee, temporary password or not. */
+export type PasswordChangeAuthorization =
+  | { ok: true; actor: Actor; mustChangePassword: boolean }
+  | { ok: false; reason: "unauthenticated" | "inactive" };
 
 export type SignInResult =
-  | { ok: true; actor: Actor }
+  | { ok: true; actor: Actor; mustChangePassword: boolean }
   | {
       ok: false;
       error:
@@ -27,14 +42,13 @@ export type SignInResult =
       retryAfterMinutes?: number;
     };
 
-export type PasswordResetResult =
-  | { ok: true }
-  | { ok: false; error: "rate_limited"; retryAfterMinutes: number }
-  | { ok: false; error: "unavailable" };
-
 export type PasswordUpdateResult =
   | { ok: true }
-  | { ok: false; error: "same_password" | "weak_password" | "unavailable" };
+  | {
+      ok: false;
+      error:
+        "same_password" | "weak_password" | "session_ended" | "unavailable";
+    };
 
 /** Supabase Auth limits per IP over a 5-minute window. */
 const AUTH_SERVER_LIMIT_MINUTES = 5;
@@ -83,25 +97,44 @@ async function recordAuthSuccess(
   if (error) throw new Error(`auth_throttle_success failed: ${error.code}`);
 }
 
-/** Role of the signed-in user while they are active staff, otherwise null. */
-async function currentStaffRole(db: Db): Promise<StaffRole | null> {
-  const { data, error } = await db.rpc("current_staff_role");
+/** Role and temporary-password flag of the signed-in user while they are active staff. */
+async function currentStaffAccess(db: Db): Promise<StaffAccess | null> {
+  const { data, error } = await db.rpc("current_staff_access");
   if (error) return null;
-  return isStaffRole(data) ? data : null;
+  return parseStaffAccess(data);
 }
 
-/** Who is calling and whether their role is one of `roles`. */
+/** Any active employee, whether or not they still have to replace a temporary password. */
+export async function authorizePasswordChange(
+  db: Db,
+): Promise<PasswordChangeAuthorization> {
+  const { data, error } = await db.auth.getClaims();
+  const userId = data?.claims.sub;
+  if (error || !userId) return { ok: false, reason: "unauthenticated" };
+  const access = await currentStaffAccess(db);
+  if (access === null) return { ok: false, reason: "inactive" };
+  return {
+    ok: true,
+    actor: { id: userId, role: access.role },
+    mustChangePassword: access.mustChangePassword,
+  };
+}
+
+/**
+ * Who is calling and whether their role is one of `roles`. An employee with a temporary password
+ * is refused everything until they set their own (the database refuses them as well).
+ */
 export async function authorizeStaff(
   db: Db,
   roles: readonly StaffRole[],
 ): Promise<Authorization> {
-  const { data, error } = await db.auth.getClaims();
-  const userId = data?.claims.sub;
-  if (error || !userId) return { ok: false, reason: "unauthenticated" };
-  const role = await currentStaffRole(db);
-  if (role === null) return { ok: false, reason: "inactive" };
-  if (!roles.includes(role)) return { ok: false, reason: "forbidden" };
-  return { ok: true, actor: { id: userId, role } };
+  const result = await authorizePasswordChange(db);
+  if (!result.ok) return result;
+  if (result.mustChangePassword)
+    return { ok: false, reason: "password_change_required" };
+  if (!roles.includes(result.actor.role))
+    return { ok: false, reason: "forbidden" };
+  return { ok: true, actor: result.actor };
 }
 
 /**
@@ -146,8 +179,8 @@ export async function signIn(
     return { ok: false, error: "invalid_credentials" };
   }
 
-  const role = await currentStaffRole(deps.db);
-  if (role === null) {
+  const access = await currentStaffAccess(deps.db);
+  if (access === null) {
     await deps.db.auth.signOut({ scope: "local" });
     return { ok: false, error: "access_disabled" };
   }
@@ -157,75 +190,51 @@ export async function signIn(
     () => false,
   );
   // Every sign-in is counted and audited; if either record fails, the sign-in does not happen.
+  // Written with service_role: with a temporary password the employee has no role to write it.
+  const userId = data.user.id;
   if (
     !recorded ||
-    !(await writeAudit(deps.db, "staff.login", "staff", data.user.id))
+    !(await writeAuditAs(deps.admin, userId, "staff.login", "staff", userId))
   ) {
     await deps.db.auth.signOut({ scope: "local" });
     return { ok: false, error: "unavailable" };
   }
-  return { ok: true, actor: { id: data.user.id, role } };
+  return {
+    ok: true,
+    actor: { id: userId, role: access.role },
+    mustChangePassword: access.mustChangePassword,
+  };
 }
 
 /**
- * Sends the reset link unless limited. Hitting the per-email limit, an unknown email and an Auth
- * error all report success, so the answer never reveals whether an address belongs to staff.
+ * The signed-in employee sets their own password (`db` holds their session). Then the server
+ * lifts the temporary-password lock, if any, and records the change as theirs with service_role:
+ * while the lock is on, the employee cannot write to the database themselves.
  */
-export async function requestPasswordReset(
-  deps: { db: Db; admin: Db },
-  now: Date,
-  input: { email: string; ip: string; redirectTo: string },
-): Promise<PasswordResetResult> {
-  const throttle = await beginAuthAttempt(deps.admin, now, {
-    action: "password_reset",
-    email: input.email,
-    ip: input.ip,
-  }).catch(() => null);
-  if (throttle === null) return { ok: false, error: "unavailable" };
-  if (!throttle.allowed) {
-    if (throttle.limitedBy === "email") return { ok: true };
-    return {
-      ok: false,
-      error: "rate_limited",
-      retryAfterMinutes: throttle.retryAfterMinutes,
-    };
-  }
-
-  const { error } = await deps.db.auth.resetPasswordForEmail(input.email, {
-    redirectTo: input.redirectTo,
-  });
-  if (error)
-    console.error("password reset email failed", error.code ?? error.status);
-  return { ok: true };
-}
-
-/** Sets a new password for the signed-in employee (after the reset link or later). */
 export async function updatePassword(
-  db: Db,
+  deps: { db: Db; admin: Db },
   actor: Actor,
   password: string,
 ): Promise<PasswordUpdateResult> {
-  const { error } = await db.auth.updateUser({ password });
+  const { error } = await deps.db.auth.updateUser({ password });
   if (error) {
     if (error.code === "same_password")
       return { ok: false, error: "same_password" };
     if (error.code === "weak_password")
       return { ok: false, error: "weak_password" };
+    // The owner reset the password meanwhile, which ended every session of this employee. Auth
+    // answers session_not_found; a client that has already seen that answer has no session left.
+    if (error.code === "session_not_found" || isAuthSessionMissingError(error))
+      return { ok: false, error: "session_ended" };
     return { ok: false, error: "unavailable" };
   }
-  await writeAudit(db, "staff.password_change", "staff", actor.id);
+  const { error: completeError } = await deps.admin.rpc(
+    "complete_password_change",
+    { p_staff_id: actor.id },
+  );
+  if (completeError) {
+    console.error("complete_password_change failed", completeError.code);
+    return { ok: false, error: "unavailable" };
+  }
   return { ok: true };
-}
-
-/**
- * Verifies the token_hash from the reset or invitation email and starts a session for that user,
- * who then sets a password.
- */
-export async function verifyEmailToken(
-  db: Db,
-  type: "recovery" | "invite",
-  tokenHash: string,
-): Promise<boolean> {
-  const { error } = await db.auth.verifyOtp({ type, token_hash: tokenHash });
-  return error === null;
 }

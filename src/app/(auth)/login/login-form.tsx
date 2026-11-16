@@ -51,12 +51,9 @@ export function LoginForm() {
       <Button type="submit" size="lg" className="min-h-11" disabled={pending}>
         {pending ? ru.auth.login.pending : ru.auth.login.submit}
       </Button>
-      <a
-        href="/reset-password"
-        className="inline-flex min-h-11 items-center self-start text-sm underline underline-offset-4"
-      >
-        {ru.auth.login.forgot}
-      </a>
+      <p className="text-sm text-muted-foreground">
+        {ru.auth.login.forgotHint}
+      </p>
     </form>
   );
 }

@@ -5,6 +5,7 @@
 export const AUDIT_ACTIONS = [
   "staff.login",
   "staff.password_change",
+  "staff.password_reset",
   "staff.invite",
   "staff.role_change",
   "staff.deactivate",
@@ -53,6 +54,7 @@ export const AUDIT_ACTION_GROUPS = {
   staff: [
     "staff.login",
     "staff.password_change",
+    "staff.password_reset",
     "staff.invite",
     "staff.role_change",
     "staff.deactivate",

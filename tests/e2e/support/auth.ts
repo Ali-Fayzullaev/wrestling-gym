@@ -43,31 +43,6 @@ export async function loginAs(
   await expect(page).toHaveURL(/\/today$/);
 }
 
-/** Waits for the newest email to `to` in the local Mailpit and returns its HTML body. */
-export async function latestEmailHtml(
-  mailpitUrl: string,
-  to: string,
-): Promise<string> {
-  let messageId: string | undefined;
-  await expect
-    .poll(
-      async () => {
-        const query = encodeURIComponent(`to:"${to}"`);
-        const response = await fetch(
-          `${mailpitUrl}/api/v1/search?query=${query}`,
-        );
-        const body = (await response.json()) as { messages?: { ID: string }[] };
-        messageId = body.messages?.[0]?.ID;
-        return messageId;
-      },
-      { timeout: 15_000 },
-    )
-    .toBeTruthy();
-  const response = await fetch(`${mailpitUrl}/api/v1/message/${messageId}`);
-  const message = (await response.json()) as { HTML: string };
-  return message.HTML;
-}
-
 /** The bottom menu is the phone layout; the side menu replaces it from md up. */
 export function bottomNav(page: Page) {
   return page.locator('nav[data-slot="bottom-nav"]');

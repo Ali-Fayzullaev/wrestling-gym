@@ -162,12 +162,8 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# The password-reset link points at /auth/confirm on the dev server (3000) and the e2e server (3100).
-additional_redirect_urls = [
-  "https://127.0.0.1:3000",
-  "http://127.0.0.1:3000/auth/confirm",
-  "http://127.0.0.1:3100/auth/confirm",
-]
+# None needed: the service sends no emails and has no redirect-based sign-in (D-14).
+additional_redirect_urls = []
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -203,8 +199,8 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-# Raised locally so repeated e2e runs can request password resets; the app throttles per email/IP.
-email_sent = 100
+# The service sends no emails (D-14): owners set passwords, staff change them when signed in.
+email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -256,16 +252,6 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
-
-# The link carries token_hash so /auth/confirm can verify it on the server, from any device.
-[auth.email.template.recovery]
-subject = "Сброс пароля"
-content_path = "./supabase/templates/recovery.html"
-
-# Staff invitations (Settings -> Staff): the same /auth/confirm route, then the new-password form.
-[auth.email.template.invite]
-subject = "Приглашение в сервис учёта абонементов"
-content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

@@ -12,7 +12,6 @@ import { expect, test } from "./fixtures";
 import {
   actorRole,
   formAlert,
-  latestEmailHtml,
   loginAs,
   openMoreOnPhone,
   signOut,
@@ -244,57 +243,34 @@ test.describe("session", () => {
   });
 });
 
-test.describe("password reset", () => {
-  test("the emailed link opens the new-password form and the new password works", async ({
+test.describe("no password reset by email (D-14)", () => {
+  test("criterion 5: the sign-in page has no reset link and says who sets a new password", async ({
     page,
-    supabase,
   }) => {
-    const staff = await createTempStaff(supabase, "admin");
-
     await page.goto("/login");
-    await page.getByRole("link", { name: ru.auth.login.forgot }).click();
-    await expect(page).toHaveURL(/\/reset-password$/);
-    await page.getByLabel(ru.auth.email).fill(staff.email);
-    await page.getByRole("button", { name: ru.auth.reset.submit }).click();
-    await expect(page.getByRole("status")).toHaveText(ru.auth.reset.sent);
-
-    const html = await latestEmailHtml(supabase.mailpitUrl, staff.email);
-    const link = /href="([^"]+)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
-    expect(link).toMatch(/\/auth\/confirm\?token_hash=[^&]+&type=recovery$/);
-
-    await page.goto(link ?? "");
-    await expect(page).toHaveURL(/\/update-password$/);
-    const newPassword = `new-${randomUUID()}`;
-    await page.getByLabel(ru.auth.update.password).fill(newPassword);
-    await page.getByLabel(ru.auth.update.confirm).fill(newPassword);
-    await page.getByRole("button", { name: ru.auth.update.submit }).click();
-    await expect(page).toHaveURL(/\/today$/);
-
-    await signOut(page);
-    await submitLogin(page, staff.email, newPassword);
-    await expect(page).toHaveURL(/\/today$/);
+    await expect(page.getByText("Забыли пароль?")).toHaveCount(0);
+    await expect(page.getByRole("link")).toHaveCount(0);
+    await expect(page.getByText(ru.auth.login.forgotHint)).toBeVisible();
   });
 
-  test("an unknown email gets the same answer as a known one", async ({
-    page,
-  }) => {
-    await page.goto("/reset-password");
-    await page.getByLabel(ru.auth.email).fill(`${randomUUID()}@example.test`);
-    await page.getByRole("button", { name: ru.auth.reset.submit }).click();
-    await expect(page.getByRole("status")).toHaveText(ru.auth.reset.sent);
-  });
-
-  test("a broken link leads back to the request form with an explanation", async ({
-    page,
-  }) => {
-    await page.goto("/auth/confirm?token_hash=not-a-token&type=recovery");
-    await expect(page).toHaveURL(/\/reset-password\/expired$/);
-    await expect(formAlert(page)).toHaveText(ru.auth.reset.linkInvalid);
-  });
+  for (const path of [
+    "/reset-password",
+    "/reset-password/expired",
+    "/auth/confirm?token_hash=x&type=recovery",
+  ]) {
+    test(`criterion 5: ${path} is gone`, async ({ page }) => {
+      // A guest is sent to sign-in like on any unknown address.
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/login\?next=/);
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+    });
+  }
 });
 
 test("pages have no horizontal scroll", async ({ page }) => {
-  for (const path of ["/login", "/reset-password"]) {
+  for (const path of ["/login"]) {
     await page.goto(path);
     const overflow = await page.evaluate(
       () =>

@@ -28,31 +28,28 @@
 
 1. Создать проект в регионе `eu-central-1`. Пароль базы сохранить в менеджере паролей.
 2. Authentication → Sign In / Providers:
-   - выключить «Allow new users to sign up» (сотрудников приглашает владелец);
+   - выключить «Allow new users to sign up» (сотрудников добавляет владелец в «Настройках»);
    - Email: включён, «Confirm email» включён;
    - минимальная длина пароля 8.
-3. Authentication → URL Configuration:
-   - Site URL: `https://<домен>`;
-   - Redirect URLs: `https://<домен>/auth/confirm` (ссылки из писем сброса и приглашения ведут сюда).
-4. Authentication → Emails → Templates, тексты из репозитория:
-   - Reset password: тема «Сброс пароля», тело из [supabase/templates/recovery.html](../supabase/templates/recovery.html);
-   - Invite user: тема «Приглашение в сервис учёта абонементов», тело из [supabase/templates/invite.html](../supabase/templates/invite.html).
-5. Authentication → Emails → SMTP: свой SMTP-сервер (встроенный Supabase отправляет только
-   несколько писем в час и не для production). Отправитель: адрес на домене зала.
-6. Authentication → Rate Limits: оставить значения по умолчанию. Приложение само ограничивает попытки
-   входа и сброса пароля по email и IP (таблица `auth_attempts`).
-7. Project Settings → Data API: убедиться, что открыта только схема `public`.
-8. Advisors (Security и Performance): нет предупреждений уровня ERROR.
+3. Authentication → URL Configuration: Site URL `https://<домен>`. Redirect URLs не нужны: сервис не
+   отправляет писем и не входит по ссылкам (D-14).
+4. Письма и SMTP не настраиваются (D-14, шаг 15). Нового сотрудника владелец добавляет в «Настройки →
+   Сотрудники» с временным паролем и передаёт его лично; при первом входе сотрудник задаёт свой. Забытый
+   пароль сотрудника владелец меняет там же кнопкой «Сбросить пароль».
+5. Authentication → Rate Limits: оставить значения по умолчанию. Приложение само ограничивает попытки
+   входа по email и IP (таблица `auth_attempts`).
+6. Project Settings → Data API: убедиться, что открыта только схема `public`.
+7. Advisors (Security и Performance): нет предупреждений уровня ERROR.
 
-Как это сделано 2026-11-15 для `iefenyuzpuigsytndfoy`: п. 2, 3, 7 выставлены через
+Как это сделано 2026-11-15 для `iefenyuzpuigsytndfoy`: п. 2, 3, 6 выставлены через
 `supabase config push --remote=<ref> --workdir <папка>` с копией `supabase/config.toml`, где изменены только
 `site_url`, `additional_redirect_urls`, `[auth.email] enable_confirmations = true`, `[api] schemas = ["public"]`,
 а значения, отличные от production-умолчаний (лимиты, MFA, пулер, storage), приведены к ним. Перед push
 `supabase config diff` должен показывать только нужные строки, после push: «No config differences found».
 
-На Supabase Free со встроенной почтой шаблоны писем (п. 4) менять нельзя (`entitlement_required`), и письма
-уходят только участникам организации. Поэтому п. 4 выполняется после п. 5 (свой SMTP); до этого приглашения
-и сброс пароля не работают.
+В `iefenyuzpuigsytndfoy` остался Redirect URL `https://adilkhan-club.vercel.app/auth/confirm` от шага 13.
+Он ни на что не влияет (маршрута больше нет); убрать при следующем `config push`, отдельно его
+не трогать.
 
 ### 2.2. GitHub
 
@@ -84,7 +81,7 @@ Settings → Environments → создать `production`, в нём:
    Ни одна переменная не начинается с `NEXT_PUBLIC_`: в браузер ничего не уходит.
 3. Domains: адрес `adilkhan-club.vercel.app` задаётся именем проекта, HTTPS выдаёт Vercel, `www` не нужен.
    Когда появится свой домен (D-12): добавить `<домен>` и `www.<домен>` с редиректом `www` → без `www` (308),
-   затем поменять Site URL и Redirect URLs в Supabase (2.1, п. 3).
+   затем поменять Site URL в Supabase (2.1, п. 3).
 4. Deployment Protection для preview: Vercel Authentication включена (preview работает с dev-данными,
    но посторонним он не нужен).
 5. Git-деплой ветки `main` выключен в `vercel.json`: production выкатывает только CI, после миграций.
@@ -194,7 +191,8 @@ SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<из Supabase> \
 1. Ключ `service_role`/secret key или пароль БД: сразу ротировать по разделу 5. При подозрении на
    утечку ключа подписи JWT: Supabase → JWT Keys → ротация (все сотрудники войдут заново).
 2. Аккаунт сотрудника: «Настройки» → «Сотрудники» → отключить доступ (действует со следующего
-   запроса), затем сброс пароля.
+   запроса). Если сотрудник остаётся: «Сбросить пароль» (все его сессии завершаются, при входе он
+   задаёт свой пароль), затем вернуть доступ.
 3. Посмотреть, что делали: раздел «Журнал» (владелец), Supabase → Logs (Auth, API), Vercel → Logs.
 4. Если затронуты персональные данные клиентов: владелец решает об уведомлении по Закону РК «О
    персональных данных и их защите». Разработчик даёт список затронутых таблиц и период; сами

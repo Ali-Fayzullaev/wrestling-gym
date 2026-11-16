@@ -2,13 +2,14 @@
 
 export const STAFF_NAME_MAX = 100;
 
-export type StaffField = "email" | "fullName" | "role";
+export type StaffField = "email" | "fullName" | "role" | "password";
 
 /** Errors staff changes report: codes only, never internal details or personal data. */
 export type StaffError =
   | "forbidden"
   | "invalid"
   | "email_taken"
+  | "weak_password"
   | "not_found"
   | "last_owner"
   | "self_change"
