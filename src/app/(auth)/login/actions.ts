@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 
 import { createAdminDb } from "@/db/admin";
 import { createServerDb } from "@/db/server";
-import { HOME_PATH } from "@/features/auth/routes";
+import { HOME_PATH, PASSWORD_CHANGE_PATH } from "@/features/auth/routes";
 import { signInSchema } from "@/features/auth/schema";
 import { signIn, type SignInResult } from "@/features/auth/service";
 import { ru } from "@/i18n/ru";
@@ -26,7 +26,6 @@ export async function signInAction(
   if (!parsed.success) {
     return {
       error: ru.auth.login.invalidCredentials,
-      notice: null,
       email: typedEmail,
       redirectTo: null,
     };
@@ -45,16 +44,17 @@ export async function signInAction(
   if (!result.ok)
     return {
       error: signInErrorText(result),
-      notice: null,
       email: typedEmail,
       redirectTo: null,
     };
 
   return {
     error: null,
-    notice: null,
     email: "",
-    redirectTo: nextPathFromReferer(requestHeaders.get("referer"), HOME_PATH),
+    // A temporary password is replaced first; the proxy would send them there anyway.
+    redirectTo: result.mustChangePassword
+      ? PASSWORD_CHANGE_PATH
+      : nextPathFromReferer(requestHeaders.get("referer"), HOME_PATH),
   };
 }
 

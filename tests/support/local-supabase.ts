@@ -5,7 +5,6 @@ export type LocalSupabase = {
   publishableKey: string;
   secretKey: string;
   databaseUrl: string;
-  mailpitUrl: string;
 };
 
 type Status = Record<string, string | undefined>;
@@ -17,7 +16,7 @@ function required(value: string | undefined, name: string): string {
 
 /**
  * URLs and keys of the stack started by `pnpm db:start`, read from the CLI so no developer or CI
- * job copies them into an env file. Mailpit runs on its fixed local port.
+ * job copies them into an env file.
  */
 export function readLocalSupabase(): LocalSupabase {
   let status: Status;
@@ -47,7 +46,5 @@ export function readLocalSupabase(): LocalSupabase {
       "SECRET_KEY",
     ),
     databaseUrl: process.env.DATABASE_URL ?? required(status.DB_URL, "DB_URL"),
-    mailpitUrl:
-      status.MAILPIT_URL ?? status.INBUCKET_URL ?? "http://127.0.0.1:54324",
   };
 }

@@ -35,7 +35,11 @@ import {
 } from "@/features/reminders/service";
 import { exportData } from "@/features/reports/service";
 import { getSettings, updateGymSettings } from "@/features/settings/service";
-import { inviteStaff, updateStaffAccess } from "@/features/staff/service";
+import {
+  addStaff,
+  resetStaffPassword,
+  updateStaffAccess,
+} from "@/features/staff/service";
 
 import { csvText, utf8 } from "../support/sheets";
 import { createTempStaff, serviceClient } from "../support/staff-accounts";
@@ -70,6 +74,8 @@ const STAFF_NAME = `Приглашённый ${RUN}`;
 const GYM_NAME = `Зал ${RUN}`;
 const TEMPLATE_TAIL = ` ${RUN}-хвост`;
 const INVITE_EMAIL = `invite-${randomUUID()}@example.test`;
+const TEMP_PASSWORD = `temp-${RUN}-${randomUUID()}`;
+const RESET_PASSWORD = `reset-${RUN}-${randomUUID()}`;
 const phone = () => `+7704${String(randomInt(1e7)).padStart(7, "0")}`;
 const PHONES = [phone(), phone(), phone()] as const;
 
@@ -85,6 +91,8 @@ const SECRETS = [
   GYM_NAME,
   TEMPLATE_TAIL.trim(),
   INVITE_EMAIL,
+  TEMP_PASSWORD,
+  RESET_PASSWORD,
   ...PHONES,
 ];
 
@@ -223,9 +231,9 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
     expect(result).toMatchObject({ ok: true });
   },
   "staff.password_change": async () => {
-    expect(await updatePassword(db, actor, `pw-${randomUUID()}`)).toMatchObject(
-      { ok: true },
-    );
+    expect(
+      await updatePassword({ db, admin: service }, actor, `pw-${randomUUID()}`),
+    ).toMatchObject({ ok: true });
   },
   "group.create": async () => {
     state.groupId = must(await createGroup(db, actor, groupInput(16000))).id;
@@ -357,13 +365,13 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
   },
   "staff.invite": async () => {
     expect(
-      await inviteStaff(
+      await addStaff(
         { db, admin: service },
         {
           email: INVITE_EMAIL,
           fullName: STAFF_NAME,
           role: "admin",
-          redirectTo: "http://127.0.0.1:3100/auth/confirm",
+          password: TEMP_PASSWORD,
         },
       ),
     ).toEqual({ ok: true });
@@ -373,6 +381,14 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
       .eq("full_name", STAFF_NAME)
       .single();
     state.invitedId = data?.id;
+  },
+  "staff.password_reset": async () => {
+    expect(
+      await resetStaffPassword(
+        { db, admin: service },
+        { staffId: defined(state.invitedId), password: RESET_PASSWORD },
+      ),
+    ).toEqual({ ok: true });
   },
   "staff.role_change": async () => {
     await access("owner", true);

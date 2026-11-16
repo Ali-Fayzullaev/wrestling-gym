@@ -32,6 +32,27 @@ export async function writeAudit(
   return error === null;
 }
 
+/**
+ * Records an action as `actorId` with the service_role client, for the moments the employee has
+ * no role in the database yet: signing in with a temporary password. Server only; the caller
+ * passes the id Auth has just confirmed, never one from the request.
+ */
+export async function writeAuditAs(
+  admin: Db,
+  actorId: string,
+  action: AuditAction,
+  entity: string,
+  entityId: string | null,
+): Promise<boolean> {
+  const { error } = await admin.from("audit_log").insert({
+    actor_id: actorId,
+    action,
+    entity,
+    entity_id: entityId,
+  });
+  return error === null;
+}
+
 // Shape of audit_feed() (supabase/migrations/*_audit_settings_staff.sql), checked, not trusted.
 const entryShape = z.object({
   id: z.string(),

@@ -494,3 +494,143 @@ describe("staff_screen", () => {
     }
   });
 });
+
+describe("temporary passwords (step 15, D-14)", () => {
+  type Access = { role: string; must_change_password: boolean } | null;
+
+  async function accessOf(tx: Tx): Promise<Access> {
+    const [row] = await tx<{ a: Access }[]>`
+      select public.current_staff_access() as a
+    `;
+    return row?.a ?? null;
+  }
+
+  it("owner resets an admin's password: the flag is set, sessions end, the audit row holds no secret", async () => {
+    await rolledBack(sql, async (tx) => {
+      await tx`
+        insert into auth.sessions (id, user_id, created_at, updated_at)
+        values (${randomUUID()}, ${SEED_STAFF.admin}, now(), now())
+      `;
+      await become(tx, owner);
+      await tx`select public.begin_password_reset(${SEED_STAFF.admin})`;
+      await become(tx, "postgres");
+      const sessions = await tx`
+        select 1 from auth.sessions where user_id = ${SEED_STAFF.admin}
+      `;
+      expect(sessions).toHaveLength(0);
+      const [audit] = await tx<{ actor_id: string; details: unknown }[]>`
+        select actor_id, details from public.audit_log
+        where action = 'staff.password_reset' and entity_id = ${SEED_STAFF.admin}
+      `;
+      expect(audit).toEqual({ actor_id: SEED_STAFF.owner, details: {} });
+
+      await become(tx, admin);
+      expect(await accessOf(tx)).toEqual({
+        role: "admin",
+        must_change_password: true,
+      });
+      const [role] = await tx<{ role: string | null }[]>`
+        select public.current_staff_role() as role
+      `;
+      expect(role?.role).toBeNull();
+      expect(await tx`select 1 from public.clients limit 1`).toHaveLength(0);
+      await expect(
+        insertClient(tx, { createdBy: SEED_STAFF.admin }),
+      ).rejects.toMatchObject(FORBIDDEN);
+    });
+  });
+
+  it("admin cannot reset passwords, and an owner cannot reset their own here", async () => {
+    await expect(
+      asActor(
+        sql,
+        admin,
+        (tx) =>
+          tx`select public.begin_password_reset(${SEED_STAFF.otherAdmin})`,
+      ),
+    ).rejects.toMatchObject(FORBIDDEN);
+    await expect(
+      asActor(
+        sql,
+        owner,
+        (tx) => tx`select public.begin_password_reset(${SEED_STAFF.owner})`,
+      ),
+    ).rejects.toMatchObject({ code: "P0001", message: "self_change" });
+    await expect(
+      asActor(
+        sql,
+        owner,
+        (tx) => tx`select public.begin_password_reset(${randomUUID()})`,
+      ),
+    ).rejects.toMatchObject({ code: "P0002" });
+  });
+
+  it("nobody signed in changes the flag directly or lifts it by function, owner included", async () => {
+    for (const actor of [owner, admin]) {
+      await expect(
+        asActor(
+          sql,
+          actor,
+          (tx) =>
+            tx`update public.staff set must_change_password = false where id = ${SEED_STAFF.otherAdmin}`,
+        ),
+      ).rejects.toMatchObject(FORBIDDEN);
+      await expect(
+        asActor(
+          sql,
+          actor,
+          (tx) =>
+            tx`select public.complete_password_change(${SEED_STAFF.otherAdmin})`,
+        ),
+      ).rejects.toMatchObject(FORBIDDEN);
+    }
+    await expect(
+      asActor(sql, "anon", (tx) => tx`select public.current_staff_access()`),
+    ).rejects.toMatchObject(FORBIDDEN);
+  });
+
+  it("service_role lifts the flag and records the change as the employee's own", async () => {
+    await rolledBack(sql, async (tx) => {
+      await tx`update public.staff set must_change_password = true where id = ${SEED_STAFF.admin}`;
+      await become(tx, "service_role");
+      await tx`select public.complete_password_change(${SEED_STAFF.admin})`;
+      await become(tx, admin);
+      expect(await accessOf(tx)).toEqual({
+        role: "admin",
+        must_change_password: false,
+      });
+      await become(tx, "postgres");
+      const [audit] = await tx<{ actor_id: string }[]>`
+        select actor_id from public.audit_log
+        where action = 'staff.password_change' and entity_id = ${SEED_STAFF.admin}
+        order by created_at desc limit 1
+      `;
+      expect(audit?.actor_id).toBe(SEED_STAFF.admin);
+    });
+  });
+
+  it("add_staff locks the new employee until they set their own password", async () => {
+    await rolledBack(sql, async (tx) => {
+      const id = randomUUID();
+      await tx`
+        insert into auth.users (id, email, aud, role)
+        values (${id}, ${`new-${id}@example.test`}, 'authenticated', 'authenticated')
+      `;
+      await become(tx, owner);
+      await tx`select public.add_staff(${id}, 'Новый Сотрудник', 'admin')`;
+      await become(tx, "postgres");
+      const [row] = await tx<{ must_change_password: boolean }[]>`
+        select must_change_password from public.staff where id = ${id}
+      `;
+      expect(row?.must_change_password).toBe(true);
+    });
+  });
+
+  it("an inactive employee has no access at all", async () => {
+    await rolledBack(sql, async (tx) => {
+      await tx`update public.staff set active = false where id = ${SEED_STAFF.admin}`;
+      await become(tx, admin);
+      expect(await accessOf(tx)).toBeNull();
+    });
+  });
+});

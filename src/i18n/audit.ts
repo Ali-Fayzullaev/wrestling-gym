@@ -26,7 +26,8 @@ export const auditText = {
   actions: {
     "staff.login": "Вход в систему",
     "staff.password_change": "Смена пароля",
-    "staff.invite": "Приглашён сотрудник",
+    "staff.password_reset": "Владелец задал временный пароль",
+    "staff.invite": "Добавлен сотрудник",
     "staff.role_change": "Изменена роль сотрудника",
     "staff.deactivate": "Отключён доступ сотрудника",
     "staff.activate": "Возвращён доступ сотрудника",

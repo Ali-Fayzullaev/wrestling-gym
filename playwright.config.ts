@@ -16,7 +16,6 @@ if (!process.env.E2E_SUPABASE_URL) {
   process.env.E2E_SUPABASE_URL = local.apiUrl;
   process.env.E2E_SUPABASE_PUBLISHABLE_KEY = local.publishableKey;
   process.env.E2E_SUPABASE_SECRET_KEY = local.secretKey;
-  process.env.E2E_MAILPIT_URL = local.mailpitUrl;
 }
 
 const PHONE = {

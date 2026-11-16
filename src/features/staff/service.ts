@@ -4,7 +4,11 @@ import type { Db } from "@/db/client";
 import { STAFF_ROLES, type StaffRole } from "@/features/auth/roles";
 
 import type { StaffError, StaffResult } from "./form-fields";
-import type { InviteStaffInput, StaffAccessInput } from "./schema";
+import type {
+  AddStaffInput,
+  ResetStaffPasswordInput,
+  StaffAccessInput,
+} from "./schema";
 
 export type StaffMember = {
   id: string;
@@ -12,8 +16,8 @@ export type StaffMember = {
   role: StaffRole;
   active: boolean;
   email: string;
-  /** Has not signed in yet: the invitation is still open. */
-  invited: boolean;
+  /** Still has the owner's temporary password: no access until they set their own. */
+  mustChangePassword: boolean;
 };
 
 // Shape of staff_screen() (supabase/migrations/*_audit_settings_staff.sql).
@@ -24,7 +28,7 @@ const staffShape = z.array(
     role: z.enum(STAFF_ROLES),
     active: z.boolean(),
     email: z.string(),
-    invited: z.boolean(),
+    must_change_password: z.boolean(),
   }),
 );
 
@@ -38,7 +42,7 @@ export async function listStaff(db: Db): Promise<StaffMember[]> {
     role: row.role,
     active: row.active,
     email: row.email,
-    invited: row.invited,
+    mustChangePassword: row.must_change_password,
   }));
 }
 
@@ -53,29 +57,39 @@ function staffError(error: { code?: string; message?: string }): StaffError {
   return "unavailable";
 }
 
+/** Auth refuses a password it considers too easy (length or a known leaked one). */
+function isWeakPassword(error: { code?: string }): boolean {
+  return error.code === "weak_password";
+}
+
 /**
- * Invites an employee: Supabase Auth creates the user and emails a link to set a password
- * (`admin` is the service_role client, server only), then the owner's own session adds the staff
- * row and its audit entry. If that fails, the new auth user is removed again so the email can be
- * invited later.
+ * Adds an employee with the owner's temporary password (D-14, no email): Supabase Auth creates
+ * the user, already confirmed (`admin` is the service_role client, server only), then the owner's
+ * own session adds the staff row, locked until the employee sets their own password, and its audit
+ * entry. If that fails, the new auth user is removed again so the email can be added later.
+ * The password goes to Auth only: never to the database, the log or the answer.
  */
-export async function inviteStaff(
+export async function addStaff(
   deps: { db: Db; admin: Db },
-  input: InviteStaffInput & { redirectTo: string },
+  input: AddStaffInput,
 ): Promise<StaffResult> {
-  // The role check before the invite: otherwise an admin could make Auth send emails.
+  // The role check before Auth: otherwise an admin could create sign-in accounts.
   const { data: role } = await deps.db.rpc("current_staff_role");
   if (role !== "owner") return { ok: false, error: "forbidden" };
 
-  const { data, error } = await deps.admin.auth.admin.inviteUserByEmail(
-    input.email,
-    { redirectTo: input.redirectTo },
-  );
+  const { data, error } = await deps.admin.auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+  });
   if (error || !data.user) {
     if (error?.code === "email_exists") {
       return { ok: false, error: "email_taken", fields: ["email"] };
     }
-    console.error("staff invite failed", error?.code ?? error?.status);
+    if (error && isWeakPassword(error)) {
+      return { ok: false, error: "weak_password", fields: ["password"] };
+    }
+    console.error("staff create failed", error?.code ?? error?.status);
     return { ok: false, error: "unavailable" };
   }
 
@@ -87,6 +101,33 @@ export async function inviteStaff(
   if (addError) {
     await deps.admin.auth.admin.deleteUser(data.user.id);
     return { ok: false, error: staffError(addError) };
+  }
+  return { ok: true };
+}
+
+/**
+ * Gives an employee a new temporary password. The database first locks the account until they
+ * set their own, ends their open sessions and records the reset (owner only, not for oneself);
+ * only then does Auth get the new password. The password itself is never recorded.
+ */
+export async function resetStaffPassword(
+  deps: { db: Db; admin: Db },
+  input: ResetStaffPasswordInput,
+): Promise<StaffResult> {
+  const { error: beginError } = await deps.db.rpc("begin_password_reset", {
+    p_staff_id: input.staffId,
+  });
+  if (beginError) return { ok: false, error: staffError(beginError) };
+
+  const { error } = await deps.admin.auth.admin.updateUserById(input.staffId, {
+    password: input.password,
+  });
+  if (error) {
+    if (isWeakPassword(error)) {
+      return { ok: false, error: "weak_password", fields: ["password"] };
+    }
+    console.error("staff password reset failed", error.code ?? error.status);
+    return { ok: false, error: "unavailable" };
   }
   return { ok: true };
 }

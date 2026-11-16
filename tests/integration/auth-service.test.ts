@@ -4,8 +4,8 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import type { Db } from "@/db/client";
 import {
+  authorizePasswordChange,
   authorizeStaff,
-  requestPasswordReset,
   signIn,
   updatePassword,
 } from "@/features/auth/service";
@@ -100,6 +100,7 @@ describe("signIn", () => {
     expect(result).toEqual({
       ok: true,
       actor: { id: SEED_STAFF.admin, role: "admin" },
+      mustChangePassword: false,
     });
     expect((await authorizeStaff(db, ["admin"])).ok).toBe(true);
 
@@ -203,66 +204,6 @@ describe("when the throttle ledger is unreachable", () => {
       }),
     ).resolves.toEqual({ ok: false, error: "unavailable" });
   });
-
-  it("requestPasswordReset answers unavailable instead of throwing", async () => {
-    await expect(
-      requestPasswordReset(
-        { db: anonClient(connection), admin: brokenAdmin },
-        new Date(),
-        {
-          email: SEED_EMAILS.admin,
-          ip: randomUUID(),
-          redirectTo: "http://127.0.0.1:3100/auth/confirm",
-        },
-      ),
-    ).resolves.toEqual({ ok: false, error: "unavailable" });
-  });
-});
-
-describe("requestPasswordReset", () => {
-  it("reports success for an unknown email", async () => {
-    await expect(
-      requestPasswordReset(deps(), new Date(), {
-        email: `${randomUUID()}@example.test`,
-        ip: randomUUID(),
-        redirectTo: "http://127.0.0.1:3100/auth/confirm",
-      }),
-    ).resolves.toEqual({ ok: true });
-  });
-
-  it("stays silent on the per-email limit and reports the per-IP limit", async () => {
-    const now = new Date();
-    const email = `${randomUUID()}@example.test`;
-    for (let i = 0; i < 4; i += 1) {
-      await expect(
-        requestPasswordReset(deps(), now, {
-          email,
-          ip: randomUUID(),
-          redirectTo: "http://127.0.0.1:3100/auth/confirm",
-        }),
-      ).resolves.toEqual({ ok: true });
-    }
-
-    const ip = randomUUID();
-    for (let i = 0; i < 10; i += 1) {
-      await requestPasswordReset(deps(), now, {
-        email: `${randomUUID()}@example.test`,
-        ip,
-        redirectTo: "http://127.0.0.1:3100/auth/confirm",
-      });
-    }
-    await expect(
-      requestPasswordReset(deps(), now, {
-        email: `${randomUUID()}@example.test`,
-        ip,
-        redirectTo: "http://127.0.0.1:3100/auth/confirm",
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      error: "rate_limited",
-      retryAfterMinutes: 15,
-    });
-  });
 });
 
 describe("updatePassword", () => {
@@ -277,7 +218,9 @@ describe("updatePassword", () => {
     const actor = { id: staff.id, role: "admin" as const };
     const newPassword = `new-${randomUUID()}`;
 
-    await expect(updatePassword(db, actor, newPassword)).resolves.toEqual({
+    await expect(
+      updatePassword({ db, admin }, actor, newPassword),
+    ).resolves.toEqual({
       ok: true,
     });
     await expect(signedInAs(staff.email, newPassword)).resolves.toBeDefined();
@@ -294,7 +237,108 @@ describe("updatePassword", () => {
   it("refuses to set the same password again", async () => {
     const db = await signedInAs(staff.email, staff.password);
     await expect(
-      updatePassword(db, { id: staff.id, role: "admin" }, staff.password),
+      updatePassword(
+        { db, admin },
+        { id: staff.id, role: "admin" },
+        staff.password,
+      ),
     ).resolves.toEqual({ ok: false, error: "same_password" });
+  });
+});
+
+describe("temporary password from the owner (D-14)", () => {
+  let staff: TempStaff;
+
+  beforeAll(async () => {
+    staff = await createTempStaff(connection, "admin");
+    await sql`
+      update public.staff set must_change_password = true where id = ${staff.id}
+    `;
+  });
+
+  it("signs in, reports the temporary password and records staff.login", async () => {
+    const { db } = deps();
+    const result = await signIn({ db, admin }, new Date(), {
+      email: staff.email,
+      password: staff.password,
+      ip: randomUUID(),
+    });
+    expect(result).toEqual({
+      ok: true,
+      actor: { id: staff.id, role: "admin" },
+      mustChangePassword: true,
+    });
+    const rows = await sql`
+      select 1 from public.audit_log
+      where actor_id = ${staff.id} and action = 'staff.login'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("criterion 2: refuses every role until the password is changed, but allows the change", async () => {
+    const db = await signedInAs(staff.email, staff.password);
+    await expect(authorizeStaff(db, ["owner", "admin"])).resolves.toEqual({
+      ok: false,
+      reason: "password_change_required",
+    });
+    await expect(authorizePasswordChange(db)).resolves.toEqual({
+      ok: true,
+      actor: { id: staff.id, role: "admin" },
+      mustChangePassword: true,
+    });
+  });
+
+  it("criterion 2: the database itself gives such a session nothing", async () => {
+    const db = await signedInAs(staff.email, staff.password);
+    const { data: role } = await db.rpc("current_staff_role");
+    expect(role).toBeNull();
+    const clients = await db.from("clients").select("id").limit(1);
+    expect(clients.data).toEqual([]);
+    const audit = await db.rpc("write_audit", {
+      p_action: "staff.login",
+      p_entity: "staff",
+    });
+    expect(audit.error?.code).toBe("42501");
+  });
+
+  it("the employee cannot lift the lock themselves through the API", async () => {
+    const db = await signedInAs(staff.email, staff.password);
+    const update = await db
+      .from("staff")
+      .update({ must_change_password: false })
+      .eq("id", staff.id);
+    expect(update.error?.code).toBe("42501");
+    const complete = await db.rpc("complete_password_change", {
+      p_staff_id: staff.id,
+    });
+    expect(complete.error?.code).toBe("42501");
+    const [row] = await sql<{ must_change_password: boolean }[]>`
+      select must_change_password from public.staff where id = ${staff.id}
+    `;
+    expect(row?.must_change_password).toBe(true);
+  });
+
+  it("a new own password lifts the lock and is recorded as the employee's change", async () => {
+    const db = await signedInAs(staff.email, staff.password);
+    const actor = { id: staff.id, role: "admin" as const };
+    await expect(
+      updatePassword({ db, admin }, actor, staff.password),
+    ).resolves.toEqual({ ok: false, error: "same_password" });
+
+    const own = `own-${randomUUID()}`;
+    await expect(updatePassword({ db, admin }, actor, own)).resolves.toEqual({
+      ok: true,
+    });
+    await expect(authorizeStaff(db, ["admin"])).resolves.toEqual({
+      ok: true,
+      actor,
+    });
+    const clients = await db.from("clients").select("id").limit(1);
+    expect(clients.data).toHaveLength(1);
+    const rows = await sql`
+      select details from public.audit_log
+      where actor_id = ${staff.id} and action = 'staff.password_change'
+    `;
+    expect(rows).toEqual([{ details: {} }]);
   });
 });

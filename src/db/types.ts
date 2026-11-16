@@ -235,14 +235,14 @@ isOneToOne: false
                   ]
                 },"staff": {
                   Row: {
-                    "active": boolean,"created_at": string,"full_name": string,"id": string,"role": string
+                    "active": boolean,"created_at": string,"full_name": string,"id": string,"must_change_password": boolean,"role": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"created_at"?: string,"full_name": string,"id": string,"role": string
+                    "active"?: boolean,"created_at"?: string,"full_name": string,"id": string,"must_change_password"?: boolean,"role": string
                   }
                   Update: {
-                    "active"?: boolean,"created_at"?: string,"full_name"?: string,"id"?: string,"role"?: string
+                    "active"?: boolean,"created_at"?: string,"full_name"?: string,"id"?: string,"must_change_password"?: boolean,"role"?: string
                   }
                   Relationships: [
                     
@@ -294,6 +294,9 @@ isOneToOne: false
 "begin_export":
 { Args: { "p_details": Json,"p_entity": string,"p_format": string }; Returns: undefined
                            },
+"begin_password_reset":
+{ Args: { "p_staff_id": string }; Returns: undefined
+                           },
 "bootstrap_owner":
 { Args: { "p_full_name": string,"p_id": string }; Returns: undefined
                            },
@@ -320,11 +323,17 @@ isOneToOne: false
 "coach_options":
 { Args: { "p_keep_id"?: string }; Returns: Json
                            },
+"complete_password_change":
+{ Args: { "p_staff_id": string }; Returns: undefined
+                           },
 "create_client":
 { Args: { "p_birth_date"?: string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: string
                            },
 "create_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_name": string,"p_schedule": Json }; Returns: string
+                           },
+"current_staff_access":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "current_staff_role":
 { Args: Record<PropertyKey, never>; Returns: string
