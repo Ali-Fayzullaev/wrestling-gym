@@ -8,6 +8,7 @@ import { AddStaffForm } from "@/features/staff/components/add-staff-form";
 import { StaffAccessActions } from "@/features/staff/components/staff-access-actions";
 import { listStaff, type StaffMember } from "@/features/staff/service";
 import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import {
   addStaffAction,
@@ -28,7 +29,7 @@ export default async function StaffPage() {
   const staff = await listStaff(await createServerDb());
 
   return (
-    <>
+    <Texts ns={["staff", "roles"]}>
       <BackLink href="/settings" label={t.back} />
       <PageHeader title={messages.pages.staff} description={t.description} />
       <AddStaffForm add={addStaffAction} />
@@ -46,7 +47,7 @@ export default async function StaffPage() {
           ))}
         </ul>
       </section>
-    </>
+    </Texts>
   );
 }
 
