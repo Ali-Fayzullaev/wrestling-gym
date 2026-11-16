@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Page } from "@playwright/test";
 
-import { clientsText } from "@/i18n/clients";
+import { fmt } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
 
 import { defined } from "../support/defined";
@@ -13,6 +13,13 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+// The client screens read three sections; the specs keep one handle.
+const clientsText = {
+  ...ru.clients,
+  list: ru.clientsList,
+  form: ru.clientForm,
+};
 
 const c = clientsText;
 const SEED_GROUP = "10000000-0000-4000-8000-000000000001";
@@ -325,11 +332,11 @@ test.describe("deletion", () => {
         .getByLabel(c.deleteDialog.reason)
         .selectOption("duplicate");
       await dialog(page)
-        .getByLabel(c.deleteDialog.confirmLabel(lastName))
+        .getByLabel(fmt(c.deleteDialog.confirmLabel, { lastName }))
         .fill("другая");
       await expect(confirm).toBeDisabled();
       await dialog(page)
-        .getByLabel(c.deleteDialog.confirmLabel(lastName))
+        .getByLabel(fmt(c.deleteDialog.confirmLabel, { lastName }))
         .fill(lastName.toUpperCase());
       await confirm.click();
       await expect(page).toHaveURL("/clients");

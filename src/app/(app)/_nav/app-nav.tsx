@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 import {
   activeNavKey,
@@ -52,9 +52,10 @@ export function BottomNav() {
  * routes with dynamic segments, where the path is only known at request time.
  */
 export function BottomNavView({ active }: { active: NavKey | null }) {
+  const nav = useText("nav");
   return (
     <nav
-      aria-label={ru.nav.label}
+      aria-label={nav.label}
       data-slot="bottom-nav"
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-backdrop-filter:bg-background/85 md:hidden"
     >
@@ -78,7 +79,7 @@ export function BottomNavView({ active }: { active: NavKey | null }) {
                   className="size-6"
                   strokeWidth={current ? 2.25 : 1.75}
                 />
-                {ru.nav[key]}
+                {nav[key]}
               </Link>
             </li>
           );
@@ -101,8 +102,10 @@ export function SideNavView({
   isOwner: boolean;
   pathname: string | null;
 }) {
+  const nav = useText("nav");
+  const pages = useText("pages");
   return (
-    <nav aria-label={ru.nav.label} className="flex flex-1 flex-col gap-4 px-3">
+    <nav aria-label={nav.label} className="flex flex-1 flex-col gap-4 px-3">
       <SideNavList
         items={SIDE_NAV}
         active={pathname === null ? null : activeNavKey(pathname, SIDE_NAV)}
@@ -111,7 +114,7 @@ export function SideNavView({
         <SideNavList
           items={OWNER_NAV}
           active={pathname === null ? null : activeNavKey(pathname, OWNER_NAV)}
-          heading={ru.pages.ownerSections}
+          heading={pages.ownerSections}
         />
       ) : null}
       <div className="mt-auto">
@@ -135,6 +138,7 @@ function SideNavList({
   active: NavKey | null;
   heading?: string;
 }) {
+  const nav = useText("nav");
   return (
     <div className="flex flex-col gap-1">
       {heading ? (
@@ -162,7 +166,7 @@ function SideNavList({
                   className={`absolute inset-y-2 left-0 w-1 rounded-r-full ${current ? "bg-sidebar-primary" : "bg-transparent"}`}
                 />
                 <Icon aria-hidden className="size-5" />
-                {ru.nav[key]}
+                {nav[key]}
               </Link>
             </li>
           );

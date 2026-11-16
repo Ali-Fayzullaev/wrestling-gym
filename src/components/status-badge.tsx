@@ -5,10 +5,10 @@ import {
   Clock,
   type LucideIcon,
 } from "lucide-react";
-import { ru } from "@/i18n/ru";
+import type { Messages } from "@/i18n/messages";
 
 /** Values of client_status().status in the database. */
-export type SubscriptionStatus = keyof typeof ru.status;
+export type SubscriptionStatus = keyof Messages["status"];
 
 const STYLES: Record<
   SubscriptionStatus,
@@ -33,14 +33,16 @@ const STYLES: Record<
 };
 
 /**
- * Status by colour, icon and word: never by colour alone. Classes are joined, not merged, so client
+ * Status by colour, icon and word (`label`, from the `status` texts): never by colour alone. Classes are joined, not merged, so client
  * islands (the clients list) can use it without the class-merge engine.
  */
 export function StatusBadge({
   status,
+  label,
   className,
 }: {
   status: SubscriptionStatus;
+  label: string;
   className?: string;
 }) {
   const { icon: Icon, className: tone } = STYLES[status];
@@ -51,7 +53,7 @@ export function StatusBadge({
       className={`inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${tone} ${className ?? ""}`}
     >
       <Icon aria-hidden className="size-3.5" />
-      {ru.status[status]}
+      {label}
     </span>
   );
 }

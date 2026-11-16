@@ -21,8 +21,9 @@ import type {
   PaymentTarget,
   RecordPayment,
 } from "@/features/payments/components/payment-dialog";
-import { clientsListText as l } from "@/i18n/clients-list";
-import { ru } from "@/i18n/ru";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 
 import {
   type ClientFilters,
@@ -80,6 +81,8 @@ export function ClientsList({
   recordPayment: RecordPayment;
   cancelPayment: CancelPayment;
 }) {
+  const l = useText("clientsList");
+  const statusText = useText("status");
   const [shownRows, markPaid] = useOptimistic(rows, withPaid);
   const [payTarget, setPayTarget] = useState<PaymentTarget | null>(null);
   const [payOpen, setPayOpen] = useState(false);
@@ -176,7 +179,7 @@ export function ClientsList({
           <option value="">{l.allStatuses}</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
-              {ru.status[status]}
+              {statusText[status]}
             </option>
           ))}
         </FilterSelect>
@@ -221,7 +224,7 @@ export function ClientsList({
           aria-live="polite"
           data-testid="clients-found"
         >
-          {l.found(visible.length)}
+          {fmt(l.found, { count: visible.length })}
         </p>
         {filtered ? (
           <button
@@ -319,7 +322,10 @@ function FilterSelect({
   );
 }
 
-function groupLabel(group: GroupOption | undefined): string {
+function groupLabel(
+  l: Messages["clientsList"],
+  group: GroupOption | undefined,
+): string {
   if (!group) return l.noGroup;
   return group.archived ? `${group.name} (${l.archivedGroup})` : group.name;
 }
@@ -335,6 +341,8 @@ function ClientListRow({
   today: Date;
   onPay: (group: GroupOption | undefined) => void;
 }) {
+  const l = useText("clientsList");
+  const statusText = useText("status");
   const name = `${row.lastName} ${row.firstName}`;
   return (
     <li data-testid="client-row" className="flex items-center gap-2 pr-3">
@@ -349,7 +357,7 @@ function ClientListRow({
           {/* Phone: status and end date first and never cut; the line wraps before they would be. */}
           <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-muted-foreground md:contents">
             <span className="md:hidden">
-              <StatusBadge status={row.status} />
+              <StatusBadge status={row.status} label={statusText[row.status]} />
             </span>
             <span className="shrink-0 whitespace-nowrap md:order-1">
               <EndsOn row={row} today={today} />
@@ -357,10 +365,10 @@ function ClientListRow({
             <span aria-hidden className="md:hidden">
               ·
             </span>
-            <span className="max-w-full truncate">{groupLabel(group)}</span>
+            <span className="max-w-full truncate">{groupLabel(l, group)}</span>
           </span>
           <span className="hidden md:order-2 md:flex md:justify-end">
-            <StatusBadge status={row.status} />
+            <StatusBadge status={row.status} label={statusText[row.status]} />
           </span>
         </span>
         <ChevronRight
@@ -370,7 +378,7 @@ function ClientListRow({
       </Link>
       <button
         type="button"
-        aria-label={l.payFor(name)}
+        aria-label={fmt(l.payFor, { name })}
         className={buttonVariants({ variant: "outline" })}
         onPointerEnter={() => void loadPaymentDialog()}
         onFocus={() => void loadPaymentDialog()}
@@ -384,10 +392,13 @@ function ClientListRow({
 }
 
 function EndsOn({ row, today }: { row: ClientRow; today: Date }) {
+  const l = useText("clientsList");
+  const locale = useLocale();
   if (!row.endsOn) return <>{l.noSubscription}</>;
   return (
     <>
-      {l.endsOnPrefix} <DateText date={row.endsOn} today={today} />
+      {l.endsOnPrefix}{" "}
+      <DateText date={row.endsOn} today={today} locale={locale} />
     </>
   );
 }

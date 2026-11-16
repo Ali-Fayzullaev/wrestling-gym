@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { groupsText } from "@/i18n/groups";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 import { groupFormFields, WEEK_DAYS, type WeekDay } from "../form-fields";
 import type { ActionResult } from "../result";
@@ -16,8 +15,6 @@ import type { Coach } from "../service";
 
 // This dialog confirms with a toast: make sure the toast area is there.
 requestToaster();
-
-const f = groupsText.form;
 
 export type GroupFormValues = {
   name: string;
@@ -48,6 +45,9 @@ export default function GroupFormDialog({
   submit: (form: FormData) => Promise<ActionResult<unknown>>;
   initial?: GroupFormValues;
 }) {
+  const groupsText = useText("groups");
+  const f = groupsText.form;
+  const commonText = useText("common");
   // A new key after a successful create gives the next "New group" an empty form.
   const [formKey, setFormKey] = useState(0);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -91,7 +91,7 @@ export default function GroupFormDialog({
             onClick={() => close(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button
             type="submit"
@@ -129,6 +129,8 @@ function GroupFields({
   initial?: GroupFormValues;
   failure: Failure | null;
 }) {
+  const groupsText = useText("groups");
+  const f = groupsText.form;
   const invalid = new Set<GroupField>(failure?.fields ?? []);
   const generalError =
     failure && (failure.error !== "invalid" || invalid.size === 0)
@@ -271,6 +273,8 @@ function ScheduleFields({
   initial: Session[];
   invalid: boolean;
 }) {
+  const groupsText = useText("groups");
+  const f = groupsText.form;
   const byDay = new Map(initial.map((session) => [session.day, session]));
   const [days, setDays] = useState<ReadonlySet<number>>(
     () => new Set(byDay.keys()),

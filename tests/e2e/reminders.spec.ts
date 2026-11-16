@@ -2,9 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import type { Locator, Page, Route } from "@playwright/test";
 
-import { remindersText } from "@/i18n/reminders";
+import { fmt } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
-import { todayText } from "@/i18n/today";
 import { businessDate } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 
@@ -15,6 +14,9 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+const remindersText = ru.reminders;
+const todayText = ru.today;
 
 const r = remindersText;
 const SEED_GROUP = "10000000-0000-4000-8000-000000000001";
@@ -151,7 +153,7 @@ test.describe("Reminders through wa.me", () => {
       const text = url.searchParams.get("text") ?? "";
       // The parent is greeted; date, price and gym name are filled in; no variable is left.
       expect(text).toContain("Здравствуйте, Гульнара!");
-      expect(text).toContain(formatDate(client.periodEnd, new Date()));
+      expect(text).toContain(formatDate(client.periodEnd, new Date(), "ru"));
       expect(text).toContain("15 000");
       expect(text).toContain(ru.app.name);
       expect(text).not.toMatch(/\{[^}]*\}/);
@@ -284,7 +286,9 @@ test.describe("Reminders through wa.me", () => {
     await expect(preview).toContainText("Добрый день,");
     await expect(preview).toContainText("{телефон}");
     await expect(first.getByTestId("unknown-variable")).toHaveText("{телефон}");
-    await expect(first).toContainText(r.settings.unknown("{телефон}"));
+    await expect(first).toContainText(
+      fmt(r.settings.unknown, { tokens: "{телефон}" }),
+    );
 
     // A bad day count is refused next to its field and nothing is saved.
     await page.getByLabel(r.settings.secondDays).fill("10");

@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants } from "@/components/ui/variants";
-import { groupsText } from "@/i18n/groups";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 import { formatSeats, seatState } from "../format";
 import type { ActionResult } from "../result";
@@ -17,8 +17,6 @@ import type { MoveOutcome, MoveTarget } from "../service";
 
 // This dialog confirms with a toast: make sure the toast area is there.
 requestToaster();
-
-const m = groupsText.moveDialog;
 
 /** Pick the group to move the selected clients to. A full group warns but does not block. */
 export default function MoveClientsDialog({
@@ -36,6 +34,9 @@ export default function MoveClientsDialog({
   move: (input: MoveClientsInput) => Promise<ActionResult<MoveOutcome>>;
   onMoved: () => void;
 }) {
+  const groupsText = useText("groups");
+  const m = groupsText.moveDialog;
+  const commonText = useText("common");
   const [targetId, setTargetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -56,7 +57,7 @@ export default function MoveClientsDialog({
         setError(groupsText.errors[result.error]);
         return;
       }
-      toast.success(m.done(result.data.moved));
+      toast.success(fmt(m.done, { count: result.data.moved }));
       setError(null);
       setTargetId(null);
       onMoved();
@@ -73,7 +74,7 @@ export default function MoveClientsDialog({
         onOpenChange(next);
       }}
       title={m.title}
-      description={m.selected(clientIds.length)}
+      description={fmt(m.selected, { count: clientIds.length })}
       footer={
         <>
           <button
@@ -82,7 +83,7 @@ export default function MoveClientsDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button
             type="button"
@@ -142,7 +143,10 @@ export default function MoveClientsDialog({
             className="flex items-start gap-2 rounded-md bg-status-expiring px-3 py-2 text-sm text-status-expiring-foreground"
           >
             <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-            {m.overWarning(over.members, over.capacity)}
+            {fmt(m.overWarning, {
+              members: over.members,
+              capacity: over.capacity,
+            })}
           </p>
         ) : null}
       </div>

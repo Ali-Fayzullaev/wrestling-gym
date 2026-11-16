@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  currentMonth,
-  formatMonth,
-  monthStart,
-  parseMonth,
-  shiftMonth,
-} from "./month";
+import { currentMonth, monthStart, parseMonth, shiftMonth } from "./month";
 
 // 2026-11-30 23:30 in Almaty (18:30 UTC).
 const LATE_NOVEMBER = new Date("2026-11-30T18:30:00Z");
@@ -54,10 +48,8 @@ describe("parseMonth", () => {
   });
 });
 
-describe("monthStart and formatMonth", () => {
-  it("gives the first day and the Russian month name", () => {
+describe("monthStart", () => {
+  it("gives the first day of the month", () => {
     expect(monthStart("2026-11")).toBe("2026-11-01");
-    expect(formatMonth("2026-11")).toBe("Ноябрь 2026");
-    expect(formatMonth("2027-01")).toBe("Январь 2027");
   });
 });

@@ -2,9 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Locator, Page } from "@playwright/test";
 
-import { paymentsText } from "@/i18n/payments";
 import { ru } from "@/i18n/ru";
-import { todayText } from "@/i18n/today";
 import { businessDate } from "@/lib/dates";
 
 import {
@@ -14,6 +12,9 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+const paymentsText = ru.payments;
+const todayText = ru.today;
 
 const t = todayText;
 const SEED_GROUP = "10000000-0000-4000-8000-000000000001";

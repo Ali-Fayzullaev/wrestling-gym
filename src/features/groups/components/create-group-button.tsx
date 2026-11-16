@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { groupsText } from "@/i18n/groups";
+import { useText } from "@/i18n/client";
 
 import type { ActionResult } from "../result";
 import type { Coach } from "../service";
@@ -23,6 +23,7 @@ export function CreateGroupButton({
   coaches: Coach[];
   create: (form: FormData) => Promise<ActionResult<{ id: string }>>;
 }) {
+  const groupsText = useText("groups");
   const [requested, setRequested] = useState(false);
   const [open, setOpen] = useState(false);
 

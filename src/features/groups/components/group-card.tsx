@@ -1,13 +1,14 @@
 import { CalendarDays, ChevronRight, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
-import { groupsText } from "@/i18n/groups";
+import { getI18n } from "@/i18n/server";
 
 import { formatSchedule, formatSeats, seatState } from "../format";
 import type { GroupSummary } from "../service";
 
 /** One group on the list: who coaches, when, how full, and how many have paid or owe. */
-export function GroupCard({ group }: { group: GroupSummary }) {
+export async function GroupCard({ group }: { group: GroupSummary }) {
+  const { t } = await getI18n();
   const seats = seatState(group.members, group.capacity);
   return (
     <Link
@@ -27,7 +28,7 @@ export function GroupCard({ group }: { group: GroupSummary }) {
       </div>
       <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
         <CalendarDays aria-hidden className="mt-0.5 size-4 shrink-0" />
-        <span>{formatSchedule(group.schedule)}</span>
+        <span>{formatSchedule(group.schedule, t.groups)}</span>
       </p>
       <GroupCountsRow
         seats={formatSeats(group.members, group.capacity)}
@@ -40,7 +41,7 @@ export function GroupCard({ group }: { group: GroupSummary }) {
 }
 
 /** Seats, paid and debtors as a definition list, so each number is read with its label. */
-export function GroupCountsRow({
+export async function GroupCountsRow({
   seats,
   over,
   paid,
@@ -51,6 +52,8 @@ export function GroupCountsRow({
   paid: number;
   debtors: number;
 }) {
+  const { t } = await getI18n();
+  const groupsText = t.groups;
   return (
     <dl className="mt-auto grid grid-cols-3 gap-2 border-t pt-3 text-sm">
       <div className="flex flex-col gap-0.5">

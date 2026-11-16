@@ -6,7 +6,7 @@ import type { Database } from "@/db/types";
 import { readXlsx } from "@/features/import/xlsx";
 import { currentMonth } from "@/features/reports/month";
 import { exportData, getMonthReport } from "@/features/reports/service";
-import { reportsText } from "@/i18n/reports";
+import { ru } from "@/i18n/ru";
 
 import {
   createTempStaff,
@@ -90,45 +90,63 @@ describe("getMonthReport", () => {
 describe("exportData", () => {
   it("criterion 3: an admin gets forbidden (the route answers 403) and nothing is logged", async () => {
     const before = await exportCount(SEED_STAFF.admin);
-    const payments = await exportData(adminDb, NOW, {
-      data: "payments",
-      format: "xlsx",
-      month,
-    });
-    const clients = await exportData(adminDb, NOW, {
-      data: "clients",
-      format: "csv",
-    });
+    const payments = await exportData(
+      adminDb,
+      NOW,
+      {
+        data: "payments",
+        format: "xlsx",
+        month,
+      },
+      ru.reports,
+    );
+    const clients = await exportData(
+      adminDb,
+      NOW,
+      {
+        data: "clients",
+        format: "csv",
+      },
+      ru.reports,
+    );
     expect(payments).toEqual({ ok: false, error: "forbidden" });
     expect(clients).toEqual({ ok: false, error: "forbidden" });
     expect(await exportCount(SEED_STAFF.admin)).toBe(before);
   });
 
   it("gives the owner an .xlsx of the month's payments with the header and logs it", async () => {
-    const result = await exportData(owner.db, NOW, {
-      data: "payments",
-      format: "xlsx",
-      month,
-    });
+    const result = await exportData(
+      owner.db,
+      NOW,
+      {
+        data: "payments",
+        format: "xlsx",
+        month,
+      },
+      ru.reports,
+    );
     if (!result.ok) throw new Error(result.error);
     expect(result.data.fileName).toBe(`payments-${month}.xlsx`);
     const rows = readXlsx(result.data.body);
-    expect(rows[0]).toEqual([...reportsText.file.paymentsHeader]);
+    expect(rows[0]).toEqual([...ru.reports.file.paymentsHeader]);
     expect(rows.length).toBeGreaterThan(1);
     expect(await exportCount(owner.staff.id)).toBe(1);
   });
 
   it("gives the owner a CSV of all clients named by date only", async () => {
-    const result = await exportData(owner.db, NOW, {
-      data: "clients",
-      format: "csv",
-    });
+    const result = await exportData(
+      owner.db,
+      NOW,
+      {
+        data: "clients",
+        format: "csv",
+      },
+      ru.reports,
+    );
     if (!result.ok) throw new Error(result.error);
     expect(result.data.fileName).toMatch(/^clients-\d{4}-\d{2}-\d{2}\.csv$/);
     const text = new TextDecoder().decode(result.data.body);
-    expect(text.split("\r\n")[0]).toBe(
-      reportsText.file.clientsHeader.join(";"),
-    );
+    expect(text.split("\r\n")[0]).toBe(ru.reports.file.clientsHeader.join(";"));
   });
 
   it("parallel requests at the limit: exactly one more export passes", async () => {
@@ -145,7 +163,7 @@ describe("exportData", () => {
 
     const results = await Promise.all(
       Array.from({ length: 3 }, () =>
-        exportData(db, NOW, { data: "clients", format: "csv" }),
+        exportData(db, NOW, { data: "clients", format: "csv" }, ru.reports),
       ),
     );
     expect(results.filter((r) => r.ok)).toHaveLength(1);

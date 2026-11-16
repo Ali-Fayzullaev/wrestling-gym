@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useText } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { XIcon } from "lucide-react";
 import { Dialog as SheetPrimitive } from "radix-ui";
-
-import { ru } from "@/i18n/ru";
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -78,7 +77,9 @@ function SheetContent({
         {showCloseButton && (
           <SheetPrimitive.Close className="absolute top-2 right-2 inline-flex size-11 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
             <XIcon className="size-4" />
-            <span className="sr-only">{ru.common.close}</span>
+            <span className="sr-only">
+              <CloseText />
+            </span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Content>
@@ -142,3 +143,8 @@ export {
   SheetTitle,
   SheetDescription,
 };
+
+/** "Close" in the interface language; a component, so the hook runs only where it is shown. */
+function CloseText() {
+  return useText("common").close;
+}

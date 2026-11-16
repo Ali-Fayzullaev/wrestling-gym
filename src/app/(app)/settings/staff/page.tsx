@@ -7,8 +7,8 @@ import { requireStaff } from "@/features/auth/require-staff";
 import { AddStaffForm } from "@/features/staff/components/add-staff-form";
 import { StaffAccessActions } from "@/features/staff/components/staff-access-actions";
 import { listStaff, type StaffMember } from "@/features/staff/service";
-import { ru } from "@/i18n/ru";
-import { staffText as t } from "@/i18n/settings";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import {
   addStaffAction,
@@ -16,19 +16,22 @@ import {
   updateStaffAccessAction,
 } from "./actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.staff} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.staff} | ${t.app.name}` };
+}
 
 /** "Settings -> Staff". Owner only. Two database requests: the role check and staff_screen(). */
 export default async function StaffPage() {
+  const { t: messages } = await getI18n();
+  const t = messages.staff;
   const actor = await requireStaff(["owner"]);
   const staff = await listStaff(await createServerDb());
 
   return (
-    <>
+    <Texts ns={["staff", "roles"]}>
       <BackLink href="/settings" label={t.back} />
-      <PageHeader title={ru.pages.staff} description={t.description} />
+      <PageHeader title={messages.pages.staff} description={t.description} />
       <AddStaffForm add={addStaffAction} />
       <section aria-labelledby="staff-list" className="flex flex-col gap-2">
         <h2 id="staff-list" className="text-lg font-semibold">
@@ -44,17 +47,19 @@ export default async function StaffPage() {
           ))}
         </ul>
       </section>
-    </>
+    </Texts>
   );
 }
 
-function StaffRow({
+async function StaffRow({
   member,
   isSelf,
 }: {
   member: StaffMember;
   isSelf: boolean;
 }) {
+  const { t: messages } = await getI18n();
+  const t = messages.staff;
   return (
     <li
       data-testid="staff-row"
@@ -66,7 +71,7 @@ function StaffRow({
           {member.email}
         </p>
         <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-          <span data-testid="staff-role">{ru.roles[member.role]}</span>
+          <span data-testid="staff-role">{messages.roles[member.role]}</span>
           {member.active ? null : (
             <span
               className="text-status-expired-foreground"

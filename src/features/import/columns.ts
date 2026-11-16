@@ -1,7 +1,7 @@
 import type { ColumnKey, ColumnMapping } from "./limits";
 import { COLUMN_KEYS, REQUIRED_COLUMNS } from "./limits";
 
-// Header names people write in the notebook copy: Russian, Kazakh and English. Compared after
+// Header names people write in the notebook copy: Russian, Kazakh, Uzbek (Cyrillic) and English. Compared after
 // normalizeHeader(), so case, "ё", punctuation and extra spaces do not matter.
 const SYNONYMS: Record<ColumnKey, readonly string[]> = {
   lastName: [
@@ -12,8 +12,18 @@ const SYNONYMS: Record<ColumnKey, readonly string[]> = {
     "lastname",
     "family name",
     "тегі",
+    "фамилияси",
   ],
-  firstName: ["имя", "first name", "firstname", "given name", "name", "аты"],
+  firstName: [
+    "имя",
+    "first name",
+    "firstname",
+    "given name",
+    "name",
+    "аты",
+    "исм",
+    "исми",
+  ],
   phone: [
     "телефон",
     "тел",
@@ -27,8 +37,10 @@ const SYNONYMS: Record<ColumnKey, readonly string[]> = {
     "mobile",
     "телефон нөмірі",
     "нөмір",
+    "телефон рақами",
+    "рақам",
   ],
-  group: ["группа", "group", "топ", "тобы"],
+  group: ["группа", "group", "топ", "тобы", "гуруҳ", "гурух"],
   endsOn: [
     "дата окончания",
     "окончание",
@@ -46,6 +58,9 @@ const SYNONYMS: Record<ColumnKey, readonly string[]> = {
     "аяқталу күні",
     "аяқталуы",
     "мерзімі",
+    "тугаш санаси",
+    "тугаш",
+    "муддати",
   ],
 };
 

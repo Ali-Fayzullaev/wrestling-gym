@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { reportsText } from "@/i18n/reports";
+import type { Messages } from "@/i18n/messages";
 import { toCsv } from "@/lib/csv-write";
 import { businessDateTime } from "@/lib/dates";
 import { toXlsx, type XlsxCell } from "@/lib/xlsx-write";
@@ -10,8 +10,9 @@ import type { ExportFile } from "./result";
 
 // Rows of export_payments() / export_clients() (supabase/migrations/*_reports.sql) turned into a
 // table and then into the file. The database returns jsonb, so rows are checked, not trusted.
+// Headers and words are in the language of whoever downloads.
 
-const t = reportsText.file;
+type ReportTexts = Messages["reports"];
 
 export const paymentRowShape = z.object({
   created_at: z.string(),
@@ -52,9 +53,14 @@ type Table = {
   widths: number[];
 };
 
-const yesNo = (value: boolean) => (value ? t.yes : t.no);
+const yesNo = (t: ReportTexts["file"], value: boolean) =>
+  value ? t.yes : t.no;
 
-export function paymentsTable(rows: readonly PaymentRow[]): Table {
+export function paymentsTable(
+  rows: readonly PaymentRow[],
+  texts: ReportTexts,
+): Table {
+  const t = texts.file;
   return {
     header: t.paymentsHeader,
     widths: [17, 9, 16, 14, 20, 13, 11, 11, 11, 10, 30, 22],
@@ -65,17 +71,21 @@ export function paymentsTable(rows: readonly PaymentRow[]): Table {
       row.first_name,
       row.group_name,
       row.amount,
-      row.method ? reportsText.byMethod.methods[row.method] : null,
+      row.method ? texts.byMethod.methods[row.method] : null,
       row.period_start,
       row.period_end,
-      row.kind === "payment" ? yesNo(row.reversed) : null,
+      row.kind === "payment" ? yesNo(t, row.reversed) : null,
       row.reason,
       row.created_by,
     ]),
   };
 }
 
-export function clientsTable(rows: readonly ClientRow[]): Table {
+export function clientsTable(
+  rows: readonly ClientRow[],
+  texts: ReportTexts,
+): Table {
+  const t = texts.file;
   return {
     header: t.clientsHeader,
     widths: [16, 14, 14, 11, 16, 12, 20, 12, 15, 12, 8, 30],
@@ -90,7 +100,7 @@ export function clientsTable(rows: readonly ClientRow[]): Table {
       row.started_on,
       t.statuses[row.status],
       row.ends_on,
-      yesNo(row.archived),
+      yesNo(t, row.archived),
       row.note,
     ]),
   };

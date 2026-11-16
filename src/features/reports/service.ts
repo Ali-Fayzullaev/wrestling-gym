@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Db } from "@/db/client";
-import { reportsText } from "@/i18n/reports";
+import type { Messages } from "@/i18n/messages";
 import { businessDate } from "@/lib/dates";
 
 import {
@@ -102,12 +102,14 @@ function exportError(error: { code?: string; message?: string }): ExportError {
 
 /**
  * Payments of a month or all clients as an .xlsx or .csv file. The database checks the role and
- * the hourly limit and writes the audit row in the same call that reads the rows.
+ * the hourly limit and writes the audit row in the same call that reads the rows. Headers are in
+ * the language of the employee who downloads (`texts`).
  */
 export async function exportData(
   db: Db,
   now: Date,
   query: ExportQuery,
+  texts: Messages["reports"],
 ): Promise<ExportResult<ExportFile>> {
   if (query.data === "payments") {
     if (!query.month) return { ok: false, error: "invalid" };
@@ -120,10 +122,10 @@ export async function exportData(
     return {
       ok: true,
       data: buildExportFile(
-        paymentsTable(rows),
+        paymentsTable(rows, texts),
         query.format,
         `payments-${query.month}`,
-        reportsText.file.paymentsSheet,
+        texts.file.paymentsSheet,
       ),
     };
   }
@@ -138,10 +140,10 @@ export async function exportData(
   return {
     ok: true,
     data: buildExportFile(
-      clientsTable(rows),
+      clientsTable(rows, texts),
       query.format,
       `clients-${today}`,
-      reportsText.file.clientsSheet,
+      texts.file.clientsSheet,
     ),
   };
 }

@@ -8,7 +8,7 @@ import { requirePasswordChange } from "@/features/auth/require-staff";
 import { HOME_PATH, LOGIN_PATH } from "@/features/auth/routes";
 import { newPasswordSchema } from "@/features/auth/schema";
 import { updatePassword } from "@/features/auth/service";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
 
 export type PasswordFormState = { error: string | null };
 
@@ -18,6 +18,7 @@ export async function updatePasswordAction(
 ): Promise<PasswordFormState> {
   // Open to an employee with a temporary password too: this action is how they get rid of it.
   const { actor } = await requirePasswordChange();
+  const { t } = await getI18n();
   const parsed = newPasswordSchema.safeParse({
     password: formData.get("password"),
     confirm: formData.get("confirm"),
@@ -27,7 +28,7 @@ export async function updatePasswordAction(
       (issue) => issue.path[0] === "confirm",
     );
     return {
-      error: mismatch ? ru.auth.update.mismatch : ru.auth.update.tooShort,
+      error: mismatch ? t.auth.update.mismatch : t.auth.update.tooShort,
     };
   }
 
@@ -43,10 +44,10 @@ export async function updatePasswordAction(
   }
   if (!result.ok) {
     if (result.error === "same_password")
-      return { error: ru.auth.update.samePassword };
+      return { error: t.auth.update.samePassword };
     if (result.error === "weak_password")
-      return { error: ru.auth.update.weakPassword };
-    return { error: ru.auth.unavailable };
+      return { error: t.auth.update.weakPassword };
+    return { error: t.auth.unavailable };
   }
   redirect(HOME_PATH);
 }

@@ -5,7 +5,8 @@ import { requireStaff } from "@/features/auth/require-staff";
 import type { ExportError } from "@/features/reports/result";
 import { exportQuerySchema } from "@/features/reports/schema";
 import { exportData } from "@/features/reports/service";
-import { reportsText } from "@/i18n/reports";
+import type { Messages } from "@/i18n/messages";
+import { getI18n } from "@/i18n/server";
 
 const STATUS: Record<ExportError, number> = {
   forbidden: 403,
@@ -14,8 +15,8 @@ const STATUS: Record<ExportError, number> = {
   unavailable: 503,
 };
 
-function failure(error: ExportError): Response {
-  return new Response(reportsText.errors[error], {
+function failure(t: Messages, error: ExportError): Response {
+  return new Response(t.reports.errors[error], {
     status: STATUS[error],
     headers: {
       "content-type": "text/plain; charset=utf-8",
@@ -31,17 +32,19 @@ function failure(error: ExportError): Response {
  */
 export async function GET(request: NextRequest) {
   await requireStaff(["owner"]);
+  const { t } = await getI18n();
   const query = exportQuerySchema.safeParse(
     Object.fromEntries(request.nextUrl.searchParams),
   );
-  if (!query.success) return failure("invalid");
+  if (!query.success) return failure(t, "invalid");
 
   const result = await exportData(
     await createServerDb(),
     new Date(),
     query.data,
+    t.reports,
   );
-  if (!result.ok) return failure(result.error);
+  if (!result.ok) return failure(t, result.error);
 
   const { fileName, contentType, body } = result.data;
   return new Response(body, {

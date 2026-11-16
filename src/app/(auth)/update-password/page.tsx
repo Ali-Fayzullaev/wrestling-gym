@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 
 import { requirePasswordChange } from "@/features/auth/require-staff";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import { LogoutButton } from "../../(app)/logout-button";
 import { PasswordForm } from "./password-form";
 
-export const metadata: Metadata = {
-  title: `${ru.auth.update.title} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.auth.update.title} | ${t.app.name}` };
+}
 
 /**
  * Own password of the signed-in employee. With a temporary password from the owner this is the
@@ -16,9 +18,10 @@ export const metadata: Metadata = {
  */
 export default async function UpdatePasswordPage() {
   const { mustChangePassword } = await requirePasswordChange();
-  const t = ru.auth.update;
+  const { t: messages } = await getI18n();
+  const t = messages.auth.update;
   return (
-    <>
+    <Texts ns={["auth"]}>
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
           {mustChangePassword ? t.requiredTitle : t.title}
@@ -29,6 +32,6 @@ export default async function UpdatePasswordPage() {
       </header>
       <PasswordForm />
       <LogoutButton />
-    </>
+    </Texts>
   );
 }

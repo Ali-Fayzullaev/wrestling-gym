@@ -4,7 +4,7 @@ import { Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { clientsText } from "@/i18n/clients";
+import { useText } from "@/i18n/client";
 
 import type { ActionResult } from "../result";
 import type { ArchiveClientInput, DeleteClientInput } from "../schema";
@@ -35,6 +35,7 @@ export function ClientActions({
   ) => Promise<ActionResult<{ changed: boolean }>>;
   remove: (input: DeleteClientInput) => Promise<ActionResult<DeleteOutcome>>;
 }) {
+  const clientsText = useText("clients");
   const [requested, setRequested] = useState<ReadonlySet<Dialog>>(new Set());
   const [open, setOpen] = useState<Dialog>(null);
 

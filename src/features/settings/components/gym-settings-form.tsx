@@ -4,7 +4,7 @@ import { Save } from "lucide-react";
 import { type FormEvent, useId, useState, useTransition } from "react";
 
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { settingsText } from "@/i18n/settings";
+import { useText } from "@/i18n/client";
 
 import {
   GYM_NAME_MAX,
@@ -12,8 +12,6 @@ import {
   type GymSettings,
   type GymSettingsResult,
 } from "../form-fields";
-
-const t = settingsText.gym;
 
 type Message = "saved" | "unchanged" | "forbidden" | "unavailable" | null;
 
@@ -28,6 +26,8 @@ export function GymSettingsForm({
     gymWhatsapp: string;
   }) => Promise<GymSettingsResult>;
 }) {
+  const settingsText = useText("settings");
+  const t = settingsText.gym;
   const id = useId();
   const [gymName, setGymName] = useState(initial.gymName);
   const [gymWhatsapp, setGymWhatsapp] = useState(initial.gymWhatsapp ?? "");

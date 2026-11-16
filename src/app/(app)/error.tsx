@@ -3,7 +3,7 @@
 import { RotateCw, TriangleAlert } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 /**
  * Plain words and a retry button; the error itself stays in the server logs (no details, no PD).
@@ -16,11 +16,13 @@ export default function ErrorPage({
   error: unknown;
   retry: () => void;
 }) {
+  const errors = useText("errors");
+  const common = useText("common");
   return (
     <EmptyState
       icon={TriangleAlert}
-      title={ru.errors.pageTitle}
-      description={ru.errors.pageText}
+      title={errors.pageTitle}
+      description={errors.pageText}
       action={
         <button
           type="button"
@@ -28,7 +30,7 @@ export default function ErrorPage({
           className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <RotateCw aria-hidden className="size-4" />
-          {ru.common.retry}
+          {common.retry}
         </button>
       }
     />

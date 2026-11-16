@@ -8,21 +8,23 @@ import { STAFF_ROLES } from "@/features/auth/roles";
 import { ClientForm } from "@/features/clients/components/client-form";
 import { clientIdSchema } from "@/features/clients/schema";
 import { getClient } from "@/features/clients/service";
-import { clientsText } from "@/i18n/clients";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 import { formatPhone } from "@/lib/phone";
 
 import { checkPhoneAction, updateClientAction } from "../../actions";
 import { BackLink } from "@/components/back-link";
 
-export const metadata: Metadata = {
-  title: `${clientsText.form.editTitle} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.clientForm.editTitle} | ${t.app.name}` };
+}
 
 /** Two database requests: the role check and client_screen(). */
 export default async function EditClientPage({
   params,
 }: PageProps<"/clients/[id]/edit">) {
+  const { t: messages } = await getI18n();
   await requireStaff(STAFF_ROLES);
   const id = clientIdSchema.safeParse((await params).id);
   if (!id.success) notFound();
@@ -37,20 +39,22 @@ export default async function EditClientPage({
         href={`/clients/${client.id}`}
         label={`${client.lastName} ${client.firstName}`}
       />
-      <PageHeader title={clientsText.form.editTitle} />
-      <ClientForm
-        mode="edit"
-        clientId={client.id}
-        initial={{ ...client, phone: formatPhone(client.phone) }}
-        groups={screen.groups}
-        archivedGroup={
-          group?.archived ? { id: group.id, name: group.name } : null
-        }
-        consentsOnFile={screen.consents}
-        today={now}
-        submit={updateClientAction.bind(null, client.id)}
-        checkPhone={checkPhoneAction}
-      />
+      <PageHeader title={messages.clientForm.editTitle} />
+      <Texts ns={["clientForm", "clients"]}>
+        <ClientForm
+          mode="edit"
+          clientId={client.id}
+          initial={{ ...client, phone: formatPhone(client.phone) }}
+          groups={screen.groups}
+          archivedGroup={
+            group?.archived ? { id: group.id, name: group.name } : null
+          }
+          consentsOnFile={screen.consents}
+          today={now}
+          submit={updateClientAction.bind(null, client.id)}
+          checkPhone={checkPhoneAction}
+        />
+      </Texts>
     </>
   );
 }

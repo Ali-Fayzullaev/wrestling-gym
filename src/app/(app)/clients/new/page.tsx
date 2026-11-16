@@ -6,19 +6,22 @@ import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { ClientForm } from "@/features/clients/components/client-form";
 import { listActiveGroups } from "@/features/clients/service";
-import { clientsText } from "@/i18n/clients";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 import { businessDate } from "@/lib/dates";
 
 import { checkPhoneAction, createClientAction } from "../actions";
 import { BackLink } from "@/components/back-link";
 
-export const metadata: Metadata = {
-  title: `${clientsText.form.createTitle} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.clientForm.createTitle} | ${t.app.name}` };
+}
 
 /** Two database requests: the role check and the active groups. */
 export default async function NewClientPage() {
+  const { t: messages } = await getI18n();
+  const clientsText = messages.clients;
   await requireStaff(STAFF_ROLES);
   const now = new Date();
   const groups = await listActiveGroups(await createServerDb());
@@ -26,28 +29,30 @@ export default async function NewClientPage() {
   return (
     <>
       <BackLink href="/clients" label={clientsText.back} />
-      <PageHeader title={clientsText.form.createTitle} />
-      <ClientForm
-        mode="create"
-        clientId={null}
-        initial={{
-          lastName: "",
-          firstName: "",
-          birthDate: null,
-          phone: "",
-          phoneOwner: "self",
-          parentName: null,
-          groupId: null,
-          startedOn: businessDate(now),
-          note: "",
-        }}
-        groups={groups}
-        archivedGroup={null}
-        consentsOnFile={[]}
-        today={now}
-        submit={createClientAction}
-        checkPhone={checkPhoneAction}
-      />
+      <PageHeader title={messages.clientForm.createTitle} />
+      <Texts ns={["clientForm", "clients"]}>
+        <ClientForm
+          mode="create"
+          clientId={null}
+          initial={{
+            lastName: "",
+            firstName: "",
+            birthDate: null,
+            phone: "",
+            phoneOwner: "self",
+            parentName: null,
+            groupId: null,
+            startedOn: businessDate(now),
+            note: "",
+          }}
+          groups={groups}
+          archivedGroup={null}
+          consentsOnFile={[]}
+          today={now}
+          submit={createClientAction}
+          checkPhone={checkPhoneAction}
+        />
+      </Texts>
     </>
   );
 }

@@ -1,7 +1,6 @@
 import { randomInt } from "node:crypto";
 
-import { clientsText } from "@/i18n/clients";
-import { importText } from "@/i18n/import";
+import { fmt, plural } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
 
 import {
@@ -13,6 +12,8 @@ import {
 import { csvText } from "../support/sheets";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+const importText = { ...ru.importUpload, ...ru.import };
 
 const t = importText;
 const HEADERS = ["Фамилия", "Имя", "Телефон", "Группа", "Дата окончания"];
@@ -95,8 +96,8 @@ test.describe("import from the notebook", () => {
 
       await page.getByTestId("import-submit").click();
       const report = page.getByTestId("import-report");
-      await expect(report).toContainText(t.report.created(3));
-      await expect(report).toContainText(t.report.skipped(1));
+      await expect(report).toContainText(fmt(t.report.created, { count: 3 }));
+      await expect(report).toContainText(plural("ru", t.report.skipped, 1));
       await expect(
         report.getByRole("button", { name: t.report.download }),
       ).toBeVisible();
@@ -104,7 +105,7 @@ test.describe("import from the notebook", () => {
       await report.getByRole("link", { name: t.report.toClients }).click();
       await expect(page).toHaveURL(/\/clients$/);
       await page
-        .getByRole("searchbox", { name: clientsText.list.search })
+        .getByRole("searchbox", { name: ru.clientsList.search })
         .fill(lastName);
       const rows = page.getByTestId("client-row").filter({ hasText: lastName });
       await expect(rows).toHaveCount(3);

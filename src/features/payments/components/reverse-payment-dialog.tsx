@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants } from "@/components/ui/variants";
-import { paymentsText as t } from "@/i18n/payments";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 import { REASON_MAX } from "../form-fields";
 import type { PaymentError, PaymentResult, RecordedPayment } from "../result";
@@ -44,6 +43,8 @@ export default function ReversePaymentDialog({
   cancel: CancelPayment;
   reverse: ReversePayment;
 }) {
+  const t = useText("payments");
+  const common = useText("common");
   const router = useRouter();
   const id = useId();
   const [reason, setReason] = useState("");
@@ -98,7 +99,7 @@ export default function ReversePaymentDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {mode === "cancel" ? t.cancelDialog.keep : ru.common.cancel}
+            {mode === "cancel" ? t.cancelDialog.keep : common.cancel}
           </button>
           <button
             type="button"

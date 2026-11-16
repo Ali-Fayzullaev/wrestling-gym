@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DateText } from "@/components/date-text";
+import type { Locale } from "@/lib/locale";
 
 import type { TodayRow } from "../service";
 
@@ -11,10 +12,12 @@ import type { TodayRow } from "../service";
 export function ClientSummaryLink({
   row,
   today,
+  locale,
   labels,
 }: {
   row: TodayRow;
   today: Date;
+  locale: Locale;
   labels: { noGroup: string; endsOn: string };
 }) {
   return (
@@ -29,7 +32,8 @@ export function ClientSummaryLink({
         <span>{row.groupName ?? labels.noGroup}</span>
         {row.endsOn ? (
           <span>
-            {labels.endsOn}: <DateText date={row.endsOn} today={today} />
+            {labels.endsOn}:{" "}
+            <DateText date={row.endsOn} today={today} locale={locale} />
           </span>
         ) : null}
       </span>

@@ -1,21 +1,26 @@
 import { describe, expect, it } from "vitest";
 
+import { ru } from "@/i18n/ru";
+
 import { formatSchedule, formatSeats, seatState } from "./format";
 
 describe("formatSchedule", () => {
   it("lists days that share a time together", () => {
     expect(
-      formatSchedule([
-        { day: 5, start: "09:00", end: "10:00" },
-        { day: 1, start: "09:00", end: "10:00" },
-        { day: 6, start: "11:00", end: "12:00" },
-        { day: 3, start: "09:00", end: "10:00" },
-      ]),
+      formatSchedule(
+        [
+          { day: 5, start: "09:00", end: "10:00" },
+          { day: 1, start: "09:00", end: "10:00" },
+          { day: 6, start: "11:00", end: "12:00" },
+          { day: 3, start: "09:00", end: "10:00" },
+        ],
+        ru.groups,
+      ),
     ).toBe("Пн, Ср, Пт 09:00–10:00 · Сб 11:00–12:00");
   });
 
   it("says when there is no schedule", () => {
-    expect(formatSchedule([])).toBe("Расписание не задано");
+    expect(formatSchedule([], ru.groups)).toBe("Расписание не задано");
   });
 });
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import type * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 import { ResponsiveDialog } from "./responsive-dialog";
 
@@ -27,6 +27,7 @@ export function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
   destructive?: boolean;
 }) {
+  const common = useText("common");
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -56,7 +57,7 @@ export function ConfirmDialog({
             onClick={() => setOpen(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {common.cancel}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}

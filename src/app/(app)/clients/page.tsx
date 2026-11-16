@@ -11,20 +11,23 @@ import { STAFF_ROLES } from "@/features/auth/roles";
 import { ClientsList } from "@/features/clients/components/clients-list";
 import { filtersToSearch, parseFilters } from "@/features/clients/filters";
 import { listClients } from "@/features/clients/service";
-import { clientsText } from "@/i18n/clients";
-import { importText } from "@/i18n/import";
-import { ru } from "@/i18n/ru";
+import { fmt } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import { cancelPaymentAction, recordPaymentAction } from "./payment-actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.clients} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.clients} | ${t.app.name}` };
+}
 
 /** Two database requests: the role check and clients_screen(). Everything else runs in the browser. */
 export default async function ClientsPage({
   searchParams,
 }: PageProps<"/clients">) {
+  const { t: messages } = await getI18n();
+  const clientsText = messages.clients;
   const actor = await requireStaff(STAFF_ROLES);
   const now = new Date();
   const [screen, params] = await Promise.all([
@@ -40,7 +43,7 @@ export default async function ClientsPage({
           className={buttonVariants({ variant: "outline" })}
         >
           <Upload aria-hidden />
-          {importText.open}
+          {messages.importUpload.open}
         </Link>
       ) : null}
       <Link href="/clients/new" className={buttonVariants()}>
@@ -52,31 +55,36 @@ export default async function ClientsPage({
 
   return (
     <>
-      <PageHeader title={ru.pages.clients} actions={createButton} />
+      <PageHeader title={messages.pages.clients} actions={createButton} />
       {screen.total === 0 ? (
         <EmptyState
           icon={UserRound}
-          title={clientsText.list.emptyTitle}
-          description={clientsText.list.emptyText}
+          title={messages.clientsList.emptyTitle}
+          description={messages.clientsList.emptyText}
         />
       ) : (
         <>
           {screen.total > screen.clients.length ? (
             <p className="rounded-xl border bg-muted px-4 py-3 text-sm">
-              {clientsText.list.truncated(screen.clients.length, screen.total)}
+              {fmt(messages.clientsList.truncated, {
+                shown: screen.clients.length,
+                total: screen.total,
+              })}
             </p>
           ) : null}
-          <ClientsList
-            // A link with other filters (back button, shared link) starts the list afresh.
-            key={filtersToSearch(filters)}
-            rows={screen.clients}
-            groups={screen.groups}
-            coaches={screen.coaches}
-            initialFilters={filters}
-            today={now}
-            recordPayment={recordPaymentAction}
-            cancelPayment={cancelPaymentAction}
-          />
+          <Texts ns={["clientsList", "payments"]}>
+            <ClientsList
+              // A link with other filters (back button, shared link) starts the list afresh.
+              key={filtersToSearch(filters)}
+              rows={screen.clients}
+              groups={screen.groups}
+              coaches={screen.coaches}
+              initialFilters={filters}
+              today={now}
+              recordPayment={recordPaymentAction}
+              cancelPayment={cancelPaymentAction}
+            />
+          </Texts>
         </>
       )}
     </>

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { importUploadText as t } from "@/i18n/import-upload";
+import { useText } from "@/i18n/client";
 
 import { ACCEPTED_FILES, type ColumnMapping, MAX_FILE_BYTES } from "../limits";
 import type {
@@ -40,6 +40,7 @@ export function ImportWizard({
   preview: Action<PreviewData>;
   commit: Action<Report>;
 }) {
+  const t = useText("importUpload");
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);

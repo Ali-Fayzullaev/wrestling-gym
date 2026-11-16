@@ -6,15 +6,16 @@ import { requireStaff } from "@/features/auth/require-staff";
 import { ReminderSettingsForm } from "@/features/reminders/components/reminder-settings-form";
 import { getReminderSettings } from "@/features/reminders/service";
 import type { ReminderContact } from "@/features/reminders/template";
-import { remindersText } from "@/i18n/reminders";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import { BackLink } from "@/components/back-link";
 import { saveReminderSettingsAction } from "./actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.reminderSettings} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.reminderSettings} | ${t.app.name}` };
+}
 
 // Only when there is no current client with a group to show the texts on; the screen says so.
 const SAMPLE_CONTACT: ReminderContact = {
@@ -32,6 +33,7 @@ const SAMPLE_CONTACT: ReminderContact = {
  */
 export default async function ReminderSettingsPage() {
   await requireStaff(["owner"]);
+  const { t } = await getI18n();
   const now = new Date();
   const { context, preview } = await getReminderSettings(
     await createServerDb(),
@@ -39,11 +41,11 @@ export default async function ReminderSettingsPage() {
   );
 
   return (
-    <>
-      <BackLink href="/settings" label={ru.pages.settings} />
+    <Texts ns={["reminders"]}>
+      <BackLink href="/settings" label={t.pages.settings} />
       <PageHeader
-        title={ru.pages.reminderSettings}
-        description={remindersText.settings.description}
+        title={t.pages.reminderSettings}
+        description={t.reminders.settings.description}
       />
       <ReminderSettingsForm
         reminderDays={context.reminderDays}
@@ -54,6 +56,6 @@ export default async function ReminderSettingsPage() {
         today={now}
         save={saveReminderSettingsAction}
       />
-    </>
+    </Texts>
   );
 }

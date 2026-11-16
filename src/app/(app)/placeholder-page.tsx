@@ -3,22 +3,23 @@ import { Construction } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import type { Actor } from "@/features/auth/roles";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
 
 /** Body of a section that later steps fill in; shows who is signed in so access can be checked. */
-export function PlaceholderPage({
+export async function PlaceholderPage({
   title,
   actor,
 }: {
   title: string;
   actor: Actor;
 }) {
+  const { t } = await getI18n();
   return (
     <>
       <PageHeader title={title} />
-      <EmptyState icon={Construction} title={ru.pages.placeholder} />
+      <EmptyState icon={Construction} title={t.pages.placeholder} />
       <p className="text-sm text-muted-foreground" data-testid="actor-role">
-        {ru.roles[actor.role]}
+        {t.roles[actor.role]}
       </p>
     </>
   );

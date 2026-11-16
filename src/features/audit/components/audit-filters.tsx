@@ -3,7 +3,7 @@ import Link from "next/link";
 import type * as React from "react";
 
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { auditText as t } from "@/i18n/audit";
+import { getI18n } from "@/i18n/server";
 
 import { AUDIT_ACTION_GROUPS } from "../actions";
 import type { AuditQuery } from "../schema";
@@ -12,7 +12,7 @@ import type { AuditQuery } from "../schema";
  * A plain GET form: it works before any script loads and keeps the filter in the address, so a
  * filtered journal can be reloaded or shared with another owner.
  */
-export function AuditFilters({
+export async function AuditFilters({
   query,
   staff,
   filtered,
@@ -21,6 +21,8 @@ export function AuditFilters({
   staff: { id: string; name: string }[];
   filtered: boolean;
 }) {
+  const { t: messages } = await getI18n();
+  const t = messages.audit;
   return (
     <form
       method="get"

@@ -4,12 +4,10 @@ import { type FormEvent, useId, useState } from "react";
 
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants } from "@/components/ui/variants";
-import { ru } from "@/i18n/ru";
-import { staffText } from "@/i18n/settings";
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 import { TextField } from "./text-field";
-
-const t = staffText.reset;
 
 /**
  * Asks the owner for a new temporary password for one employee; loaded on first intent, not with
@@ -31,6 +29,9 @@ export default function ResetPasswordDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (password: string) => Promise<boolean>;
 }) {
+  const staffText = useText("staff");
+  const t = staffText.reset;
+  const commonText = useText("common");
   const id = useId();
   const [password, setPassword] = useState("");
 
@@ -51,14 +52,14 @@ export default function ResetPasswordDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={close}
-      title={t.title(fullName)}
+      title={fmt(t.title, { name: fullName })}
       description={t.text}
     >
       <form
         onSubmit={submit}
         noValidate
         className="flex flex-col gap-4"
-        aria-label={t.title(fullName)}
+        aria-label={fmt(t.title, { name: fullName })}
       >
         <TextField
           id={`${id}-password`}
@@ -81,7 +82,7 @@ export default function ResetPasswordDialog({
             onClick={() => close(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button type="submit" className={buttonVariants()} disabled={pending}>
             {pending ? t.pending : t.submit}

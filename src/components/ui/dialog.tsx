@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { useText } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { Button } from "@/components/ui/button";
-import { ru } from "@/i18n/ru";
 
 function Dialog({
   ...props
@@ -74,7 +74,9 @@ function DialogContent({
             className="absolute top-2 right-2 inline-flex size-11 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className="sr-only">{ru.common.close}</span>
+            <span className="sr-only">
+              <CloseText />
+            </span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -112,7 +114,9 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">{ru.common.close}</Button>
+          <Button variant="outline">
+            <CloseText />
+          </Button>
         </DialogPrimitive.Close>
       )}
     </div>
@@ -157,3 +161,8 @@ export {
   DialogTitle,
   DialogTrigger,
 };
+
+/** "Close" in the interface language; a component, so the hook runs only where it is shown. */
+function CloseText() {
+  return useText("common").close;
+}

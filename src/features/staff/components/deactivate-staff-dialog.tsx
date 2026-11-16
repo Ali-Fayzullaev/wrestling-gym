@@ -2,10 +2,8 @@
 
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants } from "@/components/ui/variants";
-import { ru } from "@/i18n/ru";
-import { staffText } from "@/i18n/settings";
-
-const t = staffText.list;
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 /** Asks before cutting an employee off; loaded on first intent, not with the staff screen. */
 export default function DeactivateStaffDialog({
@@ -21,13 +19,16 @@ export default function DeactivateStaffDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }) {
+  const staffText = useText("staff");
+  const t = staffText.list;
+  const commonText = useText("common");
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={(next) => {
         if (!pending) onOpenChange(next);
       }}
-      title={t.deactivateTitle(fullName)}
+      title={fmt(t.deactivateTitle, { name: fullName })}
       description={t.deactivateText}
       footer={
         <>
@@ -37,7 +38,7 @@ export default function DeactivateStaffDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button
             type="button"

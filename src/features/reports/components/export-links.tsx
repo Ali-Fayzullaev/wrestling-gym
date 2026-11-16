@@ -1,8 +1,7 @@
+import { fmt } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
+
 import { Download } from "lucide-react";
-
-import { reportsText } from "@/i18n/reports";
-
-const t = reportsText.export;
 
 const LINK =
   "inline-flex h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring";
@@ -11,7 +10,9 @@ const LINK =
  * Plain download links to the route handler: the file is built on the server, so the export adds
  * nothing to the screen's JavaScript. Not next/link, which would prefetch a download.
  */
-export function ExportLinks({ month }: { month: string }) {
+export async function ExportLinks({ month }: { month: string }) {
+  const { t: messages } = await getI18n();
+  const t = messages.reports.export;
   const rows = [
     {
       key: "payments",
@@ -44,7 +45,10 @@ export function ExportLinks({ month }: { month: string }) {
                   key={format}
                   href={`/reports/export?${row.query}&format=${format}`}
                   download
-                  aria-label={t.download(row.title, t[format])}
+                  aria-label={fmt(t.download, {
+                    what: row.title,
+                    format: t[format],
+                  })}
                   data-testid={`export-${row.key}-${format}`}
                   className={LINK}
                 >

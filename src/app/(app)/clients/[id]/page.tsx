@@ -27,9 +27,9 @@ import {
   type HistoryEntry,
 } from "@/features/payments/history";
 import type { Actor } from "@/features/auth/roles";
-import { clientsText } from "@/i18n/clients";
-import { paymentsText } from "@/i18n/payments";
-import { ru } from "@/i18n/ru";
+import { fmt } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 import { formatDate, formatTime } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 
@@ -41,16 +41,19 @@ import {
   reversePaymentAction,
 } from "../payment-actions";
 
-const c = clientsText.card;
-
-export const metadata: Metadata = {
-  title: `${ru.pages.clients} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.clients} | ${t.app.name}` };
+}
 
 /** Two database requests: the role check and client_screen() (payment history included). */
 export default async function ClientPage({
   params,
 }: PageProps<"/clients/[id]">) {
+  const { t: messages, locale } = await getI18n();
+  const clientsText = messages.clients;
+  const paymentsText = messages.payments;
+  const c = messages.clients.card;
   const actor = await requireStaff(STAFF_ROLES);
   const id = clientIdSchema.safeParse((await params).id);
   if (!id.success) notFound();
@@ -64,7 +67,7 @@ export default async function ClientPage({
   );
 
   return (
-    <>
+    <Texts ns={["clients", "payments"]}>
       <BackLink href="/clients" label={clientsText.back} />
       <PageHeader
         title={`${client.lastName} ${client.firstName}`}
@@ -113,18 +116,32 @@ export default async function ClientPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={c.subscription}>
           <div className="flex flex-col gap-2">
-            <StatusBadge status={subscription.status} />
+            <StatusBadge
+              status={subscription.status}
+              label={messages.status[subscription.status]}
+            />
             {subscription.endsOn && subscription.periodStart ? (
               <>
                 <dl className="grid gap-2 text-sm">
                   <Row label={c.period}>
-                    <DateText date={subscription.periodStart} today={now} /> –{" "}
-                    <DateText date={subscription.endsOn} today={now} />
+                    <DateText
+                      date={subscription.periodStart}
+                      today={now}
+                      locale={locale}
+                    />{" "}
+                    –{" "}
+                    <DateText
+                      date={subscription.endsOn}
+                      today={now}
+                      locale={locale}
+                    />
                   </Row>
                 </dl>
                 {subscription.daysLeft !== null ? (
                   <p className="text-sm text-muted-foreground">
-                    {c.daysLeft(subscription.daysLeft)}
+                    {subscription.daysLeft >= 0
+                      ? fmt(c.daysLeft, { days: subscription.daysLeft })
+                      : fmt(c.overdueBy, { days: -subscription.daysLeft })}
                   </p>
                 ) : null}
               </>
@@ -186,11 +203,11 @@ export default async function ClientPage({
             ) : null}
             {client.birthDate ? (
               <Row label={c.birthDate}>
-                <DateText date={client.birthDate} today={now} />
+                <DateText date={client.birthDate} today={now} locale={locale} />
               </Row>
             ) : null}
             <Row label={c.startedOn}>
-              <DateText date={client.startedOn} today={now} />
+              <DateText date={client.startedOn} today={now} locale={locale} />
             </Row>
           </dl>
         </Section>
@@ -200,12 +217,12 @@ export default async function ClientPage({
             {CONSENT_KINDS.map((kind) => {
               const consent = consentByKind.get(kind);
               return (
-                <Row key={kind} label={clientsText.form.consentKinds[kind]}>
+                <Row key={kind} label={messages.clientForm.consentKinds[kind]}>
                   {consent ? (
-                    c.consentGiven(
-                      formatDate(consent.givenOn, now),
-                      consent.recordedBy,
-                    )
+                    fmt(c.consentGiven, {
+                      date: formatDate(consent.givenOn, now, locale),
+                      by: consent.recordedBy,
+                    })
                   ) : (
                     <span className="text-status-expired-foreground">
                       {c.consentMissing}
@@ -274,13 +291,11 @@ export default async function ClientPage({
           )}
         </section>
       </div>
-    </>
+    </Texts>
   );
 }
 
-const h = paymentsText.history;
-
-function PaymentEntry({
+async function PaymentEntry({
   entry,
   actor,
   now,
@@ -289,6 +304,9 @@ function PaymentEntry({
   actor: Actor;
   now: Date;
 }) {
+  const { t: messages, locale } = await getI18n();
+  const paymentsText = messages.payments;
+  const h = messages.payments.history;
   const { payment, reversal } = entry;
   const paidAt = new Date(payment.createdAt);
   const cancellable = canCancel(entry, actor, now);
@@ -304,6 +322,7 @@ function PaymentEntry({
         ) : (
           <Money
             amount={payment.amount}
+            locale={locale}
             className={
               reversal
                 ? "text-base font-semibold text-muted-foreground line-through"
@@ -312,7 +331,10 @@ function PaymentEntry({
           />
         )}
         <span className="text-muted-foreground">
-          {h.paidAt(formatDate(paidAt, now), formatTime(paidAt))}
+          {fmt(h.paidAt, {
+            date: formatDate(paidAt, now, locale),
+            time: formatTime(paidAt),
+          })}
         </span>
       </div>
       <p>
@@ -321,13 +343,15 @@ function PaymentEntry({
           : paymentsText.dialog.methods[payment.method]}
         {" · "}
         <span className="tabular-nums">
-          {h.period(
-            formatDate(payment.periodStart, now),
-            formatDate(payment.periodEnd, now),
-          )}
+          {fmt(h.period, {
+            from: formatDate(payment.periodStart, now, locale),
+            to: formatDate(payment.periodEnd, now, locale),
+          })}
         </span>
       </p>
-      <p className="text-muted-foreground">{h.by(payment.createdByName)}</p>
+      <p className="text-muted-foreground">
+        {fmt(h.by, { name: payment.createdByName })}
+      </p>
       {reversal ? (
         <div
           className="flex flex-col gap-1 rounded-md bg-muted px-3 py-2"
@@ -335,16 +359,16 @@ function PaymentEntry({
         >
           <p className="flex flex-wrap items-baseline justify-between gap-x-3">
             <span className="font-medium">
-              {h.reversed(
-                formatDate(new Date(reversal.createdAt), now),
-                reversal.createdByName,
-              )}
+              {fmt(h.reversed, {
+                date: formatDate(new Date(reversal.createdAt), now, locale),
+                name: reversal.createdByName,
+              })}
             </span>
-            <Money amount={reversal.amount} />
+            <Money amount={reversal.amount} locale={locale} />
           </p>
           {reversal.reason ? (
             <p className="break-words text-muted-foreground">
-              {h.reason(reversal.reason)}
+              {fmt(h.reason, { reason: reversal.reason })}
             </p>
           ) : null}
         </div>

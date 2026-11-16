@@ -21,17 +21,15 @@ import {
   getRemindersToday,
   HISTORY_LIMIT,
 } from "@/features/reminders/service";
-import { remindersText } from "@/i18n/reminders";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
 import { businessDate } from "@/lib/dates";
 
 import { markReminderSentAction, openReminderAction } from "./actions";
 
-const s = remindersText.screen;
-
-export const metadata: Metadata = {
-  title: `${ru.pages.reminders} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.reminders} | ${t.app.name}` };
+}
 
 const TABS = ["today", "overdue", "history"] as const;
 type Tab = (typeof TABS)[number];
@@ -53,6 +51,8 @@ export default async function RemindersPage({
   searchParams,
 }: PageProps<"/reminders">) {
   const actor = await requireStaff(STAFF_ROLES);
+  const { t } = await getI18n();
+  const s = t.reminders.screen;
   const params = await searchParams;
   const tab = parseTab(params.tab);
   const now = new Date();
@@ -61,7 +61,7 @@ export default async function RemindersPage({
   return (
     <>
       <PageHeader
-        title={ru.pages.reminders}
+        title={t.pages.reminders}
         actions={
           actor.role === "owner" ? (
             <Link

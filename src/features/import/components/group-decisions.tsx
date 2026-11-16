@@ -1,12 +1,11 @@
 "use client";
 
 import { inputClassName } from "@/components/ui/variants";
-import { importText } from "@/i18n/import";
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 import { GROUP_PRICE_MAX } from "../limits";
 import type { Option } from "../result";
-
-const t = importText.groups;
 
 /** What the owner chose for one unknown group; price stays text while it is being typed. */
 export type GroupDraft =
@@ -54,6 +53,7 @@ export function GroupDecisions({
   disabled: boolean;
   onChange: (key: string, draft: GroupDraft) => void;
 }) {
+  const t = useText("import").groups;
   return (
     <section
       aria-labelledby="import-groups"
@@ -77,7 +77,7 @@ export function GroupDecisions({
             >
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={id} className="text-sm font-medium">
-                  {t.choice(name)}
+                  {fmt(t.choice, { name })}
                 </label>
                 <select
                   id={id}
@@ -99,7 +99,7 @@ export function GroupDecisions({
                   <option value="none">{t.none}</option>
                   {groups.map((group) => (
                     <option key={group.id} value={`existing:${group.id}`}>
-                      {t.existing(group.name)}
+                      {fmt(t.existing, { name: group.name })}
                     </option>
                   ))}
                 </select>

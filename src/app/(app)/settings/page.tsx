@@ -13,8 +13,9 @@ import { formatSchedule } from "@/features/groups/format";
 import { listGroups } from "@/features/groups/service";
 import { GymSettingsForm } from "@/features/settings/components/gym-settings-form";
 import { getSettings } from "@/features/settings/service";
-import { ru } from "@/i18n/ru";
-import { settingsText as t } from "@/i18n/settings";
+import { fmt, plural } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import {
   archiveGroupAction,
@@ -23,9 +24,10 @@ import {
 } from "../groups/actions";
 import { saveGymSettingsAction } from "./actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.settings} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.settings} | ${t.app.name}` };
+}
 
 /**
  * "Settings" (D-11): everything the owner changes without a programmer, in one place. Owner only,
@@ -33,6 +35,8 @@ export const metadata: Metadata = {
  * groups_screen(), the last two in parallel.
  */
 export default async function SettingsPage() {
+  const { t: messages, locale } = await getI18n();
+  const t = messages.settings;
   await requireStaff(["owner"]);
   const db = await createServerDb();
   const [settings, { groups, coaches }] = await Promise.all([
@@ -41,12 +45,12 @@ export default async function SettingsPage() {
   ]);
   const days = [...settings.reminderDays]
     .sort((a, b) => b - a)
-    .map((day) => t.daysWord(day))
+    .map((day) => plural(locale, t.daysWord, day))
     .join(t.daysJoin);
 
   return (
-    <>
-      <PageHeader title={ru.pages.settings} description={t.description} />
+    <Texts ns={["settings", "groups"]}>
+      <PageHeader title={messages.pages.settings} description={t.description} />
 
       <Section id="settings-gym" title={t.gym.title}>
         <GymSettingsForm
@@ -89,14 +93,14 @@ export default async function SettingsPage() {
                       className="font-medium tabular-nums"
                       data-testid="settings-group-price"
                     >
-                      <Money amount={group.defaultPrice} />
+                      <Money locale={locale} amount={group.defaultPrice} />
                     </dd>
                     <dt className="text-muted-foreground">{t.groups.coach}</dt>
                     <dd>{group.coachName}</dd>
                     <dt className="text-muted-foreground">
                       {t.groups.schedule}
                     </dt>
-                    <dd>{formatSchedule(group.schedule)}</dd>
+                    <dd>{formatSchedule(group.schedule, messages.groups)}</dd>
                   </dl>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -126,7 +130,7 @@ export default async function SettingsPage() {
         id="settings-reminders"
         title={t.reminders.title}
         hint={t.reminders.hint}
-        status={t.reminders.days(days)}
+        status={fmt(t.reminders.days, { days })}
         href="/settings/reminders"
         label={t.reminders.open}
         icon={BellRing}
@@ -140,7 +144,7 @@ export default async function SettingsPage() {
         label={t.staff.open}
         icon={UserCog}
       />
-    </>
+    </Texts>
   );
 }
 

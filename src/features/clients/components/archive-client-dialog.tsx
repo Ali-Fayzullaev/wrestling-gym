@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants } from "@/components/ui/variants";
-import { clientsText } from "@/i18n/clients";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 import type { ActionResult } from "../result";
 import type { ArchiveClientInput } from "../schema";
@@ -33,6 +32,8 @@ export default function ArchiveClientDialog({
     input: ArchiveClientInput,
   ) => Promise<ActionResult<{ changed: boolean }>>;
 }) {
+  const clientsText = useText("clients");
+  const commonText = useText("common");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -72,7 +73,7 @@ export default function ArchiveClientDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button
             type="button"
