@@ -26,6 +26,7 @@ const PHONE = {
   deviceScaleFactor: 3,
 };
 const GLOBAL_SETTINGS_SPEC = /settings-global\.spec\.ts$/;
+const ACCEPTANCE_SPEC = /acceptance\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -43,12 +44,12 @@ export default defineConfig({
   projects: [
     {
       name: "mobile",
-      testIgnore: GLOBAL_SETTINGS_SPEC,
+      testIgnore: [GLOBAL_SETTINGS_SPEC, ACCEPTANCE_SPEC],
       use: PHONE,
     },
     {
       name: "desktop",
-      testIgnore: GLOBAL_SETTINGS_SPEC,
+      testIgnore: [GLOBAL_SETTINGS_SPEC, ACCEPTANCE_SPEC],
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 900 },
@@ -59,6 +60,13 @@ export default defineConfig({
       name: "global-settings",
       testMatch: GLOBAL_SETTINGS_SPEC,
       dependencies: ["mobile", "desktop"],
+      use: PHONE,
+    },
+    // Stopwatch criteria of the acceptance: timed on an otherwise idle server, so it runs last.
+    {
+      name: "acceptance",
+      testMatch: ACCEPTANCE_SPEC,
+      dependencies: ["global-settings"],
       use: PHONE,
     },
   ],
