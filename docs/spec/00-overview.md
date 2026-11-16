@@ -74,7 +74,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 11 | [11-reports.md](11-reports.md) | Отчёты и экспорт | 07 | done |
 | 12 | [12-audit-settings.md](12-audit-settings.md) | Журнал действий и настройки | 03 | done |
 | 13 | [13-deploy.md](13-deploy.md) | Деплой, домен, заголовки, бэкапы, Lighthouse | 08 | done |
-| 14 | [14-acceptance.md](14-acceptance.md) | Приёмка на телефоне администратора | все | todo |
+| 14 | [14-acceptance.md](14-acceptance.md) | Приёмка на телефоне администратора | все | blocked: прогон с заказчиком |
 | 15 | [15-staff-passwords.md](15-staff-passwords.md) | Сотрудники по паролю без писем, смена пароля при первом входе | 12, 13, D-14 | done |
 | 16 | [16-languages.md](16-languages.md) | Казахский и узбекский (кириллица) | 15, D-04, D-13 | done |
 
