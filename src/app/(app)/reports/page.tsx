@@ -12,12 +12,13 @@ import { ExportLinks } from "@/features/reports/components/export-links";
 import { MonthNav } from "@/features/reports/components/month-nav";
 import { currentMonth, parseMonth } from "@/features/reports/month";
 import { getMonthReport } from "@/features/reports/service";
-import { reportsText as t } from "@/i18n/reports";
-import { ru } from "@/i18n/ru";
+import { plural } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.reports} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.reports} | ${t.app.name}` };
+}
 
 /**
  * Owner only. Two database requests: the role check and report_month(), which counts everything
@@ -26,6 +27,8 @@ export const metadata: Metadata = {
 export default async function ReportsPage({
   searchParams,
 }: PageProps<"/reports">) {
+  const { t: messages, locale } = await getI18n();
+  const t = messages.reports;
   await requireStaff(["owner"]);
   const now = new Date();
   const params = await searchParams;
@@ -40,7 +43,7 @@ export default async function ReportsPage({
   return (
     <>
       <PageHeader
-        title={ru.pages.reports}
+        title={messages.pages.reports}
         actions={<MonthNav month={month} current={currentMonth(now)} />}
       />
 
@@ -48,6 +51,7 @@ export default async function ReportsPage({
         <div className="flex flex-col gap-1 rounded-xl border border-l-4 border-l-primary bg-card p-4">
           <h2 className="text-sm text-muted-foreground">{t.total.title}</h2>
           <Money
+            locale={locale}
             amount={report.total.amount}
             className="text-3xl font-semibold"
           />
@@ -55,7 +59,7 @@ export default async function ReportsPage({
             className="text-sm text-muted-foreground tabular-nums"
             data-testid="report-total-count"
           >
-            {t.total.count(report.total.count)}
+            {plural(locale, t.total.count, report.total.count)}
           </p>
         </div>
         <div className="flex flex-col gap-1 rounded-xl border bg-card p-4">
@@ -63,11 +67,13 @@ export default async function ReportsPage({
             {t.total.reversedTitle}
           </h2>
           <Money
+            locale={locale}
             amount={report.reversed.amount}
             className="text-xl font-semibold"
           />
           <p className="text-sm text-muted-foreground">
-            {t.total.count(report.reversed.count)}. {t.total.reversedHint}
+            {plural(locale, t.total.count, report.reversed.count)}.{" "}
+            {t.total.reversedHint}
           </p>
         </div>
       </section>
@@ -83,7 +89,7 @@ export default async function ReportsPage({
           <BarList
             title={t.byMethod.title}
             testId="report-by-method"
-            countLabel={t.total.count}
+            countLabel={(count) => plural(locale, t.total.count, count)}
             bars={report.byMethod.map((row) => ({
               key: row.method,
               label: t.byMethod.methods[row.method],
@@ -95,7 +101,7 @@ export default async function ReportsPage({
             title={t.byGroup.title}
             hint={t.byGroup.hint}
             testId="report-by-group"
-            countLabel={t.total.count}
+            countLabel={(count) => plural(locale, t.total.count, count)}
             bars={report.byGroup.map((row) => ({
               key: row.groupId ?? "none",
               label: row.name ?? t.noGroup,
@@ -117,9 +123,14 @@ export default async function ReportsPage({
           {debtorsCount > 0 ? (
             <p className="text-sm" data-testid="debtors-total">
               <span className="text-muted-foreground">
-                {t.debtors.count(debtorsCount)}, {t.debtors.total}:{" "}
+                {plural(locale, t.debtors.count, debtorsCount)},{" "}
+                {t.debtors.total}:{" "}
               </span>
-              <Money amount={debtorsExpected} className="font-semibold" />
+              <Money
+                locale={locale}
+                amount={debtorsExpected}
+                className="font-semibold"
+              />
             </p>
           ) : null}
         </div>

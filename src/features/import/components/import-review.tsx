@@ -4,7 +4,8 @@ import { Info } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { importText } from "@/i18n/import";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { formatDate } from "@/lib/format";
 
 import { groupKey } from "../group-key";
@@ -27,8 +28,6 @@ import {
   parsePrice,
 } from "./group-decisions";
 import { PreviewRows } from "./preview-rows";
-
-const t = importText;
 
 function toChoice(draft: GroupDraft): GroupChoice {
   if (draft.kind !== "create") return draft;
@@ -61,6 +60,9 @@ export function ImportReview({
   commit: (form: FormData) => Promise<ImportResult<ImportReport>>;
   onDone: (report: ImportReport) => void;
 }) {
+  const t = useText("import");
+  const upload = useText("importUpload");
+  const locale = useLocale();
   const [drafts, setDrafts] = useState<Record<string, GroupDraft>>({});
   const [error, setError] = useState<ImportError | "network" | null>(null);
   const [pending, startTransition] = useTransition();
@@ -131,9 +133,9 @@ export function ImportReview({
             {data.importedAt ? (
               <p className="flex gap-2 rounded-md bg-muted px-3 py-2 text-sm">
                 <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
-                {t.summary.importedBefore(
-                  formatDate(new Date(data.importedAt), today),
-                )}
+                {fmt(t.summary.importedBefore, {
+                  date: formatDate(new Date(data.importedAt), today, locale),
+                })}
               </p>
             ) : null}
           </section>
@@ -158,7 +160,7 @@ export function ImportReview({
           <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] flex flex-col gap-2 rounded-xl border bg-background/95 p-3 backdrop-blur md:bottom-4">
             {error ? (
               <p role="alert" className="text-sm text-destructive">
-                {t.errors[error]}
+                {upload.errors[error]}
               </p>
             ) : !canImport ? (
               <p className="text-sm text-muted-foreground">
@@ -175,7 +177,9 @@ export function ImportReview({
                 className={buttonVariants({ size: "lg" })}
                 data-testid="import-submit"
               >
-                {pending ? t.submitting : t.submit(data.counts.new)}
+                {pending
+                  ? t.submitting
+                  : fmt(t.submit, { count: data.counts.new })}
               </button>
             ) : null}
           </div>

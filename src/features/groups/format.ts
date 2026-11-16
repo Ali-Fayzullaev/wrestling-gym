@@ -1,4 +1,4 @@
-import { groupsText } from "@/i18n/groups";
+import type { Messages } from "@/i18n/messages";
 
 import type { Session } from "./schema";
 
@@ -8,7 +8,10 @@ const EN_DASH = "–";
  * "Пн, Ср, Пт 09:00–10:00 · Сб 11:00–12:00": days that share a time are listed together, in the
  * order of their first day.
  */
-export function formatSchedule(sessions: readonly Session[]): string {
+export function formatSchedule(
+  sessions: readonly Session[],
+  groupsText: Pick<Messages["groups"], "noSchedule" | "daysShort">,
+): string {
   if (sessions.length === 0) return groupsText.noSchedule;
   const byTime = new Map<string, number[]>();
   for (const session of [...sessions].sort((a, b) => a.day - b.day)) {

@@ -131,6 +131,6 @@ describe("reminderValues", () => {
       "Зал",
       TODAY,
     );
-    expect(values.дата_окончания).toBe(`2${NBSP}января 2027`);
+    expect(values.дата_окончания).toBe(`2${NBSP}января${NBSP}2027${NBSP}г.`);
   });
 });

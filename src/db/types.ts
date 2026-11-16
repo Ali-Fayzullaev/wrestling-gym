@@ -235,14 +235,14 @@ isOneToOne: false
                   ]
                 },"staff": {
                   Row: {
-                    "active": boolean,"created_at": string,"full_name": string,"id": string,"must_change_password": boolean,"role": string
+                    "active": boolean,"created_at": string,"full_name": string,"id": string,"locale": string,"must_change_password": boolean,"role": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"created_at"?: string,"full_name": string,"id": string,"must_change_password"?: boolean,"role": string
+                    "active"?: boolean,"created_at"?: string,"full_name": string,"id": string,"locale"?: string,"must_change_password"?: boolean,"role": string
                   }
                   Update: {
-                    "active"?: boolean,"created_at"?: string,"full_name"?: string,"id"?: string,"must_change_password"?: boolean,"role"?: string
+                    "active"?: boolean,"created_at"?: string,"full_name"?: string,"id"?: string,"locale"?: string,"must_change_password"?: boolean,"role"?: string
                   }
                   Relationships: [
                     
@@ -453,6 +453,9 @@ isOneToOne: false
                            },
 "set_client_archived":
 { Args: { "p_archived": boolean,"p_client_id": string }; Returns: boolean
+                           },
+"set_my_locale":
+{ Args: { "p_locale": string }; Returns: undefined
                            },
 "staff_screen":
 { Args: Record<PropertyKey, never>; Returns: Json

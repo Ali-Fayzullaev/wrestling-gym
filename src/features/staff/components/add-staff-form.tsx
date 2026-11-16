@@ -5,8 +5,7 @@ import { type FormEvent, useId, useState, useTransition } from "react";
 
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
 import type { StaffRole } from "@/features/auth/roles";
-import { ru } from "@/i18n/ru";
-import { staffText } from "@/i18n/settings";
+import { useText } from "@/i18n/client";
 
 import {
   STAFF_NAME_MAX,
@@ -14,8 +13,6 @@ import {
   type StaffResult,
 } from "../form-fields";
 import { TextField } from "./text-field";
-
-const t = staffText.add;
 
 type Message = { tone: "ok" | "error"; text: string } | null;
 
@@ -31,6 +28,9 @@ export type AddStaff = (input: {
  * (D-14, no email). The employee replaces it with their own at the first sign-in.
  */
 export function AddStaffForm({ add }: { add: AddStaff }) {
+  const staffText = useText("staff");
+  const t = staffText.add;
+  const rolesText = useText("roles");
   const id = useId();
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -126,8 +126,8 @@ export function AddStaffForm({ add }: { add: AddStaff }) {
           aria-describedby={`${id}-role-hint`}
           className={`${inputClassName} max-w-xs`}
         >
-          <option value="admin">{ru.roles.admin}</option>
-          <option value="owner">{ru.roles.owner}</option>
+          <option value="admin">{rolesText.admin}</option>
+          <option value="owner">{rolesText.owner}</option>
         </select>
         <p id={`${id}-role-hint`} className="text-sm text-muted-foreground">
           {t.roleHint}

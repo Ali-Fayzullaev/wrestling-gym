@@ -528,6 +528,7 @@ describe("temporary passwords (step 15, D-14)", () => {
       expect(await accessOf(tx)).toEqual({
         role: "admin",
         must_change_password: true,
+        locale: "ru",
       });
       const [role] = await tx<{ role: string | null }[]>`
         select public.current_staff_role() as role
@@ -598,6 +599,7 @@ describe("temporary passwords (step 15, D-14)", () => {
       expect(await accessOf(tx)).toEqual({
         role: "admin",
         must_change_password: false,
+        locale: "ru",
       });
       await become(tx, "postgres");
       const [audit] = await tx<{ actor_id: string }[]>`

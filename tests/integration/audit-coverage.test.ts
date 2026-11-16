@@ -34,6 +34,7 @@ import {
   saveReminderSettings,
 } from "@/features/reminders/service";
 import { exportData } from "@/features/reports/service";
+import { ru } from "@/i18n/ru";
 import { getSettings, updateGymSettings } from "@/features/settings/service";
 import {
   addStaff,
@@ -342,7 +343,9 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
     expect(report.created).toBe(1);
   },
   "report.export": async () => {
-    must(await exportData(db, NOW, { data: "clients", format: "csv" }));
+    must(
+      await exportData(db, NOW, { data: "clients", format: "csv" }, ru.reports),
+    );
   },
   "settings.update": async () => {
     await changeReminders("days");

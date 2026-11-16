@@ -1,20 +1,22 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
-import { auditText as t } from "@/i18n/audit";
+import { getI18n } from "@/i18n/server";
 import { formatDate, formatTime } from "@/lib/format";
 
 import { type AuditEntry, describeAuditEntry } from "../describe";
 
 /** One journal line: when, who, what in plain words, the details and a link to the record. */
-export function AuditEntryItem({
+export async function AuditEntryItem({
   entry,
   now,
 }: {
   entry: AuditEntry;
   now: Date;
 }) {
-  const { title, details, target } = describeAuditEntry(entry, now);
+  const i18n = await getI18n();
+  const t = i18n.t.audit;
+  const { title, details, target } = describeAuditEntry(i18n, entry, now);
   const at = new Date(entry.createdAt);
   return (
     <li
@@ -30,7 +32,7 @@ export function AuditEntryItem({
           dateTime={entry.createdAt}
           className="text-sm text-muted-foreground tabular-nums"
         >
-          {`${formatDate(at, now)}, ${formatTime(at)}`}
+          {`${formatDate(at, now, i18n.locale)}, ${formatTime(at)}`}
         </time>
       </div>
       <p className="text-sm text-muted-foreground" data-testid="audit-actor">

@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { auditText } from "@/i18n/audit";
+import type { I18n } from "@/i18n/messages";
+import { ru } from "@/i18n/ru";
 import { formatDate, formatMoney } from "@/lib/format";
 
 import { AUDIT_ACTION_GROUPS, AUDIT_ACTIONS } from "./actions";
 import { type AuditEntry, describeAuditEntry } from "./describe";
 
 const NOW = new Date("2026-11-14T09:00:00Z");
+const RU: I18n = { t: ru, locale: "ru" };
 const CLIENT = "3f1c2a7e-0000-4000-8000-000000000001";
 const GROUP = "3f1c2a7e-0000-4000-8000-000000000002";
 const ACTOR = "3f1c2a7e-0000-4000-8000-000000000003";
@@ -32,8 +34,8 @@ function entry(overrides: Partial<AuditEntry>): AuditEntry {
 
 describe("describeAuditEntry", () => {
   it.each(AUDIT_ACTIONS)("%s has a plain-words title", (action) => {
-    const { title } = describeAuditEntry(entry({ action }), NOW);
-    expect(title).toBe(auditText.actions[action]);
+    const { title } = describeAuditEntry(RU, entry({ action }), NOW);
+    expect(title).toBe(ru.audit.actions[action]);
     expect(title).not.toContain(".");
   });
 
@@ -44,6 +46,7 @@ describe("describeAuditEntry", () => {
 
   it("payment: amount, method, period and a link to the client", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "payment.create",
         entity: "payment",
@@ -60,9 +63,9 @@ describe("describeAuditEntry", () => {
       NOW,
     );
     expect(result.details).toEqual([
-      formatMoney(20000),
+      formatMoney(20000, "ru"),
       "Kaspi",
-      `период ${formatDate("2026-11-14", NOW)} – ${formatDate("2026-12-13", NOW)}`,
+      `период ${formatDate("2026-11-14", NOW, "ru")} – ${formatDate("2026-12-13", NOW, "ru")}`,
     ]);
     expect(result.target).toEqual({
       label: "Клиент",
@@ -74,6 +77,7 @@ describe("describeAuditEntry", () => {
 
   it("export of payments: month, format and rows, no single client", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "report.export",
         entity: "payment",
@@ -83,7 +87,7 @@ describe("describeAuditEntry", () => {
       NOW,
     );
     expect(result.details).toEqual([
-      "оплаты за Октябрь 2026",
+      "оплаты за Октябрь 2026 г.",
       "Excel",
       "строк: 34",
     ]);
@@ -92,6 +96,7 @@ describe("describeAuditEntry", () => {
 
   it("export of clients", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "report.export",
         entity: "client",
@@ -105,6 +110,7 @@ describe("describeAuditEntry", () => {
 
   it("import: counts and created groups", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "client.import",
         entityId: null,
@@ -128,12 +134,14 @@ describe("describeAuditEntry", () => {
   it("changed fields in plain words, reminder days from and to", () => {
     expect(
       describeAuditEntry(
+        RU,
         entry({ details: { fields: ["last_name", "phone"] } }),
         NOW,
       ).details,
     ).toEqual(["Изменено: фамилия, телефон"]);
     expect(
       describeAuditEntry(
+        RU,
         entry({
           action: "settings.update",
           entity: "settings",
@@ -147,6 +155,7 @@ describe("describeAuditEntry", () => {
 
   it("deleted client: mode and reason, no link", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "client.delete",
         details: { mode: "deleted", reason: "duplicate" },
@@ -164,6 +173,7 @@ describe("describeAuditEntry", () => {
 
   it("group entries link to the group", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "group.archive",
         entity: "group",
@@ -179,6 +189,7 @@ describe("describeAuditEntry", () => {
 
   it("staff: role change names the employee; own sign-in has no target", () => {
     const change = describeAuditEntry(
+      RU,
       entry({
         action: "staff.role_change",
         entity: "staff",
@@ -192,6 +203,7 @@ describe("describeAuditEntry", () => {
     expect(change.target?.name).toBe("Данияр Примеров");
 
     const login = describeAuditEntry(
+      RU,
       entry({
         action: "staff.login",
         entity: "staff",
@@ -206,6 +218,7 @@ describe("describeAuditEntry", () => {
 
   it("ignores malformed details instead of failing the screen", () => {
     const result = describeAuditEntry(
+      RU,
       entry({
         action: "payment.create",
         entity: "payment",

@@ -3,13 +3,12 @@
 import { CircleAlert, CircleCheck, Copy, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
-import { importText } from "@/i18n/import";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { formatDate } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 
 import type { PreviewRow, RowStatus } from "../rows";
-
-const t = importText;
 
 const STATUS_STYLE: Record<RowStatus, { icon: LucideIcon; className: string }> =
   {
@@ -31,6 +30,7 @@ type Filter = "all" | RowStatus;
 const FILTERS: readonly Filter[] = ["all", "new", "duplicate", "error"];
 
 function RowBadge({ status }: { status: RowStatus }) {
+  const t = useText("import");
   const { icon: Icon, className } = STATUS_STYLE[status];
   return (
     <span
@@ -43,6 +43,8 @@ function RowBadge({ status }: { status: RowStatus }) {
 }
 
 function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
+  const t = useText("import");
+  const locale = useLocale();
   const name = [row.lastName, row.firstName].filter(Boolean).join(" ");
   return (
     <li
@@ -55,7 +57,7 @@ function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
         <RowBadge status={row.status} />
       </div>
       <p className="text-muted-foreground">
-        {t.row.line(row.line)}
+        {fmt(t.row.line, { line: row.line })}
         {" · "}
         <span className="tabular-nums">
           {row.phone ? formatPhone(row.phone) : "—"}
@@ -65,7 +67,9 @@ function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
         {" · "}
         <span className="tabular-nums">
           {row.endsOn
-            ? t.row.endsOn(formatDate(row.endsOn, today))
+            ? fmt(t.row.endsOn, {
+                date: formatDate(row.endsOn, today, locale),
+              })
             : t.row.noDate}
         </span>
       </p>
@@ -80,12 +84,12 @@ function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
         <p className="text-muted-foreground">
           {row.duplicateOf === null
             ? t.row.onFile
-            : t.row.repeatOf(row.duplicateOf)}
+            : fmt(t.row.repeatOf, { line: row.duplicateOf })}
         </p>
       ) : null}
       {row.status === "new" && row.groupName !== "" && row.groupId === null ? (
         <p className="text-status-expiring-foreground">
-          {t.row.groupMissing(row.groupName)}
+          {fmt(t.row.groupMissing, { name: row.groupName })}
         </p>
       ) : null}
     </li>
@@ -102,6 +106,7 @@ export function PreviewRows({
   counts: Record<RowStatus, number>;
   today: Date;
 }) {
+  const t = useText("import");
   const [filter, setFilter] = useState<Filter>(
     counts.error > 0 ? "error" : "all",
   );

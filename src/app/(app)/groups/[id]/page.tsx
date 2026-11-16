@@ -22,8 +22,8 @@ import {
 } from "@/features/groups/format";
 import { groupIdSchema } from "@/features/groups/schema";
 import { getGroup, type GroupMember } from "@/features/groups/service";
-import { groupsText } from "@/i18n/groups";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import {
   archiveGroupAction,
@@ -31,12 +31,15 @@ import {
   updateGroupAction,
 } from "../actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.groups} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.groups} | ${t.app.name}` };
+}
 
 /** Two database requests: the role check and group_screen(). */
 export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
+  const { t: messages, locale } = await getI18n();
+  const groupsText = messages.groups;
   const actor = await requireStaff(STAFF_ROLES);
   const id = groupIdSchema.safeParse((await params).id);
   if (!id.success) notFound();
@@ -49,17 +52,17 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const canMove = !group.archived && members.length > 0;
 
   return (
-    <>
+    <Texts ns={["groups", "status"]}>
       <Link
         href="/groups"
         className="-mb-3 flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring"
       >
         <ChevronLeft aria-hidden className="size-4" />
-        {ru.pages.groups}
+        {messages.pages.groups}
       </Link>
       <PageHeader
         title={group.name}
-        description={`${group.coachName} · ${formatSchedule(group.schedule)}`}
+        description={`${group.coachName} · ${formatSchedule(group.schedule, groupsText)}`}
         actions={
           canManage ? (
             <GroupOwnerActions
@@ -106,7 +109,8 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
         />
       </dl>
       <p className="-mt-3 text-sm text-muted-foreground">
-        {groupsText.price}: <Money amount={group.defaultPrice} />
+        {groupsText.price}:{" "}
+        <Money locale={locale} amount={group.defaultPrice} />
         {group.capacity === null
           ? ` · ${groupsText.seats}: ${groupsText.seatsUnlimited}`
           : null}
@@ -132,7 +136,7 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
           <MemberList members={members} now={now} selectable={false} />
         )}
       </section>
-    </>
+    </Texts>
   );
 }
 
@@ -161,7 +165,7 @@ function Stat({
 }
 
 /** Rows are server-rendered; MemberSelection only reads their checkboxes. */
-function MemberList({
+async function MemberList({
   members,
   now,
   selectable,
@@ -170,6 +174,8 @@ function MemberList({
   now: Date;
   selectable: boolean;
 }) {
+  const { t: messages, locale } = await getI18n();
+  const groupsText = messages.groups;
   return (
     <ul className="flex flex-col divide-y rounded-xl border bg-card">
       {members.map((member) => {
@@ -182,11 +188,14 @@ function MemberList({
               {member.endsOn ? (
                 <span className="text-sm text-muted-foreground">
                   {groupsText.endsOnPrefix}{" "}
-                  <DateText date={member.endsOn} today={now} />
+                  <DateText locale={locale} date={member.endsOn} today={now} />
                 </span>
               ) : null}
             </span>
-            <StatusBadge status={member.status} />
+            <StatusBadge
+              status={member.status}
+              label={messages.status[member.status]}
+            />
           </>
         );
         return (

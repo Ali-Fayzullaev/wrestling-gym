@@ -3,13 +3,9 @@ import { readFile } from "node:fs/promises";
 import type { Download } from "@playwright/test";
 
 import { readXlsx } from "@/features/import/xlsx";
-import {
-  currentMonth,
-  formatMonth,
-  shiftMonth,
-} from "@/features/reports/month";
-import { reportsText as t } from "@/i18n/reports";
+import { currentMonth, shiftMonth } from "@/features/reports/month";
 import { ru } from "@/i18n/ru";
+import { formatMonth as formatMonthIn } from "@/lib/format";
 
 import {
   createTempStaff,
@@ -18,6 +14,9 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+const t = ru.reports;
+const formatMonth = (month: string) => formatMonthIn(month, "ru");
 
 async function downloadBytes(download: Download): Promise<Uint8Array> {
   const path = await download.path();

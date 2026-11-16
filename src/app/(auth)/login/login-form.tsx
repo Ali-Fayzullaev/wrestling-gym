@@ -4,13 +4,14 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
+import { useText } from "@/i18n/client";
 import { useHardNavigation } from "@/lib/use-hard-navigation";
-import { ru } from "@/i18n/ru";
 
 import { initialFormState } from "../form-state";
 import { signInAction } from "./actions";
 
 export function LoginForm() {
+  const auth = useText("auth");
   const [state, action, pending] = useActionState(
     signInAction,
     initialFormState,
@@ -24,7 +25,7 @@ export function LoginForm() {
         id="email"
         name="email"
         type="email"
-        label={ru.auth.email}
+        label={auth.email}
         autoComplete="username"
         inputMode="email"
         required
@@ -37,7 +38,7 @@ export function LoginForm() {
         id="password"
         name="password"
         type="password"
-        label={ru.auth.password}
+        label={auth.password}
         autoComplete="current-password"
         required
         aria-invalid={state.error ? true : undefined}
@@ -49,11 +50,9 @@ export function LoginForm() {
         </FormMessage>
       ) : null}
       <Button type="submit" size="lg" className="min-h-11" disabled={pending}>
-        {pending ? ru.auth.login.pending : ru.auth.login.submit}
+        {pending ? auth.login.pending : auth.login.submit}
       </Button>
-      <p className="text-sm text-muted-foreground">
-        {ru.auth.login.forgotHint}
-      </p>
+      <p className="text-sm text-muted-foreground">{auth.login.forgotHint}</p>
     </form>
   );
 }

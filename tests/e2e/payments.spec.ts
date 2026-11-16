@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import type { Locator, Page } from "@playwright/test";
 
-import { clientsText } from "@/i18n/clients";
-import { paymentsText } from "@/i18n/payments";
 import { ru } from "@/i18n/ru";
 
 import {
@@ -13,6 +11,8 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+const paymentsText = ru.payments;
 
 const t = paymentsText;
 const SEED_GROUP = "10000000-0000-4000-8000-000000000001";
@@ -70,7 +70,7 @@ async function paymentsOf(supabase: Supabase, clientId: string) {
 async function openList(page: Page, lastName: string): Promise<Locator> {
   await page.goto("/clients");
   await page
-    .getByRole("searchbox", { name: clientsText.list.search })
+    .getByRole("searchbox", { name: ru.clientsList.search })
     .fill(lastName);
   const row = page.getByTestId("client-row").filter({ hasText: lastName });
   await expect(row).toHaveCount(1);

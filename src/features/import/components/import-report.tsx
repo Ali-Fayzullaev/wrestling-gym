@@ -4,15 +4,16 @@ import { CircleCheck, Download } from "lucide-react";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { importText } from "@/i18n/import";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt, plural } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { toCsv } from "@/lib/csv-write";
 
 import type { ImportReport as Report } from "../result";
 
-const t = importText.report;
-
 /** The skipped rows as they were, plus a column with what to fix, as a file to download. */
-function downloadSkipped(report: Report) {
+function downloadSkipped(importText: Messages["import"], report: Report) {
+  const t = importText.report;
   const rows = [
     [...report.headers, t.errorColumn],
     ...report.skipped.map((row) => [
@@ -37,6 +38,9 @@ export function ImportReport({
   report: Report;
   onAgain: () => void;
 }) {
+  const importText = useText("import");
+  const t = importText.report;
+  const locale = useLocale();
   return (
     <section
       aria-labelledby="import-report"
@@ -54,12 +58,14 @@ export function ImportReport({
         {t.title}
       </h2>
       <ul className="flex flex-col gap-1 text-sm" role="status">
-        <li className="font-medium">{t.created(report.created)}</li>
+        <li className="font-medium">
+          {fmt(t.created, { count: report.created })}
+        </li>
         {report.duplicates > 0 ? (
-          <li>{t.duplicates(report.duplicates)}</li>
+          <li>{fmt(t.duplicates, { count: report.duplicates })}</li>
         ) : null}
         {report.groupsCreated > 0 ? (
-          <li>{t.groups(report.groupsCreated)}</li>
+          <li>{fmt(t.groups, { count: report.groupsCreated })}</li>
         ) : null}
       </ul>
       {report.created > 0 ? (
@@ -67,10 +73,10 @@ export function ImportReport({
       ) : null}
       {report.skipped.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-md bg-muted px-3 py-3 text-sm">
-          <p>{t.skipped(report.skipped.length)}</p>
+          <p>{plural(locale, t.skipped, report.skipped.length)}</p>
           <button
             type="button"
-            onClick={() => downloadSkipped(report)}
+            onClick={() => downloadSkipped(importText, report)}
             className={buttonVariants({
               variant: "outline",
               className: "w-fit",

@@ -1,4 +1,5 @@
 import { Money } from "@/components/money";
+import { getI18n } from "@/i18n/server";
 
 export type Bar = { key: string; label: string; amount: number; count: number };
 
@@ -7,7 +8,7 @@ export type Bar = { key: string; label: string; amount: number; count: number };
  * The longest bar is the biggest amount; each row also says the amount and count in text, so the
  * bar is never the only way to read it.
  */
-export function BarList({
+export async function BarList({
   title,
   hint,
   bars,
@@ -20,6 +21,7 @@ export function BarList({
   countLabel: (count: number) => string;
   testId: string;
 }) {
+  const { locale } = await getI18n();
   const max = Math.max(0, ...bars.map((bar) => bar.amount));
   const headingId = `${testId}-title`;
   return (
@@ -47,7 +49,11 @@ export function BarList({
                 <span className="text-muted-foreground tabular-nums">
                   {countLabel(bar.count)}
                 </span>
-                <Money amount={bar.amount} className="font-semibold" />
+                <Money
+                  locale={locale}
+                  amount={bar.amount}
+                  className="font-semibold"
+                />
               </span>
             </div>
             <div

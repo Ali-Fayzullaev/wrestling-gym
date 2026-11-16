@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { clientsText } from "@/i18n/clients";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 import {
   DELETE_REASONS,
@@ -21,8 +21,6 @@ import type { DeleteOutcome } from "../service";
 
 // This dialog confirms with a toast: make sure the toast area is there.
 requestToaster();
-
-const d = clientsText.deleteDialog;
 
 /**
  * Full deletion (owner only; the server checks the role, the reason and the typed last name
@@ -41,6 +39,9 @@ export default function DeleteClientDialog({
   onOpenChange: (open: boolean) => void;
   remove: (input: DeleteClientInput) => Promise<ActionResult<DeleteOutcome>>;
 }) {
+  const clientsText = useText("clients");
+  const d = clientsText.deleteDialog;
+  const commonText = useText("common");
   const router = useRouter();
   const id = useId();
   const [reason, setReason] = useState<DeleteReason | "">("");
@@ -83,7 +84,7 @@ export default function DeleteClientDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button
             type="button"
@@ -131,7 +132,7 @@ export default function DeleteClientDialog({
         </div>
         <div className="grid gap-1.5">
           <label htmlFor={`${id}-confirm`} className="text-sm font-medium">
-            {d.confirmLabel(lastName)}
+            {fmt(d.confirmLabel, { lastName })}
           </label>
           <input
             id={`${id}-confirm`}

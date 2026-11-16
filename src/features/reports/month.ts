@@ -1,4 +1,3 @@
-import { reportsText } from "@/i18n/reports";
 import { businessDate } from "@/lib/dates";
 
 // A report month is "YYYY-MM" (the address of the screen and the export carries it; it holds no
@@ -36,10 +35,4 @@ export function parseMonth(value: unknown, now: Date): string {
 /** "2026-11" -> "2026-11-01", what the report functions take. */
 export function monthStart(month: string): string {
   return `${month}-01`;
-}
-
-/** "Ноябрь 2026". */
-export function formatMonth(month: string): string {
-  const [year, number] = month.split("-").map(Number) as [number, number];
-  return `${reportsText.months[number - 1]} ${year}`;
 }

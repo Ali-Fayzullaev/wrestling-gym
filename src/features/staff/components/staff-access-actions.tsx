@@ -11,11 +11,9 @@ import { lazy, Suspense, useState, useTransition } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
 import type { StaffRole } from "@/features/auth/roles";
-import { staffText } from "@/i18n/settings";
+import { useText } from "@/i18n/client";
 
 import type { StaffResult } from "../form-fields";
-
-const t = staffText.list;
 
 const loadDialog = () => import("./deactivate-staff-dialog");
 const DeactivateStaffDialog = lazy(loadDialog);
@@ -55,6 +53,8 @@ export function StaffAccessActions({
   update: UpdateStaffAccess;
   resetPassword: ResetStaffPassword;
 }) {
+  const staffText = useText("staff");
+  const t = staffText.list;
   const [message, setMessage] = useState<Message>(null);
   const [asked, setAsked] = useState(false);
   const [confirming, setConfirming] = useState(false);

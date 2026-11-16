@@ -1,4 +1,8 @@
 import { formatAmount, formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/locale";
+
+// STUB(D-13): the language of every message to a client, until the owner decides.
+const REMINDER_LOCALE: Locale = "ru";
 
 /** What a template may contain; anything else in braces is left as written. */
 export const TEMPLATE_VARIABLES = [
@@ -63,7 +67,11 @@ export type ReminderContact = {
   endsOn: string | null;
 };
 
-/** A child's phone belongs to a parent, so the text greets the parent by name when it is known. */
+/**
+ * A child's phone belongs to a parent, so the text greets the parent by name when it is known.
+ * STUB(D-13): templates are written in one language, so the date and amount are always formatted
+ * in Russian; with a client language and three template versions this takes the client's.
+ */
 export function reminderValues(
   contact: ReminderContact,
   gymName: string,
@@ -74,8 +82,13 @@ export function reminderValues(
       contact.phoneOwner === "parent" && contact.parentName
         ? contact.parentName
         : contact.firstName,
-    дата_окончания: contact.endsOn ? formatDate(contact.endsOn, today) : null,
-    сумма: contact.price === null ? null : formatAmount(contact.price),
+    дата_окончания: contact.endsOn
+      ? formatDate(contact.endsOn, today, REMINDER_LOCALE)
+      : null,
+    сумма:
+      contact.price === null
+        ? null
+        : formatAmount(contact.price, REMINDER_LOCALE),
     группа: contact.groupName,
     название_зала: gymName,
   };

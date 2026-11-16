@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
 
-import { groupsText } from "@/i18n/groups";
-import { paymentsText } from "@/i18n/payments";
-import { remindersText } from "@/i18n/reminders";
+import { plural } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
-import { settingsText } from "@/i18n/settings";
 import { formatMoney } from "@/lib/format";
 
 import { createTempStaff, serviceClient } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+
+const groupsText = ru.groups;
+const paymentsText = ru.payments;
+const remindersText = ru.reminders;
+const settingsText = ru.settings;
 
 /**
  * Criterion 8. Changes the gym-wide settings (name, reminder days) that other tests read, so this
@@ -86,7 +88,7 @@ test("criterion 8: from Settings the owner changes the gym name, a group price a
     await dialog.getByLabel(groupsText.form.price).fill("23 000");
     await dialog.getByRole("button", { name: groupsText.form.save }).click();
     await expect(row.getByTestId("settings-group-price")).toHaveText(
-      formatMoney(23000),
+      formatMoney(23000, "ru"),
       SERVER_ROUND_TRIP,
     );
 
@@ -106,7 +108,9 @@ test("criterion 8: from Settings the owner changes the gym name, a group price a
 
     // Visible elsewhere: the group screen, the payment dialog, the reminder texts and Settings.
     await page.goto(`/groups/${groupId}`);
-    await expect(page.getByRole("main")).toContainText(formatMoney(23000));
+    await expect(page.getByRole("main")).toContainText(
+      formatMoney(23000, "ru"),
+    );
 
     await page.goto(`/clients/${clientId}`);
     await page.getByTestId("pay-button").click();
@@ -121,7 +125,7 @@ test("criterion 8: from Settings the owner changes the gym name, a group price a
     await expect(
       page
         .getByTestId("template-before_7")
-        .getByText(remindersText.kinds.first(newFirstDays)),
+        .getByText(plural("ru", remindersText.kinds.first, newFirstDays)),
     ).toBeVisible();
     await expect(
       page.getByTestId("template-overdue").getByTestId("template-preview"),
@@ -129,7 +133,7 @@ test("criterion 8: from Settings the owner changes the gym name, a group price a
 
     await page.goto("/settings");
     await expect(page.getByTestId("settings-reminders-status")).toContainText(
-      settingsText.daysWord(newFirstDays),
+      plural("ru", settingsText.daysWord, newFirstDays),
     );
     await expect(
       page

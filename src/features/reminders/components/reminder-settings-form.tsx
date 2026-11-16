@@ -4,7 +4,10 @@ import { Save } from "lucide-react";
 import { type FormEvent, useId, useState, useTransition } from "react";
 
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { remindersText } from "@/i18n/reminders";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt, plural } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
+import type { Locale } from "@/lib/locale";
 
 import type { ReminderKind } from "../kinds";
 import type { SettingsFieldErrors, SettingsResult } from "../result";
@@ -15,8 +18,6 @@ import {
   renderTemplate,
   unknownVariables,
 } from "../template";
-
-const t = remindersText.settings;
 
 export type SaveReminderSettings = (input: {
   firstDays: string;
@@ -32,12 +33,18 @@ const ORDER: Record<ReminderKind, number> = {
   overdue: 2,
 };
 
-function kindTitle(kind: ReminderKind, first: number, second: number | null) {
-  if (kind === "overdue") return remindersText.kinds.overdue;
-  if (kind === "before_7") return remindersText.kinds.first(first);
+function kindTitle(
+  r: Messages["reminders"],
+  locale: Locale,
+  kind: ReminderKind,
+  first: number,
+  second: number | null,
+) {
+  if (kind === "overdue") return r.kinds.overdue;
+  if (kind === "before_7") return plural(locale, r.kinds.first, first);
   return second === null
-    ? remindersText.kindShort.before_1
-    : remindersText.kinds.second(second);
+    ? r.kindShort.before_1
+    : plural(locale, r.kinds.second, second);
 }
 
 const parseDays = (value: string): number | null => {
@@ -98,6 +105,9 @@ export function ReminderSettingsForm({
   today: Date;
   save: SaveReminderSettings;
 }) {
+  const r = useText("reminders");
+  const t = r.settings;
+  const locale = useLocale();
   const id = useId();
   const sorted = [...reminderDays].sort((a, b) => b - a);
   const [firstDays, setFirstDays] = useState(String(sorted[0] ?? ""));
@@ -198,7 +208,13 @@ export function ReminderSettingsForm({
           {t.templates}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {previewName ? t.previewFor(previewName) : t.previewNoClient}
+          {previewName
+            ? fmt(t.previewFor, { name: previewName })
+            : t.previewNoClient}
+        </p>
+        {/* STUB(D-13): one template per kind; client language and three versions await the owner. */}
+        <p className="text-sm text-muted-foreground">
+          {t.templatesLanguageNote}
         </p>
         {ordered.map((item) => {
           const body = bodies[item.id] ?? "";
@@ -213,7 +229,7 @@ export function ReminderSettingsForm({
               data-testid={`template-${item.kind}`}
             >
               <label htmlFor={fieldId} className="text-base font-semibold">
-                {kindTitle(item.kind, first, second)}
+                {kindTitle(r, locale, item.kind, first, second)}
               </label>
               <textarea
                 id={fieldId}
@@ -257,7 +273,7 @@ export function ReminderSettingsForm({
                 </p>
                 {unknown.length > 0 ? (
                   <p className="text-sm text-status-expired-foreground">
-                    {t.unknown(unknown.join(", "))}
+                    {fmt(t.unknown, { tokens: unknown.join(", ") })}
                   </p>
                 ) : null}
               </div>

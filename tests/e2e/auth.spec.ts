@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { plural } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
 
 import {
@@ -133,7 +134,9 @@ test.describe("sign-in", () => {
       );
     }
     await submitLogin(page, email, "wrong-again");
-    await expect(formAlert(page)).toHaveText(ru.auth.tooManyAttempts(15));
+    await expect(formAlert(page)).toHaveText(
+      plural("ru", ru.auth.tooManyAttempts, 15),
+    );
   });
 });
 

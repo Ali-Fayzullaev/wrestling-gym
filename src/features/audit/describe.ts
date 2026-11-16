@@ -1,6 +1,7 @@
-import { formatMonth } from "@/features/reports/month";
-import { auditText as t } from "@/i18n/audit";
-import { formatDate, formatMoney } from "@/lib/format";
+import { fmt } from "@/i18n/format";
+import type { I18n, Messages } from "@/i18n/messages";
+import { formatDate, formatMoney, formatMonth } from "@/lib/format";
+import type { Locale } from "@/lib/locale";
 
 import type { AuditAction } from "./actions";
 
@@ -34,6 +35,9 @@ export type AuditDescription = {
   target: AuditTarget | null;
 };
 
+/** Texts, language and "now" of the request the entries are described for. */
+type Context = { t: Messages["audit"]; locale: Locale; now: Date };
+
 function text(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
@@ -58,11 +62,14 @@ function label<T extends Record<string, string>>(
   return Object.hasOwn(labels, key) ? (labels[key] ?? null) : key;
 }
 
-function fieldList(details: Record<string, unknown>): string | null {
+function fieldList(
+  { t }: Context,
+  details: Record<string, unknown>,
+): string | null {
   const names = strings(details.fields).map(
     (field) => label(t.fields, field) ?? field,
   );
-  return names.length > 0 ? t.changed(names.join(", ")) : null;
+  return names.length > 0 ? fmt(t.changed, { fields: names.join(", ") }) : null;
 }
 
 function present(lines: (string | null)[]): string[] {
@@ -70,105 +77,121 @@ function present(lines: (string | null)[]): string[] {
 }
 
 function paymentDetails(
+  { t, locale, now }: Context,
   details: Record<string, unknown>,
-  now: Date,
 ): (string | null)[] {
   const amount = count(details.amount);
   const start = text(details.period_start);
   const end = text(details.period_end);
   return [
-    amount === null ? null : formatMoney(amount),
+    amount === null ? null : formatMoney(amount, locale),
     label(t.methods, text(details.method)),
     start && end
-      ? t.period(formatDate(start, now), formatDate(end, now))
+      ? fmt(t.period, {
+          from: formatDate(start, now, locale),
+          to: formatDate(end, now, locale),
+        })
       : null,
   ];
 }
 
-function exportDetails(details: Record<string, unknown>, entity: string) {
+function exportDetails(
+  { t, locale }: Context,
+  details: Record<string, unknown>,
+  entity: string,
+) {
   const month = text(details.month);
   const rows = count(details.rows);
   return [
     entity === "payment"
       ? month
-        ? t.exportPayments(formatMonth(month))
+        ? fmt(t.exportPayments, { month: formatMonth(month, locale) })
         : null
       : t.exportClients,
     label(t.formats, text(details.format)),
-    rows === null ? null : t.rows(rows),
+    rows === null ? null : fmt(t.rows, { count: rows }),
   ];
 }
 
-function importDetails(details: Record<string, unknown>) {
+function importDetails({ t }: Context, details: Record<string, unknown>) {
   const rows = count(details.rows);
   const created = count(details.created);
   const duplicates = count(details.duplicates);
   const groups = strings(details.groups_created).length;
   return [
     rows !== null && created !== null && duplicates !== null
-      ? t.importCounts(rows, created, duplicates)
+      ? fmt(t.importCounts, { rows, created, duplicates })
       : null,
-    groups > 0 ? t.groupsCreated(groups) : null,
+    groups > 0 ? fmt(t.groupsCreated, { count: groups }) : null,
   ];
 }
 
-function settingsDetails(details: Record<string, unknown>) {
+function settingsDetails(context: Context, details: Record<string, unknown>) {
   const from = Array.isArray(details.from) ? details.from.join(", ") : null;
   const to = Array.isArray(details.to) ? details.to.join(", ") : null;
-  return [fieldList(details), from && to ? t.days(from, to) : null];
+  return [
+    fieldList(context, details),
+    from && to ? fmt(context.t.days, { from, to }) : null,
+  ];
 }
 
-function detailLines(entry: AuditEntry, now: Date): (string | null)[] {
+function detailLines(context: Context, entry: AuditEntry): (string | null)[] {
+  const { t, locale } = context;
   const { details } = entry;
   switch (entry.action) {
     case "payment.create":
-      return paymentDetails(details, now);
+      return paymentDetails(context, details);
     case "payment.cancel":
     case "payment.reverse": {
       const amount = count(details.amount);
-      return [amount === null ? null : formatMoney(amount)];
+      return [amount === null ? null : formatMoney(amount, locale)];
     }
     case "client.create": {
       const consents = strings(details.consents).length;
-      return [consents > 0 ? t.consents(consents) : null];
+      return [consents > 0 ? fmt(t.consents, { count: consents }) : null];
     }
     case "client.update":
     case "group.update":
-      return [fieldList(details)];
+      return [fieldList(context, details)];
     case "client.delete": {
       const reason = label(t.deleteReasons, text(details.reason));
       return [
         label(t.deleteModes, text(details.mode)),
-        reason ? t.reason(reason) : null,
+        reason ? fmt(t.reason, { reason }) : null,
       ];
     }
     case "client.import":
-      return importDetails(details);
+      return importDetails(context, details);
     case "group.archive": {
       const clients = count(details.active_clients);
-      return [clients === null ? null : t.activeClients(clients)];
+      return [
+        clients === null ? null : fmt(t.activeClients, { count: clients }),
+      ];
     }
     case "settings.update":
-      return settingsDetails(details);
+      return settingsDetails(context, details);
     case "template.update":
       return [label(t.templateKinds, text(details.kind))];
     case "report.export":
-      return exportDetails(details, entry.entity);
+      return exportDetails(context, details, entry.entity);
     case "staff.invite": {
       const role = label(t.roles, text(details.role));
-      return [role ? t.role(role) : null];
+      return [role ? fmt(t.role, { role }) : null];
     }
     case "staff.role_change": {
       const from = label(t.roles, text(details.from));
       const to = label(t.roles, text(details.to));
-      return [from && to ? t.roleChange(from, to) : null];
+      return [from && to ? fmt(t.roleChange, { from, to }) : null];
     }
     default:
       return [];
   }
 }
 
-function clientTarget(entry: AuditEntry): AuditTarget | null {
+function clientTarget(
+  t: Messages["audit"],
+  entry: AuditEntry,
+): AuditTarget | null {
   if (entry.clientId && entry.clientName) {
     return {
       label: t.target.client,
@@ -187,12 +210,12 @@ function clientTarget(entry: AuditEntry): AuditTarget | null {
   };
 }
 
-function target(entry: AuditEntry): AuditTarget | null {
+function target(t: Messages["audit"], entry: AuditEntry): AuditTarget | null {
   if (entry.action === "report.export" || entry.action === "client.import") {
     return null;
   }
   if (entry.entity === "client" || entry.entity === "payment") {
-    return clientTarget(entry);
+    return clientTarget(t, entry);
   }
   if (entry.entity === "group" && entry.entityId && entry.groupName) {
     return {
@@ -220,12 +243,14 @@ function target(entry: AuditEntry): AuditTarget | null {
 
 /** What the owner reads for one entry: a plain-words title, details and what it is about. */
 export function describeAuditEntry(
+  { t, locale }: I18n,
   entry: AuditEntry,
   now: Date,
 ): AuditDescription {
+  const context: Context = { t: t.audit, locale, now };
   return {
-    title: t.actions[entry.action],
-    details: present(detailLines(entry, now)),
-    target: target(entry),
+    title: t.audit.actions[entry.action],
+    details: present(detailLines(context, entry)),
+    target: target(t.audit, entry),
   };
 }

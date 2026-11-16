@@ -6,8 +6,9 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { paymentsText as t } from "@/i18n/payments";
-import { ru } from "@/i18n/ru";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { businessDate } from "@/lib/dates";
 import { formatDate, formatMoney } from "@/lib/format";
 
@@ -64,7 +65,7 @@ async function settle<T>(
   }
 }
 
-const errorText = (error: PaymentError | "network") =>
+const errorText = (t: Messages["payments"], error: PaymentError | "network") =>
   error === "network" ? t.network : t.errors[error];
 
 /**
@@ -90,6 +91,9 @@ export default function PaymentDialog({
   cancel: CancelPayment;
   onOptimistic?: (endsOn: string) => void;
 }) {
+  const t = useText("payments");
+  const common = useText("common");
+  const locale = useLocale();
   const id = useId();
   const [amountText, setAmountText] = useState(
     target.price === null ? "" : String(target.price),
@@ -110,7 +114,7 @@ export default function PaymentDialog({
       cancel({ paymentId: payment.id, idempotencyKey: crypto.randomUUID() }),
     ).then((result) => {
       if (result.ok) toast.success(t.cancelled);
-      else toast.error(errorText(result.error));
+      else toast.error(errorText(t, result.error));
     });
   }
 
@@ -131,16 +135,19 @@ export default function PaymentDialog({
       );
       submitting.current = false;
       if (!result.ok) {
-        toast.error(errorText(result.error));
+        toast.error(errorText(t, result.error));
         return;
       }
       // The next payment for this client is a new one.
       setKey(crypto.randomUUID());
       const payment = result.data;
-      toast.success(t.saved(formatDate(payment.periodEnd, today)), {
-        duration: 10_000,
-        action: { label: t.undo, onClick: () => undo(payment) },
-      });
+      toast.success(
+        fmt(t.saved, { until: formatDate(payment.periodEnd, today, locale) }),
+        {
+          duration: 10_000,
+          action: { label: t.undo, onClick: () => undo(payment) },
+        },
+      );
     });
   }
 
@@ -157,7 +164,7 @@ export default function PaymentDialog({
             className={buttonVariants({ variant: "outline" })}
             onClick={() => onOpenChange(false)}
           >
-            {ru.common.cancel}
+            {common.cancel}
           </button>
           <button
             type="submit"
@@ -207,7 +214,9 @@ export default function PaymentDialog({
               ? t.dialog.amountError
               : target.price === null
                 ? t.dialog.amountNoPrice
-                : t.dialog.amountHint(formatMoney(target.price))}
+                : fmt(t.dialog.amountHint, {
+                    price: formatMoney(target.price, locale),
+                  })}
           </p>
         </div>
 
@@ -241,10 +250,10 @@ export default function PaymentDialog({
             {t.dialog.periodMonth}
           </p>
           <p className="font-medium" data-testid="payment-preview">
-            {t.dialog.preview(
-              formatDate(period.start, today),
-              formatDate(period.end, today),
-            )}
+            {fmt(t.dialog.preview, {
+              from: formatDate(period.start, today, locale),
+              to: formatDate(period.end, today, locale),
+            })}
           </p>
         </div>
       </form>

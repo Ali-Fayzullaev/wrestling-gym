@@ -14,7 +14,8 @@ import {
 
 import { requestToaster } from "@/components/deferred-toaster";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { clientErrorText, clientFormText as f } from "@/i18n/client-form";
+import { useLocale, useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { formatDate } from "@/lib/format";
 import { normalizePhone } from "@/lib/phone";
 
@@ -74,6 +75,9 @@ export function ClientForm({
     input: PhoneCheckInput,
   ) => Promise<ActionResult<PhoneDuplicate[]>>;
 }) {
+  const clientErrorText = useText("clients").errors;
+  const f = useText("clientForm");
+  const locale = useLocale();
   const router = useRouter();
   const id = useId();
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -281,7 +285,7 @@ export function ClientForm({
             <option value="">{f.noGroup}</option>
             {archivedGroup ? (
               <option value={archivedGroup.id}>
-                {f.archivedGroup(archivedGroup.name)}
+                {fmt(f.archivedGroup, { name: archivedGroup.name })}
               </option>
             ) : null}
             {groups.map((group) => (
@@ -363,7 +367,9 @@ export function ClientForm({
                 {f.consentKinds[kind]}
                 {givenOn ? (
                   <span className="block text-muted-foreground">
-                    {f.consentOnFile(formatDate(givenOn, today))}
+                    {fmt(f.consentOnFile, {
+                      date: formatDate(givenOn, today, locale),
+                    })}
                   </span>
                 ) : null}
               </span>
@@ -408,6 +414,7 @@ function Field({
   invalid: ReadonlySet<ClientField>;
   children: ReactNode;
 }) {
+  const f = useText("clientForm");
   return (
     <div className="grid content-start gap-1.5">
       <label htmlFor={`${id}-${field}`} className="text-sm font-medium">

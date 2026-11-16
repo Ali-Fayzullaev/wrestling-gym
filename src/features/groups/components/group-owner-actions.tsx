@@ -4,7 +4,7 @@ import { Archive, Pencil } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { groupsText } from "@/i18n/groups";
+import { useText } from "@/i18n/client";
 
 import type { ActionResult } from "../result";
 import type { ArchiveGroupInput } from "../schema";
@@ -37,6 +37,7 @@ export function GroupOwnerActions({
   /** Where archiving leads: the group list from a group screen, Settings from Settings. */
   returnTo?: string;
 }) {
+  const groupsText = useText("groups");
   const [requested, setRequested] = useState<ReadonlySet<Dialog>>(new Set());
   const [open, setOpen] = useState<Dialog>(null);
 

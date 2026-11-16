@@ -26,13 +26,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { devUi } from "@/i18n/dev-ui";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
 
 import { FormDemo, OverlaysDemo, TabsDemo } from "./demos";
 
-export const metadata: Metadata = {
-  title: `${devUi.title} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${devUi.title} | ${t.app.name}` };
+}
 
 const STATUSES: SubscriptionStatus[] = [
   "active",
@@ -52,6 +53,7 @@ function devUiEnabled(): boolean {
 }
 
 export default async function DevUiPage() {
+  const { t: messages, locale } = await getI18n();
   // Read the flag per request, not at build time.
   await connection();
   if (!devUiEnabled()) notFound();
@@ -96,7 +98,11 @@ export default async function DevUiPage() {
       <Section title={d.statuses}>
         <div className="flex flex-wrap gap-2" data-testid="status-badges">
           {STATUSES.map((status) => (
-            <StatusBadge key={status} status={status} />
+            <StatusBadge
+              key={status}
+              status={status}
+              label={messages.status[status]}
+            />
           ))}
         </div>
       </Section>
@@ -105,23 +111,28 @@ export default async function DevUiPage() {
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted-foreground">25000</dt>
           <dd>
-            <Money amount={25000} />
+            <Money locale={locale} amount={25000} />
           </dd>
           <dt className="text-muted-foreground">-25000</dt>
           <dd>
-            <Money amount={-25000} />
+            <Money locale={locale} amount={-25000} />
           </dd>
           <dt className="text-muted-foreground">0</dt>
           <dd>
-            <Money amount={0} />
+            <Money locale={locale} amount={0} />
           </dd>
           <dt className="text-muted-foreground">+5</dt>
           <dd>
-            <DateText date={new Date(now.getTime() + 5 * 864e5)} today={now} />
+            <DateText
+              locale={locale}
+              date={new Date(now.getTime() + 5 * 864e5)}
+              today={now}
+            />
           </dd>
           <dt className="text-muted-foreground">-400</dt>
           <dd>
             <DateText
+              locale={locale}
               date={new Date(now.getTime() - 400 * 864e5)}
               today={now}
             />
@@ -164,13 +175,14 @@ export default async function DevUiPage() {
               <TableRow>
                 <TableCell>{d.sampleClientA}</TableCell>
                 <TableCell>
-                  <StatusBadge status="active" />
+                  <StatusBadge status="active" label={messages.status.active} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <Money amount={25000} />
+                  <Money locale={locale} amount={25000} />
                 </TableCell>
                 <TableCell>
                   <DateText
+                    locale={locale}
                     date={new Date(now.getTime() + 20 * 864e5)}
                     today={now}
                   />
@@ -179,13 +191,17 @@ export default async function DevUiPage() {
               <TableRow>
                 <TableCell>{d.sampleClientB}</TableCell>
                 <TableCell>
-                  <StatusBadge status="expired" />
+                  <StatusBadge
+                    status="expired"
+                    label={messages.status.expired}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
-                  <Money amount={18000} />
+                  <Money locale={locale} amount={18000} />
                 </TableCell>
                 <TableCell>
                   <DateText
+                    locale={locale}
                     date={new Date(now.getTime() - 3 * 864e5)}
                     today={now}
                   />

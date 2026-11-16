@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { requestToaster } from "@/components/deferred-toaster";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { buttonVariants } from "@/components/ui/variants";
-import { groupsText } from "@/i18n/groups";
-import { ru } from "@/i18n/ru";
+import { useLocale, useText } from "@/i18n/client";
+import { plural } from "@/i18n/format";
 
 import type { ActionResult } from "../result";
 import type { ArchiveGroupInput } from "../schema";
@@ -16,8 +16,6 @@ import type { ArchiveOutcome } from "../service";
 
 // This dialog confirms with a toast: make sure the toast area is there.
 requestToaster();
-
-const a = groupsText.archiveDialog;
 
 /**
  * Asks before archiving. With clients in the group it says so and the button becomes "Archive
@@ -40,6 +38,10 @@ export default function ArchiveGroupDialog({
   /** The screen to show after archiving: the archived group's own screen is gone. */
   returnTo: string;
 }) {
+  const groupsText = useText("groups");
+  const a = groupsText.archiveDialog;
+  const locale = useLocale();
+  const commonText = useText("common");
   const router = useRouter();
   const [clients, setClients] = useState(members);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export default function ArchiveGroupDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {ru.common.cancel}
+            {commonText.cancel}
           </button>
           <button
             type="button"
@@ -106,7 +108,7 @@ export default function ArchiveGroupDialog({
           ) : null}
           {clients > 0 ? (
             <p className="rounded-md bg-status-expiring px-3 py-2 text-status-expiring-foreground">
-              {a.withClients(clients)}
+              {plural(locale, a.withClients, clients)}
             </p>
           ) : null}
         </div>

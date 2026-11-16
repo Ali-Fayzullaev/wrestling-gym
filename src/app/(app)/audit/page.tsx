@@ -15,12 +15,12 @@ import {
 import { getAuditFeed } from "@/features/audit/service";
 import { requireStaff } from "@/features/auth/require-staff";
 import { buttonVariants } from "@/components/ui/variants";
-import { auditText as t } from "@/i18n/audit";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.audit} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.audit} | ${t.app.name}` };
+}
 
 /** The address of a page of the journal with the same filter. */
 function pageHref(query: AuditQuery, cursor: string | null): string {
@@ -40,6 +40,8 @@ function pageHref(query: AuditQuery, cursor: string | null): string {
  * the screen ships no client code of its own.
  */
 export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
+  const { t: messages } = await getI18n();
+  const t = messages.audit;
   await requireStaff(["owner"]);
   const now = new Date();
   const { query, invalid } = auditQueryFromParams(await searchParams);
@@ -51,7 +53,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
 
   return (
     <>
-      <PageHeader title={ru.pages.audit} description={t.description} />
+      <PageHeader title={messages.pages.audit} description={t.description} />
       <AuditFilters query={query} staff={feed.staff} filtered={filtered} />
       {invalid ? (
         <p role="status" className="text-sm text-status-expired-foreground">
@@ -76,7 +78,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
       )}
       {query.cursor || (feed.hasMore && last) ? (
         <nav
-          aria-label={ru.pages.audit}
+          aria-label={messages.pages.audit}
           className="flex flex-wrap justify-between gap-2"
         >
           {query.cursor ? (

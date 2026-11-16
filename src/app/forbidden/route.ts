@@ -1,15 +1,19 @@
-import { ru } from "@/i18n/ru";
+import type { Messages } from "@/i18n/messages";
+import { getI18n } from "@/i18n/server";
+import { HTML_LANG, type Locale } from "@/lib/locale";
 
 // A route handler, not a page: Next ignores the status of a proxy rewrite to a page, while a
 // handler's own status survives. Both the proxy (owner-only paths) and requireStaff (wrong role in
-// a page or action) end here, so every refusal is a real HTTP 403. Plain HTML, no session read.
-const html = `<!doctype html>
-<html lang="ru">
+// a page or action) end here, so every refusal is a real HTTP 403. Plain HTML, no session read: the
+// language comes from the proxy's header.
+function page(t: Messages, locale: Locale): string {
+  return `<!doctype html>
+<html lang="${HTML_LANG[locale]}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>${ru.forbidden.title} | ${ru.app.name}</title>
+<title>${t.forbidden.title} | ${t.app.name}</title>
 <style>
 :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
 body { margin: 0; }
@@ -21,15 +25,17 @@ a { display: inline-flex; align-items: center; min-height: 44px; color: inherit;
 </head>
 <body>
 <main>
-<h1>${ru.forbidden.title}</h1>
-<p>${ru.forbidden.text}</p>
-<a href="/today">${ru.forbidden.back}</a>
+<h1>${t.forbidden.title}</h1>
+<p>${t.forbidden.text}</p>
+<a href="/today">${t.forbidden.back}</a>
 </main>
 </body>
 </html>`;
+}
 
-function forbiddenResponse(): Response {
-  return new Response(html, {
+async function forbiddenResponse(): Promise<Response> {
+  const { t, locale } = await getI18n();
+  return new Response(page(t, locale), {
     status: 403,
     headers: {
       "content-type": "text/html; charset=utf-8",

@@ -2,9 +2,8 @@ import { randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { auditText } from "@/i18n/audit";
+import { fmt } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
-import { settingsText, staffText } from "@/i18n/settings";
 
 import {
   createTempStaff,
@@ -13,6 +12,10 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { formAlert, loginAs, submitLogin } from "./support/auth";
+
+const auditText = ru.audit;
+const settingsText = ru.settings;
+const staffText = ru.staff;
 
 const SERVER_ROUND_TRIP = { timeout: 10_000 };
 // Auth hashes the password (bcrypt) before answering; under a full parallel run that takes seconds.
@@ -94,7 +97,7 @@ test.describe("staff", () => {
       .getByRole("button", { name: staffText.list.resetPassword })
       .click();
     const dialog = page.getByRole("dialog").filter({ visible: true });
-    await expect(dialog).toContainText(staffText.reset.title(name));
+    await expect(dialog).toContainText(fmt(staffText.reset.title, { name }));
     await dialog.getByLabel(staffText.reset.password).fill(reset);
     await dialog.getByRole("button", { name: staffText.reset.submit }).click();
     await expect(row).toContainText(staffText.reset.done, AUTH_ROUND_TRIP);
@@ -121,7 +124,9 @@ test.describe("staff", () => {
 
     await row.getByRole("button", { name: staffText.list.deactivate }).click();
     const confirm = page.getByRole("dialog").filter({ visible: true });
-    await expect(confirm).toContainText(staffText.list.deactivateTitle(name));
+    await expect(confirm).toContainText(
+      fmt(staffText.list.deactivateTitle, { name }),
+    );
     await confirm
       .getByRole("button", { name: staffText.list.deactivate })
       .click();

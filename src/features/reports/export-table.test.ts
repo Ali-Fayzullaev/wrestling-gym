@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { readXlsx } from "@/features/import/xlsx";
-import { reportsText } from "@/i18n/reports";
+import { ru } from "@/i18n/ru";
 
 import {
   buildExportFile,
@@ -53,8 +53,8 @@ const client: ClientRow = {
 
 describe("paymentsTable", () => {
   it("writes one row per payment with Almaty time and readable values", () => {
-    const table = paymentsTable([payment, reversal]);
-    expect(table.header).toEqual(reportsText.file.paymentsHeader);
+    const table = paymentsTable([payment, reversal], ru.reports);
+    expect(table.header).toEqual(ru.reports.file.paymentsHeader);
     expect(table.rows[0]).toEqual([
       "2026-11-30 23:30",
       "Оплата",
@@ -79,7 +79,7 @@ describe("paymentsTable", () => {
 
 describe("clientsTable", () => {
   it("translates codes to words and keeps empty values empty", () => {
-    const [row] = clientsTable([client]).rows;
+    const [row] = clientsTable([client], ru.reports).rows;
     expect(row).toEqual([
       "Ким",
       "Аружан",
@@ -100,7 +100,7 @@ describe("clientsTable", () => {
 describe("buildExportFile", () => {
   it("builds an .xlsx that reads back with the header and rows", () => {
     const file = buildExportFile(
-      paymentsTable([payment, reversal]),
+      paymentsTable([payment, reversal], ru.reports),
       "xlsx",
       "payments-2026-11",
       "Оплаты",
@@ -110,7 +110,7 @@ describe("buildExportFile", () => {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     const rows = readXlsx(file.body);
-    expect(rows[0]).toEqual([...reportsText.file.paymentsHeader]);
+    expect(rows[0]).toEqual([...ru.reports.file.paymentsHeader]);
     expect(rows[1]?.[2]).toBe("Ахметов");
     expect(rows[1]?.[5]).toBe(15000);
     // Formula-like text arrives as text, unchanged (Excel's quote prefix keeps it from running).
@@ -119,7 +119,7 @@ describe("buildExportFile", () => {
 
   it("builds a CSV with a BOM, the header first and formula-like cells neutralised", () => {
     const file = buildExportFile(
-      clientsTable([client]),
+      clientsTable([client], ru.reports),
       "csv",
       "clients-2026-11-14",
       "Клиенты",
@@ -130,7 +130,7 @@ describe("buildExportFile", () => {
       file.body,
     );
     const [header, line] = text.split("\r\n");
-    expect(header).toBe(`﻿${reportsText.file.clientsHeader.join(";")}`);
+    expect(header).toBe(`﻿${ru.reports.file.clientsHeader.join(";")}`);
     expect(line).toBe(
       "Ким;Аружан;+77000000001;Родителя;Гульнара;2017-04-02;;2026-01-10;Долг;2026-11-01;Нет;'-не звонить после 21:00",
     );
@@ -138,7 +138,7 @@ describe("buildExportFile", () => {
 
   it("never puts personal data in the file name", () => {
     const file = buildExportFile(
-      clientsTable([client]),
+      clientsTable([client], ru.reports),
       "xlsx",
       "clients-2026-11-14",
       "Клиенты",

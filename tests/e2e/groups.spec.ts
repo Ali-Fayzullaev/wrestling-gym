@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import type { Page, Request } from "@playwright/test";
 
-import { groupsText } from "@/i18n/groups";
-
 import { defined } from "../support/defined";
 import {
   SEED_EMAILS,
@@ -12,6 +10,10 @@ import {
 } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./support/auth";
+import { fmt } from "@/i18n/format";
+import { ru } from "@/i18n/ru";
+
+const groupsText = ru.groups;
 
 const g = groupsText;
 const SEED_GROUP = "10000000-0000-4000-8000-000000000001";
@@ -254,7 +256,9 @@ test.describe("transfer", () => {
 
     await page.getByRole("checkbox", { name: `Перевод${tag} Первый` }).check();
     await page.getByRole("checkbox", { name: `Перевод${tag} Второй` }).check();
-    await expect(page.getByText(g.moveDialog.selected(2))).toBeVisible();
+    await expect(
+      page.getByText(fmt(g.moveDialog.selected, { count: 2 })),
+    ).toBeVisible();
     await page.getByRole("button", { name: `${g.move} (2)` }).click();
 
     await dialog(page)
@@ -265,7 +269,9 @@ test.describe("transfer", () => {
     await dialog(page)
       .getByRole("button", { name: g.moveDialog.confirm })
       .click();
-    await expect(page.getByText(g.moveDialog.done(2))).toBeVisible();
+    await expect(
+      page.getByText(fmt(g.moveDialog.done, { count: 2 })),
+    ).toBeVisible();
     await expect(page.getByTestId("stat-members")).toHaveText("1 / 10");
     await expect(page.getByTestId("group-member")).toHaveCount(1);
 
@@ -285,7 +291,7 @@ test.describe("transfer", () => {
       .getByRole("radio", { name: new RegExp(toName) })
       .check();
     await expect(dialog(page).getByRole("status")).toContainText(
-      g.moveDialog.overWarning(3, 2),
+      fmt(g.moveDialog.overWarning, { members: 3, capacity: 2 }),
     );
     await dialog(page)
       .getByRole("button", { name: g.moveDialog.confirm })

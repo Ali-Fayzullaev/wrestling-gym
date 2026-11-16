@@ -14,6 +14,13 @@ import {
   type SessionState,
 } from "@/features/auth/routes";
 import {
+  guestLocale,
+  type Locale,
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
+  localeCookieOptions,
+} from "@/lib/locale";
+import {
   contentSecurityPolicy,
   createNonce,
   sha256Source,
@@ -77,6 +84,7 @@ async function navigate(request: NextRequest): Promise<NextResponse> {
   const { data } = await db.auth.getClaims();
   const signedIn = Boolean(data?.claims.sub);
   let session: SessionState = { signedIn: false };
+  let locale: Locale | null = null;
   if (signedIn) {
     const { data: staffAccess } = await db.rpc("current_staff_access");
     const access = parseStaffAccess(staffAccess);
@@ -85,7 +93,9 @@ async function navigate(request: NextRequest): Promise<NextResponse> {
       role: access?.role ?? null,
       mustChangePassword: access?.mustChangePassword ?? false,
     };
+    locale = access?.locale ?? null;
   }
+  response = withLocale(request, response, locale);
 
   const { pathname, search } = request.nextUrl;
   const navigation = decideNavigation(pathname, session);
@@ -123,9 +133,43 @@ async function navigate(request: NextRequest): Promise<NextResponse> {
         response,
         NextResponse.rewrite(new URL(FORBIDDEN_PATH, request.url), {
           status: 403,
+          request,
         }),
       );
   }
+}
+
+/**
+ * Puts the request's language where pages read it: the employee's profile when signed in, else the
+ * cookie or Accept-Language. The header is always overwritten, so a browser cannot choose it, and
+ * the cookie follows the profile, so the sign-in page keeps the language after sign-out.
+ */
+function withLocale(
+  request: NextRequest,
+  response: NextResponse,
+  profileLocale: Locale | null,
+): NextResponse {
+  const cookie = request.cookies.get(LOCALE_COOKIE)?.value;
+  const locale =
+    profileLocale ??
+    guestLocale(cookie, request.headers.get("accept-language"));
+  request.headers.set(LOCALE_HEADER, locale);
+  // Request headers are copied when the response is made: make it again, keeping what was set.
+  const next = NextResponse.next({ request });
+  for (const item of response.cookies.getAll()) next.cookies.set(item);
+  response.headers.forEach((value, key) => {
+    if (!key.startsWith("x-middleware-") && key !== "set-cookie") {
+      next.headers.set(key, value);
+    }
+  });
+  if (profileLocale && cookie !== profileLocale) {
+    next.cookies.set(
+      LOCALE_COOKIE,
+      profileLocale,
+      localeCookieOptions(process.env.NODE_ENV),
+    );
+  }
+  return next;
 }
 
 function loginUrl(request: NextRequest, next?: string): URL {

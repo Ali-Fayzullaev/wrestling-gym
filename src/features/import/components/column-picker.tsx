@@ -1,7 +1,8 @@
 "use client";
 
 import { inputClassName } from "@/components/ui/variants";
-import { importText } from "@/i18n/import";
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 import {
   COLUMN_KEYS,
@@ -9,8 +10,6 @@ import {
   type ColumnMapping,
   REQUIRED_COLUMNS,
 } from "../limits";
-
-const t = importText.columns;
 
 /** One select per field: which column of the file it comes from. */
 export function ColumnPicker({
@@ -26,6 +25,8 @@ export function ColumnPicker({
   disabled: boolean;
   onChange: (mapping: ColumnMapping) => void;
 }) {
+  const importText = useText("import");
+  const t = importText.columns;
   return (
     <section
       aria-labelledby="import-columns"
@@ -75,7 +76,9 @@ export function ColumnPicker({
                 <option value="">{t.none}</option>
                 {headers.map((header, index) => (
                   <option key={index} value={index}>
-                    {t.column(index, header)}
+                    {header === ""
+                      ? fmt(t.column, { number: index + 1 })
+                      : fmt(t.columnNamed, { number: index + 1, header })}
                   </option>
                 ))}
               </select>

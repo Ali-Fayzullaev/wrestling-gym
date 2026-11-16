@@ -11,7 +11,8 @@ import {
 } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
-import { groupsText } from "@/i18n/groups";
+import { useText } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 import type { ActionResult } from "../result";
 import type { MoveClientsInput } from "../schema";
@@ -22,8 +23,6 @@ export const MEMBER_CHECKBOX = "client";
 
 const loadMove = () => import("./move-clients-dialog");
 const MoveClientsDialog = lazy(loadMove);
-
-const m = groupsText.moveDialog;
 
 /**
  * Selection around the server-rendered client rows: it only counts the ticked checkboxes, so the
@@ -42,6 +41,8 @@ export function MemberSelection({
   targets: MoveTarget[];
   move: (input: MoveClientsInput) => Promise<ActionResult<MoveOutcome>>;
 }) {
+  const groupsText = useText("groups");
+  const m = groupsText.moveDialog;
   const formRef = useRef<HTMLFormElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -95,7 +96,7 @@ export function MemberSelection({
           className="text-sm text-muted-foreground tabular-nums"
           aria-live="polite"
         >
-          {m.selected(selected.length)}
+          {fmt(m.selected, { count: selected.length })}
         </span>
       </div>
       {children}

@@ -4,6 +4,7 @@ import { Wallet } from "lucide-react";
 import { lazy, type ReactNode, Suspense, useOptimistic, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
+import { useLocale } from "@/i18n/client";
 import type {
   CancelPayment,
   PaymentTarget,
@@ -55,6 +56,7 @@ export function RemindList({
   cancelPayment: CancelPayment;
   openReminder: OpenReminder;
 }) {
+  const locale = useLocale();
   const [shownRows, markPaid] = useOptimistic(rows, withoutPaid);
   const [payTarget, setPayTarget] = useState<PaymentTarget | null>(null);
   const [payOpen, setPayOpen] = useState(false);
@@ -73,7 +75,12 @@ export function RemindList({
             className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between"
             data-testid="remind-row"
           >
-            <ClientSummaryLink row={row} today={today} labels={labels} />
+            <ClientSummaryLink
+              row={row}
+              today={today}
+              locale={locale}
+              labels={labels}
+            />
             <div className="grid shrink-0 grid-cols-2 gap-2 md:w-[17rem]">
               {row.reminder.href ? (
                 <WhatsAppButton

@@ -9,17 +9,20 @@ import { STAFF_ROLES } from "@/features/auth/roles";
 import { CreateGroupButton } from "@/features/groups/components/create-group-button";
 import { GroupCard } from "@/features/groups/components/group-card";
 import { listGroups } from "@/features/groups/service";
-import { groupsText } from "@/i18n/groups";
-import { ru } from "@/i18n/ru";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 
 import { createGroupAction } from "./actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.groups} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.groups} | ${t.app.name}` };
+}
 
 /** Two database requests: the role check and groups_screen(). */
 export default async function GroupsPage() {
+  const { t: messages } = await getI18n();
+  const groupsText = messages.groups;
   const actor = await requireStaff(STAFF_ROLES);
   const { groups, coaches } = await listGroups(
     await createServerDb(),
@@ -31,8 +34,8 @@ export default async function GroupsPage() {
   ) : null;
 
   return (
-    <>
-      <PageHeader title={ru.pages.groups} actions={createButton} />
+    <Texts ns={["groups"]}>
+      <PageHeader title={messages.pages.groups} actions={createButton} />
       {groups.length === 0 ? (
         <EmptyState
           icon={UsersRound}
@@ -48,6 +51,6 @@ export default async function GroupsPage() {
           ))}
         </ul>
       )}
-    </>
+    </Texts>
   );
 }

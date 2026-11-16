@@ -3,23 +3,25 @@ import Link from "next/link";
 
 import { DateText } from "@/components/date-text";
 import { Money } from "@/components/money";
-import { reportsText } from "@/i18n/reports";
+import { plural } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 
 import type { DebtorGroup } from "../result";
-
-const t = reportsText.debtors;
 
 /**
  * Debtors by group, each group folded into a native <details> (no client code): the head says how
  * many and how much is expected at the group's price, the body lists who, linked to the card.
  */
-export function DebtorsList({
+export async function DebtorsList({
   groups,
   today,
 }: {
   groups: readonly DebtorGroup[];
   today: Date;
 }) {
+  const { t: messages, locale } = await getI18n();
+  const reportsText = messages.reports;
+  const t = messages.reports.debtors;
   return (
     <ul
       className="flex flex-col divide-y rounded-xl border bg-card"
@@ -38,7 +40,7 @@ export function DebtorsList({
                   {group.name ?? reportsText.noGroup}
                 </span>
                 <span className="text-sm text-muted-foreground tabular-nums">
-                  {t.count(group.count)}
+                  {plural(locale, t.count, group.count)}
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-end text-sm">
@@ -46,7 +48,11 @@ export function DebtorsList({
                 {group.price === null ? (
                   <span className="text-muted-foreground">{t.noPrice}</span>
                 ) : (
-                  <Money amount={group.expected} className="font-semibold" />
+                  <Money
+                    locale={locale}
+                    amount={group.expected}
+                    className="font-semibold"
+                  />
                 )}
               </span>
             </summary>
@@ -62,7 +68,11 @@ export function DebtorsList({
                       {client.endsOn ? (
                         <span className="text-muted-foreground">
                           {t.endedOn}{" "}
-                          <DateText date={client.endsOn} today={today} />
+                          <DateText
+                            locale={locale}
+                            date={client.endsOn}
+                            today={today}
+                          />
                         </span>
                       ) : null}
                     </span>

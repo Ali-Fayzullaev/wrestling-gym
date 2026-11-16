@@ -4,13 +4,14 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
-import { ru } from "@/i18n/ru";
+import { useText } from "@/i18n/client";
 
 import { type PasswordFormState, updatePasswordAction } from "./actions";
 
 const initialState: PasswordFormState = { error: null };
 
 export function PasswordForm() {
+  const auth = useText("auth");
   const [state, action, pending] = useActionState(
     updatePasswordAction,
     initialState,
@@ -24,7 +25,7 @@ export function PasswordForm() {
         id="password"
         name="password"
         type="password"
-        label={ru.auth.update.password}
+        label={auth.update.password}
         autoComplete="new-password"
         minLength={8}
         maxLength={72}
@@ -36,7 +37,7 @@ export function PasswordForm() {
         id="confirm"
         name="confirm"
         type="password"
-        label={ru.auth.update.confirm}
+        label={auth.update.confirm}
         autoComplete="new-password"
         maxLength={72}
         required
@@ -49,7 +50,7 @@ export function PasswordForm() {
         </FormMessage>
       ) : null}
       <Button type="submit" size="lg" className="min-h-11" disabled={pending}>
-        {pending ? ru.auth.update.pending : ru.auth.update.submit}
+        {pending ? auth.update.pending : auth.update.submit}
       </Button>
     </form>
   );

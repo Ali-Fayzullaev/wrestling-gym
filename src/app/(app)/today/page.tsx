@@ -11,10 +11,8 @@ import { STAFF_ROLES } from "@/features/auth/roles";
 import { PaidList } from "@/features/today/components/paid-list";
 import { RemindList } from "@/features/today/components/remind-list";
 import { getTodayScreen } from "@/features/today/service";
-import { paymentsText } from "@/i18n/payments";
-import { remindersText } from "@/i18n/reminders";
-import { ru } from "@/i18n/ru";
-import { todayText as t } from "@/i18n/today";
+import { getI18n } from "@/i18n/server";
+import { Texts } from "@/i18n/texts";
 import { formatWeekdayDate } from "@/lib/format";
 
 import {
@@ -23,9 +21,10 @@ import {
 } from "../clients/payment-actions";
 import { openReminderAction } from "../reminders/actions";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.today} | ${ru.app.name}`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: `${t.pages.today} | ${t.app.name}` };
+}
 
 type ListKey = "remind" | "paid";
 
@@ -44,6 +43,9 @@ function parseList(value: string | string[] | undefined): ListKey {
  */
 export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   await requireStaff(STAFF_ROLES);
+  const { t: messages, locale } = await getI18n();
+  const t = messages.today;
+  const remindersText = messages.reminders;
   const now = new Date();
   const [screen, params] = await Promise.all([
     getTodayScreen(await createServerDb(), now),
@@ -55,7 +57,10 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
 
   return (
     <>
-      <PageHeader title={ru.pages.today} description={formatWeekdayDate(now)} />
+      <PageHeader
+        title={messages.pages.today}
+        description={formatWeekdayDate(now, locale)}
+      />
 
       <section aria-label={t.counters.label}>
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -106,27 +111,29 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
           }))}
         />
         {list === "remind" ? (
-          <RemindList
-            rows={screen.remind}
-            empty={
-              <EmptyState
-                icon={CircleCheck}
-                title={t.remindEmptyTitle}
-                description={t.remindEmptyText}
-              />
-            }
-            today={now}
-            labels={{ ...rowLabels, pay: paymentsText.pay }}
-            whatsappLabels={{
-              whatsapp: remindersText.whatsapp,
-              chatOpened: remindersText.chatOpened,
-              recordFailed: remindersText.recordFailed,
-              retry: remindersText.retry,
-            }}
-            recordPayment={recordPaymentAction}
-            cancelPayment={cancelPaymentAction}
-            openReminder={openReminderAction}
-          />
+          <Texts ns={["payments"]}>
+            <RemindList
+              rows={screen.remind}
+              empty={
+                <EmptyState
+                  icon={CircleCheck}
+                  title={t.remindEmptyTitle}
+                  description={t.remindEmptyText}
+                />
+              }
+              today={now}
+              labels={{ ...rowLabels, pay: messages.payments.pay }}
+              whatsappLabels={{
+                whatsapp: remindersText.whatsapp,
+                chatOpened: remindersText.chatOpened,
+                recordFailed: remindersText.recordFailed,
+                retry: remindersText.retry,
+              }}
+              recordPayment={recordPaymentAction}
+              cancelPayment={cancelPaymentAction}
+              openReminder={openReminderAction}
+            />
+          </Texts>
         ) : screen.paid.length === 0 ? (
           <EmptyState
             icon={Wallet}
@@ -134,7 +141,12 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
             description={t.paidEmptyText}
           />
         ) : (
-          <PaidList rows={screen.paid} today={now} labels={rowLabels} />
+          <PaidList
+            rows={screen.paid}
+            today={now}
+            locale={locale}
+            labels={rowLabels}
+          />
         )}
       </section>
     </>

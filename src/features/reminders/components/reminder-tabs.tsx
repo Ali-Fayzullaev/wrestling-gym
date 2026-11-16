@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 import { DateText } from "@/components/date-text";
 import { EmptyState } from "@/components/empty-state";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { remindersText as r } from "@/i18n/reminders";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
+import { getI18n } from "@/i18n/server";
 import { businessDate } from "@/lib/dates";
 
 import { formatWhen, kindLabel } from "../labels";
@@ -20,20 +22,25 @@ import type {
 import { type MarkReminderSent, MarkSentButton } from "./mark-sent-button";
 import { type OpenReminder, WhatsAppButton } from "./whatsapp-button";
 
-const s = r.screen;
+function whatsappLabels(r: Messages["reminders"]) {
+  return {
+    whatsapp: r.whatsapp,
+    chatOpened: r.chatOpened,
+    recordFailed: r.recordFailed,
+    retry: r.retry,
+  };
+}
 
-const WHATSAPP_LABELS = {
-  whatsapp: r.whatsapp,
-  chatOpened: r.chatOpened,
-  recordFailed: r.recordFailed,
-  retry: r.retry,
-};
+function markLabels(r: Messages["reminders"]) {
+  return { markSent: r.markSent, marking: r.marking, failed: r.markFailed };
+}
 
-const MARK_LABELS = {
-  markSent: r.markSent,
-  marking: r.marking,
-  failed: r.markFailed,
-};
+/** The reminder texts of this request; every component here asks, the lookup is cached. */
+async function reminderTexts() {
+  const i18n = await getI18n();
+  const r = i18n.t.reminders;
+  return { i18n, r, s: r.screen };
+}
 
 export type ReminderActions = {
   open: OpenReminder;
@@ -91,24 +98,33 @@ function List({ children, testId }: { children: ReactNode; testId: string }) {
 }
 
 /** What is known about an event, in words that never claim WhatsApp delivered anything. */
-function EventStatus({ event, now }: { event: ReminderEvent; now: Date }) {
+async function EventStatus({
+  event,
+  now,
+}: {
+  event: ReminderEvent;
+  now: Date;
+}) {
+  const { i18n, r } = await reminderTexts();
   return event.status === "marked_sent" && event.markedSentAt ? (
     <span className="text-status-active-foreground">
-      {r.markedSent(
-        formatWhen(event.markedSentAt, now),
-        event.markedSentByName ?? "",
-      )}
+      {fmt(r.markedSent, {
+        when: formatWhen(event.markedSentAt, now, i18n.locale),
+        by: event.markedSentByName ?? "",
+      })}
     </span>
   ) : (
     <span className="text-muted-foreground">
-      {r.chatOpenedAt(formatWhen(event.openedAt, now))}
+      {fmt(r.chatOpenedAt, {
+        when: formatWhen(event.openedAt, now, i18n.locale),
+      })}
       {" · "}
-      {r.openedBy(event.openedByName)}
+      {fmt(r.openedBy, { by: event.openedByName })}
     </span>
   );
 }
 
-function TargetMeta({
+async function TargetMeta({
   target,
   label,
   endsLabel,
@@ -120,12 +136,14 @@ function TargetMeta({
   endsLabel: string;
   now: Date;
 }) {
+  const { i18n, s } = await reminderTexts();
   return (
     <span className="flex flex-wrap gap-x-2 text-muted-foreground">
       {label ? <span>{label}</span> : null}
       {target.endsOn ? (
         <span>
-          {endsLabel}: <DateText date={target.endsOn} today={now} />
+          {endsLabel}:{" "}
+          <DateText date={target.endsOn} today={now} locale={i18n.locale} />
         </span>
       ) : null}
       <span>{target.groupName ?? s.noGroup}</span>
@@ -133,7 +151,7 @@ function TargetMeta({
   );
 }
 
-function OpenButton({
+async function OpenButton({
   target,
   actions,
   variant,
@@ -142,11 +160,12 @@ function OpenButton({
   actions: ReminderActions;
   variant?: "default" | "outline";
 }) {
+  const { r } = await reminderTexts();
   return target.href ? (
     <WhatsAppButton
       href={target.href}
       target={{ paymentId: target.paymentId, kind: target.kind }}
-      labels={WHATSAPP_LABELS}
+      labels={whatsappLabels(r)}
       open={actions.open}
       variant={variant}
     />
@@ -154,7 +173,7 @@ function OpenButton({
 }
 
 /** "Today": who to remind now (the Today screen's list), then the chats already opened today. */
-export function TodayTab({
+export async function TodayTab({
   data,
   now,
   actions,
@@ -163,6 +182,7 @@ export function TodayTab({
   now: Date;
   actions: ReminderActions;
 }) {
+  const { i18n, s } = await reminderTexts();
   return (
     <>
       <section aria-labelledby="due-title" className="flex flex-col gap-3">
@@ -186,7 +206,7 @@ export function TodayTab({
                 <ClientName id={target.clientId} name={target.name} />
                 <TargetMeta
                   target={target}
-                  label={kindLabel(target.kind, data.reminderDays)}
+                  label={kindLabel(i18n, target.kind, data.reminderDays)}
                   endsLabel={s.endsOn}
                   now={now}
                 />
@@ -214,7 +234,7 @@ export function TodayTab({
   );
 }
 
-function EventList({
+async function EventList({
   events,
   now,
   actions,
@@ -225,6 +245,7 @@ function EventList({
   actions: ReminderActions;
   testId: string;
 }) {
+  const { r } = await reminderTexts();
   return (
     <List testId={testId}>
       {events.map((event) => (
@@ -235,7 +256,7 @@ function EventList({
             event.status === "chat_opened" ? (
               <MarkSentButton
                 eventId={event.id}
-                labels={MARK_LABELS}
+                labels={markLabels(r)}
                 mark={actions.mark}
               />
             ) : undefined
@@ -253,7 +274,7 @@ function EventList({
 }
 
 /** "Overdue": ended subscriptions with their "last day" reminder and what happened to it. */
-export function OverdueTab({
+export async function OverdueTab({
   data,
   now,
   actions,
@@ -265,6 +286,7 @@ export function OverdueTab({
   /** True when the list hit the row limit. */
   cut: boolean;
 }) {
+  const { r, s } = await reminderTexts();
   if (data.overdue.length === 0) {
     return (
       <EmptyState
@@ -291,7 +313,7 @@ export function OverdueTab({
                 {target.event?.status === "chat_opened" ? (
                   <MarkSentButton
                     eventId={target.event.id}
-                    labels={MARK_LABELS}
+                    labels={markLabels(r)}
                     mark={actions.mark}
                   />
                 ) : null}
@@ -308,7 +330,7 @@ export function OverdueTab({
       </List>
       {cut ? (
         <p className="text-sm text-muted-foreground">
-          {s.cut(data.overdue.length)}
+          {fmt(s.cut, { shown: data.overdue.length })}
         </p>
       ) : null}
     </>
@@ -316,7 +338,7 @@ export function OverdueTab({
 }
 
 /** "History": one day's events, filtered by employee; a plain GET form, no client code. */
-export function HistoryTab({
+export async function HistoryTab({
   data,
   now,
   date,
@@ -332,6 +354,7 @@ export function HistoryTab({
   actions: ReminderActions;
   cut: boolean;
 }) {
+  const { s } = await reminderTexts();
   return (
     <>
       <form
@@ -389,7 +412,7 @@ export function HistoryTab({
           />
           {cut ? (
             <p className="text-sm text-muted-foreground">
-              {s.cut(data.events.length)}
+              {fmt(s.cut, { shown: data.events.length })}
             </p>
           ) : null}
         </>
