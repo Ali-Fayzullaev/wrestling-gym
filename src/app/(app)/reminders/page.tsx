@@ -62,6 +62,7 @@ export default async function RemindersPage({
     <>
       <PageHeader
         title={t.pages.reminders}
+        mascot="hello"
         actions={
           actor.role === "owner" ? (
             <Link

@@ -58,7 +58,7 @@ export default async function MorePage() {
   const { t } = await getI18n();
   return (
     <>
-      <PageHeader title={t.pages.more} />
+      <PageHeader title={t.pages.more} mascot="hello" />
       <LinkSection
         id="work-sections"
         title={t.pages.workSections}

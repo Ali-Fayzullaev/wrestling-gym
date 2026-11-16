@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function TodayLoading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <div aria-hidden className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
           <Skeleton

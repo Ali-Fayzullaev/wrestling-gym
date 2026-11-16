@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function ClientsLoading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <div aria-hidden className="flex flex-col gap-3">
         <Skeleton className="h-11 rounded-md" />
         <div className="grid grid-cols-2 gap-2 md:grid-cols-5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
 import { ChevronRight, Search, X } from "lucide-react";
 import Link from "next/link";
 import {
@@ -241,10 +242,11 @@ export function ClientsList({
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-4 py-8 text-center">
-          <p className="font-medium">{l.nothingFound}</p>
-          <p className="text-sm text-muted-foreground">{l.nothingFoundHint}</p>
-        </div>
+        <EmptyState
+          mood="search"
+          title={l.nothingFound}
+          description={l.nothingFoundHint}
+        />
       ) : (
         <ul className="flex flex-col divide-y rounded-xl border bg-card">
           {visible.map((row) => (

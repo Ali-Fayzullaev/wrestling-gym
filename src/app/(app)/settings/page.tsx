@@ -50,7 +50,11 @@ export default async function SettingsPage() {
 
   return (
     <Texts ns={["settings", "groups"]}>
-      <PageHeader title={messages.pages.settings} description={t.description} />
+      <PageHeader
+        title={messages.pages.settings}
+        description={t.description}
+        mascot="focus"
+      />
 
       <Section id="settings-gym" title={t.gym.title}>
         <GymSettingsForm

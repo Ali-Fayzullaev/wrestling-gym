@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { FirstScreenMascot } from "@/components/first-screen-mascot";
 import { requirePasswordChange } from "@/features/auth/require-staff";
 import { getI18n } from "@/i18n/server";
 import { Texts } from "@/i18n/texts";
@@ -22,7 +23,8 @@ export default async function UpdatePasswordPage() {
   const t = messages.auth.update;
   return (
     <Texts ns={["auth"]}>
-      <header className="flex flex-col gap-1">
+      <header className="flex flex-col items-start gap-1">
+        <FirstScreenMascot mood="focus" size={96} className="mb-2" />
         <h1 className="text-2xl font-semibold tracking-tight">
           {mustChangePassword ? t.requiredTitle : t.title}
         </h1>

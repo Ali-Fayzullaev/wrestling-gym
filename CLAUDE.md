@@ -6,7 +6,7 @@
 ## Главные правила
 
 1. Не придумывать решения заказчика (D-01…D-10). Нет решения: не реализуем или делаем заглушку с комментарием `// STUB(D-NN): ...` и строкой в `90-open-decisions.md`.
-2. Без эмодзи нигде: код, интерфейс, коммиты, документы. Иконки только `lucide-react`.
+2. Без эмодзи нигде: код, интерфейс, коммиты, документы. Иконки только `lucide-react`. Иллюстрации только персонаж из `public/mascot/` (D-15), обычной картинкой без JS: `pnpm mascot:build`.
 3. WhatsApp только через ссылку `https://wa.me/<номер>?text=...`. Никаких API, ботов, неофициальных сервисов. «Чат открыт» не значит «отправлено», интерфейс так и пишет.
 4. Оплаты, сторно, согласия и журнал действий только добавляются. Запрет UPDATE/DELETE закреплён в БД (RLS + триггер).
 5. Идемпотентность закреплена уникальным ключом в БД (`payments.idempotency_key`, `reminder_events (payment_id, kind)`), а не только проверкой в коде.
@@ -59,6 +59,7 @@
 | Локальный Supabase | `pnpm db:start` / `pnpm db:stop` / `pnpm db:reset` |
 | Новая миграция | `pnpm supabase migration new <name>` |
 | Генерация типов | `pnpm db:types` (пишет в `src/db/types.ts`) |
+| Картинки персонажа | `pnpm mascot:build` (рисует `public/mascot/*.svg` из `scripts/mascot/build.mts`) |
 | Advisors Supabase (локально) | `pnpm supabase db advisors` |
 | Supabase без лишних сервисов, как в CI (писем нет, D-14) | `pnpm supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,supavisor,postgres-meta,mailpit` |
 | Локальный `.env.local` для `pnpm dev` | значения `API_URL`, `PUBLISHABLE_KEY`, `SECRET_KEY` из `pnpm supabase status` в `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (e2e берёт их сам) |

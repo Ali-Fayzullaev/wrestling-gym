@@ -1,5 +1,3 @@
-import { Construction } from "lucide-react";
-
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import type { Actor } from "@/features/auth/roles";
@@ -17,7 +15,7 @@ export async function PlaceholderPage({
   return (
     <>
       <PageHeader title={title} />
-      <EmptyState icon={Construction} title={t.pages.placeholder} />
+      <EmptyState mood="focus" title={t.pages.placeholder} />
       <p className="text-sm text-muted-foreground" data-testid="actor-role">
         {t.roles[actor.role]}
       </p>

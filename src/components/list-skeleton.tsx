@@ -24,11 +24,19 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
 }
 
 /** Title line of a screen while it loads (matches PageHeader). */
-export function PageHeaderSkeleton() {
-  return (
-    <div aria-hidden className="flex flex-col gap-1">
+export function PageHeaderSkeleton({ mascot = false }: { mascot?: boolean }) {
+  const title = (
+    <div className="flex flex-col gap-1">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-5 w-64 max-w-full" />
+    </div>
+  );
+  if (!mascot) return <div aria-hidden>{title}</div>;
+  // Same place and size as the mascot in PageHeader, so the screen does not jump when it arrives.
+  return (
+    <div aria-hidden className="flex items-center gap-3">
+      <Skeleton className="size-12 shrink-0 rounded-full md:size-14" />
+      {title}
     </div>
   );
 }

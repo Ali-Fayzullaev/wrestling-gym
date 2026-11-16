@@ -1,4 +1,4 @@
-import { Archive, BellRing, Pencil, TriangleAlert, Wallet } from "lucide-react";
+import { Archive, Pencil, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -253,7 +253,8 @@ export default async function ClientPage({
           </h2>
           {history.length === 0 ? (
             <EmptyState
-              icon={Wallet}
+              mood="hello"
+              compact
               title={paymentsText.history.emptyTitle}
               description={paymentsText.history.emptyText}
             />
@@ -282,7 +283,8 @@ export default async function ClientPage({
           </h2>
           {screen.reminders.length === 0 ? (
             <EmptyState
-              icon={BellRing}
+              mood="ok"
+              compact
               title={c.remindersEmpty}
               description={c.remindersEmptyText}
             />

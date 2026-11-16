@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { Mascot } from "@/components/mascot";
 import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { getI18n } from "@/i18n/server";
@@ -20,8 +21,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           {t.nav.skipToContent}
         </a>
         <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r bg-sidebar py-5 text-sidebar-foreground md:flex">
-          {/* STUB(D-01): text logo until the gym's name and logo are decided. */}
-          <p className="px-6 text-base font-semibold tracking-tight">
+          {/* STUB(D-01): the mascot and the name stand in for a logo until the gym decides on one. */}
+          <p className="flex items-center gap-2.5 px-5 text-base font-semibold tracking-tight">
+            <Mascot mood="hello" size={36} />
             {t.app.name}
           </p>
           {/* The menus read the path; on routes with an id it is known only per request. */}

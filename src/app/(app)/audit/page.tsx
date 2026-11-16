@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -53,7 +53,11 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
 
   return (
     <>
-      <PageHeader title={messages.pages.audit} description={t.description} />
+      <PageHeader
+        title={messages.pages.audit}
+        description={t.description}
+        mascot="search"
+      />
       <AuditFilters query={query} staff={feed.staff} filtered={filtered} />
       {invalid ? (
         <p role="status" className="text-sm text-status-expired-foreground">
@@ -62,7 +66,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
       ) : null}
       {feed.entries.length === 0 ? (
         <EmptyState
-          icon={ScrollText}
+          mood="search"
           title={t.empty}
           description={filtered ? t.emptyFiltered : undefined}
         />

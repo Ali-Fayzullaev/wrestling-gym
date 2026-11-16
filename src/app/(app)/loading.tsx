@@ -4,7 +4,7 @@ import { ListSkeleton, PageHeaderSkeleton } from "@/components/list-skeleton";
 export default function Loading() {
   return (
     <>
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton mascot />
       <ListSkeleton />
     </>
   );

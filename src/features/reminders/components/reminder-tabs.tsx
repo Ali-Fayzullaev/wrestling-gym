@@ -1,4 +1,4 @@
-import { BellRing, CircleCheck, History } from "lucide-react";
+import { History } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -191,7 +191,7 @@ export async function TodayTab({
         </h2>
         {data.due.length === 0 ? (
           <EmptyState
-            icon={CircleCheck}
+            mood="ok"
             title={s.dueEmptyTitle}
             description={s.dueEmptyText}
           />
@@ -290,7 +290,7 @@ export async function OverdueTab({
   if (data.overdue.length === 0) {
     return (
       <EmptyState
-        icon={CircleCheck}
+        mood="champion"
         title={s.overdueEmptyTitle}
         description={s.overdueEmptyText}
       />
@@ -398,7 +398,7 @@ export async function HistoryTab({
       </form>
       {data.events.length === 0 ? (
         <EmptyState
-          icon={BellRing}
+          mood="search"
           title={s.historyEmptyTitle}
           description={s.historyEmptyText}
         />

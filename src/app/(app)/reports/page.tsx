@@ -1,4 +1,3 @@
-import { CircleCheck, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/empty-state";
@@ -44,6 +43,7 @@ export default async function ReportsPage({
     <>
       <PageHeader
         title={messages.pages.reports}
+        mascot="champion"
         actions={<MonthNav month={month} current={currentMonth(now)} />}
       />
 
@@ -80,7 +80,7 @@ export default async function ReportsPage({
 
       {report.total.count === 0 ? (
         <EmptyState
-          icon={Wallet}
+          mood="search"
           title={t.emptyTitle}
           description={t.emptyText}
         />
@@ -136,7 +136,7 @@ export default async function ReportsPage({
         </div>
         {report.debtors.length === 0 ? (
           <EmptyState
-            icon={CircleCheck}
+            mood="champion"
             title={t.debtors.emptyTitle}
             description={t.debtors.emptyText}
           />
