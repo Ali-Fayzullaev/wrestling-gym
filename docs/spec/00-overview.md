@@ -73,7 +73,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 10 | [10-import.md](10-import.md) | Импорт CSV/Excel | 06 | done |
 | 11 | [11-reports.md](11-reports.md) | Отчёты и экспорт | 07 | done |
 | 12 | [12-audit-settings.md](12-audit-settings.md) | Журнал действий и настройки | 03 | done |
-| 13 | [13-deploy.md](13-deploy.md) | Деплой, домен, заголовки, бэкапы, Lighthouse | 08 | in-progress |
+| 13 | [13-deploy.md](13-deploy.md) | Деплой, домен, заголовки, бэкапы, Lighthouse | 08 | done |
 | 14 | [14-acceptance.md](14-acceptance.md) | Приёмка на телефоне администратора | все | todo |
 | 15 | [15-staff-passwords.md](15-staff-passwords.md) | Сотрудники по паролю без писем, смена пароля при первом входе | 12, 13, D-14 | todo |
 | 16 | [16-languages.md](16-languages.md) | Казахский и узбекский (кириллица) | 15, D-04, D-13 | todo |
