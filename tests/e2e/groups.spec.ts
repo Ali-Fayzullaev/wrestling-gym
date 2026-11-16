@@ -120,6 +120,37 @@ test.describe("owner", () => {
   });
 });
 
+test.describe("tall form on a short screen", () => {
+  test("the group form scrolls and Save is reachable on a short laptop or phone screen", async ({
+    page,
+    consoleErrors,
+  }, testInfo) => {
+    const short =
+      testInfo.project.name === "desktop"
+        ? { width: 1440, height: 640 }
+        : { width: 390, height: 600 };
+    await page.setViewportSize(short);
+    await loginAs(page, SEED_EMAILS.owner, SEED_PASSWORD);
+    await page.goto("/groups");
+
+    await page.getByRole("button", { name: g.create }).click();
+    const form = dialog(page);
+    await expect(form).toBeVisible();
+    // Polled: the sheet slides in from below, so its box settles after the animation.
+    await expect(async () => {
+      const box = defined(await form.boundingBox());
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(short.height + 1);
+    }).toPass({ timeout: 3_000 });
+
+    const save = form.getByRole("button", { name: g.form.save });
+    await save.scrollIntoViewIfNeeded();
+    await expect(save).toBeInViewport();
+    await expect(form.getByLabel(g.form.name)).toBeVisible();
+    expect(consoleErrors).toEqual([]);
+  });
+});
+
 test.describe("admin", () => {
   test("criterion 6: no management buttons, and a replayed owner action is refused", async ({
     page,
