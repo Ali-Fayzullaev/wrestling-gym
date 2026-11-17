@@ -271,7 +271,7 @@ export const uz: Messages = {
       messageLocale: "Хабарлар тили",
       reminderPreview: "Эслатма матни",
       reminderPreviewHint:
-        "Мижоз эслатмани ўз тилида шундай ўқийди. Тугма WhatsApp’ни шу матн билан очади, юборишни ўзингиз қиласиз.",
+        "Мижоз эслатмани шундай ўқийди. Тугма WhatsApp’ни шу матн билан очади, юборишни ўзингиз қиласиз.",
       consents: "Розиликлар",
       consentGiven: "{date}, қайд этган: {by}",
       consentMissing: "Олинмаган",
@@ -494,6 +494,13 @@ export const uz: Messages = {
     recordFailed: "Чат очилганини ёзиб бўлмади.",
     markFailed: "Белгини сақлаб бўлмади. Қайта уриниб кўринг.",
     retry: "Қайта уриниш",
+    sendLanguage: {
+      label: "Хабар тили",
+      sendingIn: "Хабар тили: {language}",
+      draft: "қоралама",
+      hint: "Тил фақат шу хабар учун танланди. Мижоз тили карточкада ўзгартирилади.",
+      showText: "Хабар матни",
+    },
     kinds: {
       first: { other: "Биринчи эслатма ({count} кун олдин)" },
       second: { other: "Иккинчи ({count} кун олдин)" },

@@ -10,6 +10,8 @@ const id = z.uuid();
 export const openReminderSchema = z.object({
   paymentId: id,
   kind: z.enum(REMINDER_KINDS),
+  // The language chosen for this message (D-17); absent means the client's.
+  locale: z.enum(LOCALES).optional(),
 });
 
 export const markReminderSentSchema = z.object({ eventId: id });

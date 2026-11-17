@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isDraftTemplate,
   pickTemplate,
   type ReminderContact,
   type ReminderTemplate,
@@ -159,10 +160,24 @@ describe("pickTemplate", () => {
     expect(pickTemplate(TEMPLATES, "overdue", "uz")?.id).toBe("ru-0");
   });
 
+  it("step 20: a language chosen for one message picks its template, Russian when it has none", () => {
+    // The same function serves the card's language and the switch: only the language differs.
+    expect(pickTemplate(TEMPLATES, "before_7", "uz")?.locale).toBe("uz");
+    expect(pickTemplate(TEMPLATES, "overdue", "uz")?.locale).toBe("ru");
+  });
+
   it("gives null without a template of that kind in any usable language", () => {
     expect(pickTemplate(TEMPLATES, "before_1", "kk")).toBeNull();
     const kazakhOnly = TEMPLATES.filter((t) => t.id === "kk-7");
     expect(pickTemplate(kazakhOnly, "before_7", "uz")).toBeNull();
+  });
+});
+
+describe("isDraftTemplate", () => {
+  it("marks an unedited Kazakh or Uzbek text only", () => {
+    expect(TEMPLATES.filter(isDraftTemplate).map((t) => t.id)).toEqual([
+      "kk-7",
+    ]);
   });
 });
 

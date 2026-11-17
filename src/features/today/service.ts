@@ -3,9 +3,10 @@ import { z } from "zod";
 import type { Db } from "@/db/client";
 import { REMINDER_KINDS, type ReminderKind } from "@/features/reminders/kinds";
 import {
-  buildReminderLink,
+  buildReminderMessage,
   parseReminderContext,
   type ReminderContext,
+  type ReminderMessage,
 } from "@/features/reminders/service";
 import { businessDate } from "@/lib/dates";
 import { LOCALES } from "@/lib/locale";
@@ -66,8 +67,8 @@ export type TodayRow = {
 export type TodayReminder = {
   paymentId: string;
   kind: ReminderKind;
-  /** wa.me link with the filled-in text; null when the template of this kind is missing. */
-  href: string | null;
+  /** The text and wa.me link in each language; null when the template of this kind is missing. */
+  message: ReminderMessage | null;
 };
 
 export type TodayRemindRow = TodayRow & { reminder: TodayReminder };
@@ -111,7 +112,7 @@ function toRemindRow(
     reminder: {
       paymentId: reminder.payment_id,
       kind: reminder.kind,
-      href: buildReminderLink(contact, reminder.kind, context, now),
+      message: buildReminderMessage(contact, reminder.kind, context, now),
     },
   };
 }

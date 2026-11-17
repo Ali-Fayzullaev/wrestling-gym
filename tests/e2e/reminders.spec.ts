@@ -26,6 +26,9 @@ const SEED_OWNER = "00000000-0000-4000-8000-000000000001";
 const SENT_WORDS = /отправлено|доставлено/i;
 // Waits for a Server Action's answer and the re-rendered screen, not for the browser alone.
 const SERVER_ROUND_TRIP = { timeout: 15_000 };
+// The owner's Uzbek "1 day before" text in the step 20 test.
+const EDITED_UZBEK =
+  "Ассалому алайкум, {имя}! Абонементингиз {дата_окончания} куни тугайди. Тахрирланган матн.";
 
 type Supabase = Parameters<typeof serviceClient>[0];
 
@@ -399,6 +402,120 @@ test.describe("Reminders through wa.me", () => {
         .eq("locale", "uz")
         .single();
       expect(events).toEqual([{ template_id: template?.id }]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await archive(supabase, client.id);
+    }
+  });
+
+  test("step 20, criteria 1 and 6: a Russian client, an edited Uzbek text; the switch sends this message in Uzbek", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    test.setTimeout(90_000);
+    const db = serviceClient(supabase);
+    // The case from the run-through: the owner edited the Uzbek text, the client's card says
+    // Russian. A fixed text (both projects write the same one) that keeps the greeting and the
+    // date the step 19 test looks for; it stays edited, as after the run-through.
+    const { error: editError } = await db
+      .from("message_templates")
+      .update({ body: EDITED_UZBEK, updated_by: SEED_OWNER })
+      .eq("kind", "before_1")
+      .eq("locale", "uz");
+    if (editError) throw new Error(`template edit failed: ${editError.code}`);
+    const lastName = surname("Тилтанлов");
+    const client = await childEndingTomorrow(supabase, lastName);
+    const now = new Date();
+    const uzbekText = EDITED_UZBEK.replace("{имя}", "Гульнара").replace(
+      "{дата_окончания}",
+      formatDate(client.periodEnd, now, "uz"),
+    );
+    const s = r.sendLanguage;
+    const hrefText = async (scope: Locator) =>
+      new URL(
+        (await scope.getByTestId("whatsapp-button").getAttribute("href")) ?? "",
+      ).searchParams.get("text") ?? "";
+    try {
+      await stubWhatsApp(page);
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+
+      // Today: Russian by default, as the card says; the language is named next to the text.
+      const row = visibleRows(page, "remind-row").filter({ hasText: lastName });
+      await expect(row).toHaveCount(1);
+      expect(await hrefText(row)).toContain("Здравствуйте, Гульнара!");
+      await expect(row.getByTestId("reminder-language")).toHaveText(
+        fmt(s.sendingIn, { language: LOCALE_NAMES.ru }),
+      );
+      const switcher = row.getByRole("group", { name: s.label });
+      await expect(
+        switcher.getByRole("button", { name: LOCALE_NAMES.ru }),
+      ).toHaveAttribute("aria-pressed", "true");
+
+      // Switching asks nothing of the server: text and link are already on the page. Link
+      // prefetches of the list run on their own and never reach the database for the switch.
+      const requests: string[] = [];
+      page.on("request", (request) => {
+        if (!request.headers()["next-router-prefetch"]) {
+          requests.push(
+            `${request.method()} ${new URL(request.url()).pathname}`,
+          );
+        }
+      });
+      await switcher.getByRole("button", { name: LOCALE_NAMES.uz }).click();
+      expect(await hrefText(row)).toBe(uzbekText);
+      await expect(row.getByTestId("reminder-language")).toHaveText(
+        fmt(s.sendingIn, { language: LOCALE_NAMES.uz }),
+      );
+      await row.getByText(s.showText).click();
+      await expect(row.getByTestId("reminder-preview")).toHaveText(uzbekText);
+      // The Kazakh text was never edited: a draft, and the screen says so.
+      await switcher.getByRole("button", { name: LOCALE_NAMES.kk }).click();
+      await expect(row.getByTestId("reminder-draft")).toHaveText(s.draft);
+      expect(await hrefText(row)).toContain("Сәлеметсіз бе, Гульнара!");
+      expect(requests).toEqual([]);
+
+      // The card: Russian by default again, the hint says where the language is kept.
+      await page.goto(`/clients/${client.id}`);
+      const card = page.getByTestId("reminder-composer");
+      await expect(card.getByTestId("reminder-preview")).toContainText(
+        "Здравствуйте, Гульнара!",
+      );
+      await expect(card).toContainText(s.hint);
+      await card
+        .getByRole("group", { name: s.label })
+        .getByRole("button", { name: LOCALE_NAMES.uz })
+        .click();
+      await expect(card.getByTestId("reminder-preview")).toHaveText(uzbekText);
+      await expect(card.getByTestId("reminder-draft")).toHaveCount(0);
+      expect(await hrefText(card)).toBe(uzbekText);
+
+      const popup = await openChat(card, page);
+      expect(new URL(popup.url()).searchParams.get("text")).toBe(uzbekText);
+      await popup.close();
+      await expect(page.getByTestId("reminder-history")).toContainText(
+        r.chatOpened,
+        SERVER_ROUND_TRIP,
+      );
+
+      // The event names the Uzbek template; the card keeps Russian.
+      const { data: events } = await db
+        .from("reminder_events")
+        .select("template_id")
+        .eq("client_id", client.id);
+      const { data: template } = await db
+        .from("message_templates")
+        .select("id")
+        .eq("kind", "before_1")
+        .eq("locale", "uz")
+        .single();
+      expect(events).toEqual([{ template_id: template?.id }]);
+      const { data: saved } = await db
+        .from("clients")
+        .select("message_locale")
+        .eq("id", client.id)
+        .single();
+      expect(saved).toEqual({ message_locale: "ru" });
       expect(consoleErrors).toEqual([]);
     } finally {
       await archive(supabase, client.id);

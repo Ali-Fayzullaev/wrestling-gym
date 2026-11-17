@@ -19,6 +19,7 @@ import type { ReminderKind } from "../kinds";
 import type { SettingsFieldErrors, SettingsResult } from "../result";
 import { BODY_MAX, DAYS_MAX, DAYS_MIN } from "../limits";
 import {
+  isDraftTemplate,
   type ReminderContact,
   type ReminderTemplate,
   reminderValues,
@@ -88,10 +89,6 @@ function Preview({ text, unknown }: { text: string; unknown: string[] }) {
   );
 }
 
-/** A shipped Kazakh or Uzbek text nobody has edited yet: a draft translation (D-13). */
-const isDraft = (template: ReminderTemplate) =>
-  template.locale !== DEFAULT_LOCALE && !template.edited;
-
 /**
  * Days and texts of reminders on one screen, saved with one button. Texts are per language
  * (D-13): a switcher shows one language at a time, and every language is saved together. The
@@ -140,7 +137,9 @@ export function ReminderSettingsForm({
   const second = secondDays.trim() === "" ? null : parseDays(secondDays);
   const ordered = [...templates].sort((a, b) => ORDER[a.kind] - ORDER[b.kind]);
   const shown = ordered.filter((item) => item.locale === language);
-  const draftLocales = new Set(templates.filter(isDraft).map((t) => t.locale));
+  const draftLocales = new Set(
+    templates.filter(isDraftTemplate).map((t) => t.locale),
+  );
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

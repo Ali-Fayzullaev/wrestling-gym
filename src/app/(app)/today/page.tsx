@@ -143,6 +143,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
                 recordFailed: remindersText.recordFailed,
                 retry: remindersText.retry,
               }}
+              sendLanguageLabels={remindersText.sendLanguage}
               recordPayment={recordPaymentAction}
               cancelPayment={cancelPaymentAction}
               openReminder={openReminderAction}

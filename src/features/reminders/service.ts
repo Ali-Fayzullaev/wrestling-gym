@@ -26,6 +26,7 @@ import {
   type ReminderSettingsInput,
 } from "./schema";
 import {
+  isDraftTemplate,
   pickTemplate,
   type ReminderContact,
   type ReminderTemplate,
@@ -163,19 +164,27 @@ export function parseReminderContext(raw: unknown): ReminderContext {
 }
 
 /** A reminder as the client will read it: the text and the language it is written in. */
-export type ReminderText = { text: string; locale: Locale };
+export type ReminderText = {
+  text: string;
+  /** The template's language: the one asked for, or Russian when it has no template. */
+  locale: Locale;
+  /** A shipped Kazakh or Uzbek text nobody has edited: the screens mark it "draft". */
+  draft: boolean;
+};
 
 /**
- * The text of a reminder of `kind` for this client: the template of that kind in the client's
- * language (or the Russian one) filled with the client's data in the template's language.
+ * The text of a reminder of `kind` for this client: the template of that kind in `locale` (the
+ * client's language unless the sender chose another, D-17), or the Russian one, filled with the
+ * client's data in the template's language.
  */
 export function buildReminderText(
   contact: ReminderContact,
   kind: ReminderKind,
   context: ReminderContext,
   today: Date,
+  locale: Locale = contact.messageLocale,
 ): ReminderText | null {
-  const template = pickTemplate(context.templates, kind, contact.messageLocale);
+  const template = pickTemplate(context.templates, kind, locale);
   if (!template) return null;
   return {
     text: renderTemplate(
@@ -183,7 +192,46 @@ export function buildReminderText(
       reminderValues(contact, context.gymName, today, template.locale),
     ),
     locale: template.locale,
+    draft: isDraftTemplate(template),
   };
+}
+
+/** One reminder in one language, with its ready wa.me link. */
+export type ReminderVariant = ReminderText & { href: string };
+
+/**
+ * A reminder in every language the sender may pick (D-17). The texts are built on the server, so
+ * switching the language in the browser needs neither the template code nor a database request.
+ */
+export type ReminderMessage = {
+  /** The client's language from the card: picked first. */
+  defaultLocale: Locale;
+  variants: Record<Locale, ReminderVariant>;
+};
+
+/**
+ * The reminder of `kind` in ru, kk and uz. Null when a language has no text even in Russian; the
+ * database keeps a template of every kind in every language (step 19), so only a broken install
+ * gets here.
+ */
+export function buildReminderMessage(
+  contact: LinkContact,
+  kind: ReminderKind,
+  context: ReminderContext,
+  today: Date,
+): ReminderMessage | null {
+  const variant = (locale: Locale): ReminderVariant | null => {
+    const reminder = buildReminderText(contact, kind, context, today, locale);
+    return (
+      reminder && {
+        ...reminder,
+        href: buildWaLink(contact.phone, reminder.text),
+      }
+    );
+  };
+  const [ru, kk, uz] = [variant("ru"), variant("kk"), variant("uz")];
+  if (!ru || !kk || !uz) return null;
+  return { defaultLocale: contact.messageLocale, variants: { ru, kk, uz } };
 }
 
 /**
@@ -390,6 +438,8 @@ export async function openReminder(
   const { data, error } = await db.rpc("record_reminder_opened", {
     p_payment_id: input.paymentId,
     p_kind: input.kind,
+    // Absent: the client's language from the card.
+    p_locale: input.locale,
   });
   if (error) return { ok: false, error: reminderError(error) };
   const row = z

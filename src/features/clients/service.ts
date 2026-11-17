@@ -10,12 +10,12 @@ import {
 import type { HistoryRow } from "@/features/payments/history";
 import { REMINDER_KINDS, type ReminderKind } from "@/features/reminders/kinds";
 import {
-  buildReminderText,
+  buildReminderMessage,
   parseReminderContext,
   parseReminderEvents,
   type ReminderEvent,
+  type ReminderMessage,
 } from "@/features/reminders/service";
-import { buildWaLink } from "@/lib/whatsapp";
 import { businessDate } from "@/lib/dates";
 import { LOCALES, type Locale } from "@/lib/locale";
 
@@ -212,11 +212,8 @@ export type ClientScreen = {
 export type ClientReminder = {
   paymentId: string;
   kind: ReminderKind;
-  /** The text in the client's language (or Russian when that language has no template). */
-  text: string;
-  locale: Locale;
-  /** wa.me link with this text. */
-  href: string;
+  /** The text and wa.me link in each language, the client's first (D-17). */
+  message: ReminderMessage;
 };
 
 export type PhoneDuplicate = {
@@ -275,9 +272,9 @@ export async function getClient(
   if (data === null) return null;
   const screen = clientScreenShape.parse(data);
   const c = screen.client;
-  const reminderText =
+  const reminderMessage =
     screen.reminder &&
-    buildReminderText(
+    buildReminderMessage(
       {
         firstName: c.first_name,
         messageLocale: c.message_locale,
@@ -286,6 +283,7 @@ export async function getClient(
         groupName: screen.group?.archived ? null : (screen.group?.name ?? null),
         price: screen.group?.archived ? null : (screen.group?.price ?? null),
         endsOn: screen.subscription.ends_on,
+        phone: c.phone,
       },
       screen.reminder.kind,
       parseReminderContext(screen.reminder_context),
@@ -339,13 +337,11 @@ export async function getClient(
     })),
     reminders: parseReminderEvents(screen.reminders),
     reminder:
-      screen.reminder && reminderText
+      screen.reminder && reminderMessage
         ? {
             paymentId: screen.reminder.payment_id,
             kind: screen.reminder.kind,
-            text: reminderText.text,
-            locale: reminderText.locale,
-            href: buildWaLink(c.phone, reminderText.text),
+            message: reminderMessage,
           }
         : null,
     groups: screen.groups,

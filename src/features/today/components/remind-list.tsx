@@ -15,6 +15,12 @@ import {
   type WhatsAppLabels,
   WhatsAppButton,
 } from "@/features/reminders/components/whatsapp-button";
+import {
+  ReminderPreview,
+  type SendLanguageLabels,
+  SendLanguagePicker,
+} from "@/features/reminders/components/send-language";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/locale";
 
 import type { TodayRemindRow } from "../service";
 import { ClientSummaryLink } from "./client-summary-link";
@@ -32,7 +38,7 @@ function withoutPaid(rows: TodayRemindRow[], paidId: string): TodayRemindRow[] {
 
 /**
  * "Remind today" with "WhatsApp" and "Paid" buttons per row. The labels and the ready wa.me links
- * come from the server, so the screen's texts and the template code stay out of this island.
+ * (one per language) come from the server, so the screen's texts and the template code stay out of this island.
  * Opening a chat is not removed here: the server's next rows (reminders_due) drop the client and
  * the counter together.
  */
@@ -42,6 +48,7 @@ export function RemindList({
   today,
   labels,
   whatsappLabels,
+  sendLanguageLabels,
   recordPayment,
   cancelPayment,
   openReminder,
@@ -52,6 +59,7 @@ export function RemindList({
   today: Date;
   labels: { pay: string; noGroup: string; endsOn: string };
   whatsappLabels: WhatsAppLabels;
+  sendLanguageLabels: SendLanguageLabels;
   recordPayment: RecordPayment;
   cancelPayment: CancelPayment;
   openReminder: OpenReminder;
@@ -70,53 +78,25 @@ export function RemindList({
         data-testid="remind-list"
       >
         {shownRows.map((row) => (
-          <li
+          <RemindRow
             key={row.id}
-            className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between"
-            data-testid="remind-row"
-          >
-            <ClientSummaryLink
-              row={row}
-              today={today}
-              locale={locale}
-              labels={labels}
-            />
-            <div className="grid shrink-0 grid-cols-2 gap-2 md:w-[17rem]">
-              {row.reminder.href ? (
-                <WhatsAppButton
-                  href={row.reminder.href}
-                  target={{
-                    paymentId: row.reminder.paymentId,
-                    kind: row.reminder.kind,
-                  }}
-                  labels={whatsappLabels}
-                  open={openReminder}
-                />
-              ) : (
-                // No template of this kind: nothing to open, the place is kept so rows line up.
-                <span aria-hidden className="invisible h-11" />
-              )}
-              <button
-                type="button"
-                className={buttonVariants()}
-                onPointerEnter={() => void loadPaymentDialog()}
-                onFocus={() => void loadPaymentDialog()}
-                onClick={() => {
-                  setPayTarget({
-                    clientId: row.id,
-                    name: row.name,
-                    endsOn: row.endsOn,
-                    price: row.price,
-                  });
-                  setPayOpen(true);
-                }}
-                data-testid="pay-button"
-              >
-                <Wallet aria-hidden />
-                {labels.pay}
-              </button>
-            </div>
-          </li>
+            row={row}
+            today={today}
+            locale={locale}
+            labels={labels}
+            whatsappLabels={whatsappLabels}
+            sendLanguageLabels={sendLanguageLabels}
+            openReminder={openReminder}
+            onPay={() => {
+              setPayTarget({
+                clientId: row.id,
+                name: row.name,
+                endsOn: row.endsOn,
+                price: row.price,
+              });
+              setPayOpen(true);
+            }}
+          />
         ))}
       </ul>
       {payTarget ? (
@@ -135,5 +115,95 @@ export function RemindList({
         </Suspense>
       ) : null}
     </>
+  );
+}
+
+type RowLabels = { pay: string; noGroup: string; endsOn: string };
+
+/**
+ * One client to remind: who, the WhatsApp and "Paid" buttons, and under them the language of this
+ * message (D-17) with the text folded away, so a long list stays short. Switching the language
+ * only swaps texts already on the page.
+ */
+function RemindRow({
+  row,
+  today,
+  locale,
+  labels,
+  whatsappLabels,
+  sendLanguageLabels,
+  openReminder,
+  onPay,
+}: {
+  row: TodayRemindRow;
+  today: Date;
+  locale: Locale;
+  labels: RowLabels;
+  whatsappLabels: WhatsAppLabels;
+  sendLanguageLabels: SendLanguageLabels;
+  openReminder: OpenReminder;
+  onPay: () => void;
+}) {
+  const { message, paymentId, kind } = row.reminder;
+  const [sendLocale, setSendLocale] = useState<Locale>(
+    message?.defaultLocale ?? DEFAULT_LOCALE,
+  );
+  const variant = message?.variants[sendLocale];
+  return (
+    <li className="flex flex-col gap-3 px-4 py-3" data-testid="remind-row">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <ClientSummaryLink
+          row={row}
+          today={today}
+          locale={locale}
+          labels={labels}
+        />
+        <div className="grid shrink-0 grid-cols-2 gap-2 md:w-[17rem]">
+          {variant ? (
+            <WhatsAppButton
+              href={variant.href}
+              target={{ paymentId, kind, locale: sendLocale }}
+              labels={whatsappLabels}
+              open={openReminder}
+            />
+          ) : (
+            // No template of this kind: nothing to open, the place is kept so rows line up.
+            <span aria-hidden className="invisible h-11" />
+          )}
+          <button
+            type="button"
+            className={buttonVariants()}
+            onPointerEnter={() => void loadPaymentDialog()}
+            onFocus={() => void loadPaymentDialog()}
+            onClick={onPay}
+            data-testid="pay-button"
+          >
+            <Wallet aria-hidden />
+            {labels.pay}
+          </button>
+        </div>
+      </div>
+      {variant ? (
+        <div className="flex flex-col gap-1">
+          <SendLanguagePicker
+            locale={sendLocale}
+            variant={variant}
+            onChange={setSendLocale}
+            labels={sendLanguageLabels}
+          />
+          <details className="group">
+            <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium underline-offset-4 hover:underline">
+              {sendLanguageLabels.showText}
+            </summary>
+            <div className="flex flex-col gap-2">
+              <ReminderPreview variant={variant} />
+              <p className="text-sm text-muted-foreground">
+                {sendLanguageLabels.hint}
+              </p>
+            </div>
+          </details>
+        </div>
+      ) : null}
+    </li>
   );
 }
