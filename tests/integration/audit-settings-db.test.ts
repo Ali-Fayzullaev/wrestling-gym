@@ -76,6 +76,21 @@ async function seedEntries(tx: Tx, rows: { action: string; at: string }[]) {
   }
 }
 
+describe("the gym's default name", () => {
+  // The gym teaches Greco-Roman wrestling, not freestyle (customer remark at acceptance, step 14).
+  it("is a Greco-Roman wrestling gym, both in the row and as the column default", async () => {
+    const [row] = await sql<{ gym_name: string; column_default: string }[]>`
+      select s.gym_name, c.column_default
+      from public.settings s, information_schema.columns c
+      where c.table_schema = 'public' and c.table_name = 'settings' and c.column_name = 'gym_name'
+    `;
+    expect(row).toEqual({
+      gym_name: "Зал греко-римской борьбы",
+      column_default: "'Зал греко-римской борьбы'::text",
+    });
+  });
+});
+
 describe("the action catalog", () => {
   it("accepts every action the journal can name", async () => {
     await rolledBack(sql, async (tx) => {
