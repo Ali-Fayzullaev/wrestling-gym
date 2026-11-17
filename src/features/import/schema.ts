@@ -12,6 +12,7 @@ export const mappingSchema = z
     phone: columnIndex,
     group: columnIndex,
     endsOn: columnIndex,
+    locale: columnIndex,
   })
   .refine((mapping) => {
     const used = Object.values(mapping).filter((index) => index !== null);

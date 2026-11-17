@@ -8,11 +8,16 @@ import {
   PAYMENT_METHODS,
 } from "@/features/payments/form-fields";
 import type { HistoryRow } from "@/features/payments/history";
+import { REMINDER_KINDS, type ReminderKind } from "@/features/reminders/kinds";
 import {
+  buildReminderText,
+  parseReminderContext,
   parseReminderEvents,
   type ReminderEvent,
 } from "@/features/reminders/service";
+import { buildWaLink } from "@/lib/whatsapp";
 import { businessDate } from "@/lib/dates";
+import { LOCALES, type Locale } from "@/lib/locale";
 
 import type { ClientRow, GroupOption } from "./filters";
 import { STATUSES } from "./filters";
@@ -82,6 +87,7 @@ const clientScreenShape = z.object({
     phone: z.string(),
     phone_owner: z.enum(PHONE_OWNERS),
     parent_name: z.string().nullable(),
+    message_locale: z.enum(LOCALES),
     group_id: z.string().nullable(),
     started_on: z.string(),
     note: z.string(),
@@ -124,7 +130,11 @@ const clientScreenShape = z.object({
       created_by_name: z.string(),
     }),
   ),
-  // Checked by the reminders feature, which owns the event shape.
+  reminder: z
+    .object({ payment_id: z.string(), kind: z.enum(REMINDER_KINDS) })
+    .nullable(),
+  // Checked by the reminders feature, which owns these shapes.
+  reminder_context: z.unknown(),
   reminders: z.unknown(),
   groups: z.array(z.object({ id: z.string(), name: z.string() })),
 });
@@ -164,6 +174,8 @@ export type ClientDetails = {
   phone: string;
   phoneOwner: PhoneOwner;
   parentName: string | null;
+  /** Language of the client's WhatsApp reminders (D-13). */
+  messageLocale: Locale;
   groupId: string | null;
   startedOn: string;
   note: string;
@@ -191,8 +203,20 @@ export type ClientScreen = {
   payments: HistoryRow[];
   /** Reminder events (chat opened, marked sent), newest first. */
   reminders: ReminderEvent[];
+  /** The reminder that fits today, as the client will read it; null without a subscription. */
+  reminder: ClientReminder | null;
   /** Active groups, for the edit form. */
   groups: ActiveGroup[];
+};
+
+export type ClientReminder = {
+  paymentId: string;
+  kind: ReminderKind;
+  /** The text in the client's language (or Russian when that language has no template). */
+  text: string;
+  locale: Locale;
+  /** wa.me link with this text. */
+  href: string;
 };
 
 export type PhoneDuplicate = {
@@ -251,6 +275,22 @@ export async function getClient(
   if (data === null) return null;
   const screen = clientScreenShape.parse(data);
   const c = screen.client;
+  const reminderText =
+    screen.reminder &&
+    buildReminderText(
+      {
+        firstName: c.first_name,
+        messageLocale: c.message_locale,
+        phoneOwner: c.phone_owner,
+        parentName: c.parent_name,
+        groupName: screen.group?.archived ? null : (screen.group?.name ?? null),
+        price: screen.group?.archived ? null : (screen.group?.price ?? null),
+        endsOn: screen.subscription.ends_on,
+      },
+      screen.reminder.kind,
+      parseReminderContext(screen.reminder_context),
+      now,
+    );
   return {
     client: {
       id: c.id,
@@ -260,6 +300,7 @@ export async function getClient(
       phone: c.phone,
       phoneOwner: c.phone_owner,
       parentName: c.parent_name,
+      messageLocale: c.message_locale,
       groupId: c.group_id,
       startedOn: c.started_on,
       note: c.note,
@@ -297,6 +338,16 @@ export async function getClient(
       createdByName: payment.created_by_name,
     })),
     reminders: parseReminderEvents(screen.reminders),
+    reminder:
+      screen.reminder && reminderText
+        ? {
+            paymentId: screen.reminder.payment_id,
+            kind: screen.reminder.kind,
+            text: reminderText.text,
+            locale: reminderText.locale,
+            href: buildWaLink(c.phone, reminderText.text),
+          }
+        : null,
     groups: screen.groups,
   };
 }
@@ -368,6 +419,7 @@ function clientArgs(input: ClientInput) {
     p_started_on: input.startedOn,
     p_note: input.note,
     p_consents: input.consents,
+    p_message_locale: input.messageLocale,
     ...(input.birthDate === null ? {} : { p_birth_date: input.birthDate }),
     ...(input.parentName === null ? {} : { p_parent_name: input.parentName }),
     ...(input.groupId === null ? {} : { p_group_id: input.groupId }),

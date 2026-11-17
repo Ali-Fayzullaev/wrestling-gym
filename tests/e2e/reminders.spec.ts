@@ -6,6 +6,7 @@ import { fmt } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
 import { businessDate } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
+import { LOCALE_NAMES } from "@/lib/locale";
 
 import {
   SEED_EMAILS,
@@ -90,6 +91,10 @@ async function archive(supabase: Supabase, id: string) {
 
 const visibleRows = (page: Page, testId: string) =>
   page.getByTestId(testId).filter({ visible: true });
+
+/** A menu or header link visible at this width (the phone and desktop menus differ). */
+const menuLink = (page: Page, name: string) =>
+  page.getByRole("link", { name, exact: true }).filter({ visible: true });
 
 /**
  * Holds the "chat opened" Server Action of the page until released, so the row's state between
@@ -304,6 +309,100 @@ test.describe("Reminders through wa.me", () => {
       SERVER_ROUND_TRIP,
     );
     expect(consoleErrors).toEqual([]);
+  });
+
+  test("step 19, criteria 3 and 8: a new language in the card, and the next WhatsApp text is in it", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    // Two saves and four screens on both widths.
+    test.setTimeout(90_000);
+    const lastName = surname("Тілші");
+    const client = await childEndingTomorrow(supabase, lastName);
+    const now = new Date();
+    try {
+      await stubWhatsApp(page);
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+
+      // The card shows the language and the reminder as the client will read it: Russian first.
+      await page.goto(`/clients/${client.id}`);
+      const preview = page.getByTestId("reminder-preview");
+      await expect(preview).toContainText("Здравствуйте, Гульнара!");
+      await expect(
+        page.getByText(LOCALE_NAMES.ru, { exact: true }).first(),
+      ).toBeVisible();
+
+      const setLanguage = async (locale: "kk" | "uz") => {
+        await menuLink(page, ru.clients.edit).click();
+        await page.getByLabel(ru.clientForm.messageLocale).selectOption(locale);
+        await page.getByRole("button", { name: ru.clientForm.save }).click();
+        await expect(page).toHaveURL(
+          new RegExp(`/clients/${client.id}$`),
+          SERVER_ROUND_TRIP,
+        );
+      };
+      const todayLink = async () => {
+        await menuLink(page, ru.nav.today).click();
+        const row = visibleRows(page, "remind-row").filter({
+          hasText: lastName,
+        });
+        await expect(row).toHaveCount(1);
+        const href =
+          (await row.getByTestId("whatsapp-button").getAttribute("href")) ?? "";
+        return { row, text: new URL(href).searchParams.get("text") ?? "" };
+      };
+
+      // Kazakh: the card and the Today link change at once, date in Kazakh.
+      await setLanguage("kk");
+      await expect(preview).toContainText("Сәлеметсіз бе, Гульнара!");
+      await expect(preview).toContainText(
+        formatDate(client.periodEnd, now, "kk"),
+      );
+      const cardHref =
+        (await page
+          .getByTestId("reminder-preview")
+          .locator("xpath=..")
+          .getByTestId("whatsapp-button")
+          .getAttribute("href")) ?? "";
+      expect(new URL(cardHref).searchParams.get("text")).toBe(
+        (await preview.innerText()).trim(),
+      );
+      const kazakh = await todayLink();
+      expect(kazakh.text).toContain("Сәлеметсіз бе, Гульнара!");
+      expect(kazakh.text).toContain(formatDate(client.periodEnd, now, "kk"));
+      expect(kazakh.text).not.toContain("Здравствуйте");
+
+      // Uzbek, without reloading the page by hand: the next chat opens with the Uzbek text.
+      await page.goto(`/clients/${client.id}`);
+      await setLanguage("uz");
+      await expect(preview).toContainText("Ассалому алайкум, Гульнара!");
+      const uzbek = await todayLink();
+      expect(uzbek.text).toContain("Ассалому алайкум, Гульнара!");
+      expect(uzbek.text).toContain(formatDate(client.periodEnd, now, "uz"));
+      const popup = await openChat(uzbek.row, page);
+      // Criterion 8: the Uzbek letters survive the wa.me link as typed.
+      expect(new URL(popup.url()).searchParams.get("text")).toBe(uzbek.text);
+      await popup.close();
+      await expect(uzbek.row).toHaveCount(0, SERVER_ROUND_TRIP);
+
+      // The event names the Uzbek template.
+      const db = serviceClient(supabase);
+      const { data: events } = await db
+        .from("reminder_events")
+        .select("template_id")
+        .eq("client_id", client.id);
+      const { data: template } = await db
+        .from("message_templates")
+        .select("id")
+        .eq("kind", "before_1")
+        .eq("locale", "uz")
+        .single();
+      expect(events).toEqual([{ template_id: template?.id }]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await archive(supabase, client.id);
+    }
   });
 
   test("an admin sees no settings link and cannot open the settings", async ({

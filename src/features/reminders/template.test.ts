@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  pickTemplate,
   type ReminderContact,
+  type ReminderTemplate,
   reminderValues,
   renderTemplate,
   type TemplateValues,
@@ -21,6 +23,7 @@ const VALUES: TemplateValues = {
 
 const ADULT: ReminderContact = {
   firstName: "Азамат",
+  messageLocale: "ru",
   phoneOwner: "self",
   parentName: null,
   groupName: "Взрослые",
@@ -92,7 +95,7 @@ describe("unknownVariables", () => {
 
 describe("reminderValues", () => {
   it("greets an adult by first name and formats the date and amount", () => {
-    expect(reminderValues(ADULT, "Зал", TODAY)).toEqual({
+    expect(reminderValues(ADULT, "Зал", TODAY, "ru")).toEqual({
       имя: "Азамат",
       дата_окончания: `15${NBSP}ноября`,
       сумма: `20${NBSP}000`,
@@ -107,12 +110,12 @@ describe("reminderValues", () => {
       phoneOwner: "parent" as const,
       parentName: "Динара",
     };
-    expect(reminderValues(child, "Зал", TODAY).имя).toBe("Динара");
+    expect(reminderValues(child, "Зал", TODAY, "ru").имя).toBe("Динара");
   });
 
   it("falls back to the child's name without a parent's name", () => {
     const child = { ...ADULT, phoneOwner: "parent" as const, parentName: null };
-    expect(reminderValues(child, "Зал", TODAY).имя).toBe("Азамат");
+    expect(reminderValues(child, "Зал", TODAY, "ru").имя).toBe("Азамат");
   });
 
   it("has no amount or group without a group", () => {
@@ -120,6 +123,7 @@ describe("reminderValues", () => {
       { ...ADULT, groupName: null, price: null },
       "Зал",
       TODAY,
+      "ru",
     );
     expect(values.сумма).toBeNull();
     expect(values.группа).toBeNull();
@@ -130,7 +134,73 @@ describe("reminderValues", () => {
       { ...ADULT, endsOn: "2027-01-02" },
       "Зал",
       TODAY,
+      "ru",
     );
     expect(values.дата_окончания).toBe(`2${NBSP}января${NBSP}2027${NBSP}г.`);
+  });
+});
+
+const TEMPLATES: ReminderTemplate[] = [
+  { id: "ru-7", kind: "before_7", locale: "ru", body: "ru", edited: false },
+  { id: "kk-7", kind: "before_7", locale: "kk", body: "kk", edited: false },
+  { id: "uz-7", kind: "before_7", locale: "uz", body: "uz", edited: true },
+  { id: "ru-0", kind: "overdue", locale: "ru", body: "ru", edited: false },
+];
+
+describe("pickTemplate", () => {
+  it("takes the template of the kind in the client's language", () => {
+    expect(pickTemplate(TEMPLATES, "before_7", "kk")?.id).toBe("kk-7");
+    expect(pickTemplate(TEMPLATES, "before_7", "uz")?.id).toBe("uz-7");
+    expect(pickTemplate(TEMPLATES, "before_7", "ru")?.id).toBe("ru-7");
+  });
+
+  it("falls back to Russian when the language has no template of that kind", () => {
+    expect(pickTemplate(TEMPLATES, "overdue", "kk")?.id).toBe("ru-0");
+    expect(pickTemplate(TEMPLATES, "overdue", "uz")?.id).toBe("ru-0");
+  });
+
+  it("gives null without a template of that kind in any usable language", () => {
+    expect(pickTemplate(TEMPLATES, "before_1", "kk")).toBeNull();
+    const kazakhOnly = TEMPLATES.filter((t) => t.id === "kk-7");
+    expect(pickTemplate(kazakhOnly, "before_7", "uz")).toBeNull();
+  });
+});
+
+describe("reminderValues in the template's language", () => {
+  it("writes the month in Kazakh and Uzbek", () => {
+    const january = { ...ADULT, endsOn: "2026-01-16" };
+    const today = new Date("2026-01-10T06:00:00Z");
+    expect(reminderValues(january, "Зал", today, "ru").дата_окончания).toBe(
+      `16${NBSP}января`,
+    );
+    expect(reminderValues(january, "Зал", today, "kk").дата_окончания).toBe(
+      `16${NBSP}қаңтар`,
+    );
+    expect(reminderValues(january, "Зал", today, "uz").дата_окончания).toBe(
+      `16${NBSP}январ`,
+    );
+  });
+
+  it("uses each language's word order with a year", () => {
+    const next = { ...ADULT, endsOn: "2027-01-02" };
+    expect(reminderValues(next, "Зал", TODAY, "kk").дата_окончания).toBe(
+      `2027${NBSP}ж.${NBSP}2${NBSP}қаңтар`,
+    );
+    expect(reminderValues(next, "Зал", TODAY, "uz").дата_окончания).toBe(
+      `2${NBSP}январ,${NBSP}2027`,
+    );
+  });
+
+  it("groups the amount in every language and keeps the gym name as is", () => {
+    for (const locale of ["ru", "kk", "uz"] as const) {
+      const values = reminderValues(
+        ADULT,
+        "Зал греко-римской борьбы",
+        TODAY,
+        locale,
+      );
+      expect(values.сумма).toBe(`20${NBSP}000`);
+      expect(values.название_зала).toBe("Зал греко-римской борьбы");
+    }
   });
 });

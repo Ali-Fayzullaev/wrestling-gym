@@ -1,9 +1,11 @@
+import { DEFAULT_LOCALE, type Locale } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
 import { parseEndDate } from "./dates";
 import { cellText, type Table } from "./file";
 import { groupKey } from "./group-key";
 import type { ColumnMapping } from "./limits";
+import { parseMessageLocale } from "./locale";
 import type { Cell } from "./xlsx";
 
 /** What is wrong with a row; the screen shows the text next to it. */
@@ -13,7 +15,8 @@ export type RowError =
   | "name_too_long"
   | "phone_missing"
   | "phone_invalid"
-  | "date_invalid";
+  | "date_invalid"
+  | "locale_invalid";
 
 /** new: will be created; duplicate: already on file or earlier in this file; error: skipped. */
 export type RowStatus = "new" | "duplicate" | "error";
@@ -29,6 +32,8 @@ export type PreviewRow = {
   /** The active group with that name, or null (none written, or not found). */
   groupId: string | null;
   endsOn: string | null;
+  /** Language of the client's reminders; Russian when the file says nothing. */
+  messageLocale: Locale;
   status: RowStatus;
   errors: RowError[];
   /** Line of the earlier row in this file with the same person; null when already on file. */
@@ -83,6 +88,7 @@ export function buildPreview(
     const groupName = text(mapping.group);
     const date = parseEndDate(cellAt(cells, mapping.endsOn));
     const phone = normalizePhone(rawPhone);
+    const messageLocale = parseMessageLocale(text(mapping.locale));
 
     const errors: RowError[] = [];
     if (lastName === "") errors.push("last_name_missing");
@@ -92,6 +98,7 @@ export function buildPreview(
     if (rawPhone === "") errors.push("phone_missing");
     else if (phone === null) errors.push("phone_invalid");
     if (!date.ok) errors.push("date_invalid");
+    if (!messageLocale.ok) errors.push("locale_invalid");
 
     const row: PreviewRow = {
       line,
@@ -104,6 +111,7 @@ export function buildPreview(
           ? null
           : (groupsByName.get(groupKey(groupName)) ?? null),
       endsOn: date.ok ? date.value : null,
+      messageLocale: messageLocale.ok ? messageLocale.value : DEFAULT_LOCALE,
       status: "new",
       errors,
       duplicateOf: null,

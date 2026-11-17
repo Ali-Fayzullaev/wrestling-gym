@@ -11,6 +11,7 @@ export const clientFormFields = {
   groupId: "groupId",
   startedOn: "startedOn",
   note: "note",
+  messageLocale: "messageLocale",
   consent: "consent",
 } as const;
 

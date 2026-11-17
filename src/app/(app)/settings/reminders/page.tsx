@@ -20,6 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // Only when there is no current client with a group to show the texts on; the screen says so.
 const SAMPLE_CONTACT: ReminderContact = {
   firstName: "Азамат",
+  messageLocale: "ru",
   phoneOwner: "self",
   parentName: null,
   groupName: "Взрослые",

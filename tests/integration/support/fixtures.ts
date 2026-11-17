@@ -15,6 +15,7 @@ type ClientOverrides = Partial<{
   phone: string;
   archived: boolean;
   createdBy: string;
+  messageLocale: string;
 }>;
 
 /** Inserts a client as the current role; call after `become` to exercise policies. */
@@ -25,12 +26,13 @@ export async function insertClient(
   const id = randomUUID();
   await tx`
     insert into public.clients (
-      id, last_name, first_name, phone, phone_owner, group_id, started_on, archived_at, created_by
+      id, last_name, first_name, phone, phone_owner, group_id, started_on, archived_at, created_by,
+      message_locale
     ) values (
       ${id}, ${overrides.lastName ?? "Тестовый"}, ${"Клиент"}, ${overrides.phone ?? testPhone()},
       'self', ${SEED_GROUP}, '2026-01-10',
       ${overrides.archived ? new Date("2026-01-11T00:00:00Z") : null},
-      ${overrides.createdBy ?? SEED_STAFF.owner}
+      ${overrides.createdBy ?? SEED_STAFF.owner}, ${overrides.messageLocale ?? "ru"}
     )
   `;
   return id;
@@ -97,10 +99,15 @@ export async function insertReversal(
   return id;
 }
 
-export async function templateId(tx: Tx, kind: string): Promise<string> {
+/** The template of a kind in a language (Russian unless said otherwise). */
+export async function templateId(
+  tx: Tx,
+  kind: string,
+  locale = "ru",
+): Promise<string> {
   const [row] = await tx<{ id: string }[]>`
-    select id from public.message_templates where kind = ${kind} limit 1
+    select id from public.message_templates where kind = ${kind} and locale = ${locale}
   `;
-  if (!row) throw new Error(`no template of kind ${kind}`);
+  if (!row) throw new Error(`no template of kind ${kind} in ${locale}`);
   return row.id;
 }

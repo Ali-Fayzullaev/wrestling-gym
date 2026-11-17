@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { plural } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
-import { formatMoney } from "@/lib/format";
+import { businessDate } from "@/lib/dates";
+import { formatDate, formatMoney } from "@/lib/format";
 
 import { createTempStaff, serviceClient } from "../support/staff-accounts";
 import { expect, test } from "./fixtures";
@@ -20,8 +21,12 @@ const settingsText = ru.settings;
  */
 
 const SERVER_ROUND_TRIP = { timeout: 10_000 };
+
+// Both tests save the reminder texts; one after the other, so neither saves over the other's edit.
+test.describe.configure({ mode: "serial" });
 const SEED_ADMIN = "00000000-0000-4000-8000-000000000002";
 const SEED_OWNER = "00000000-0000-4000-8000-000000000001";
+const SEED_GROUP = "10000000-0000-4000-8000-000000000001";
 
 test("criterion 8: from Settings the owner changes the gym name, a group price and reminder days; the screens show them", async ({
   page,
@@ -158,5 +163,119 @@ test("criterion 8: from Settings the owner changes the gym name, a group price a
       .from("groups")
       .update({ archived_at: new Date().toISOString() })
       .eq("id", groupId);
+  }
+});
+
+/** A client whose subscription ends today, so the card offers the "overdue" text. */
+async function clientEndingToday(
+  service: ReturnType<typeof serviceClient>,
+  lastName: string,
+  messageLocale: "ru" | "kk",
+) {
+  const id = randomUUID();
+  const today = businessDate(new Date());
+  const { error } = await service.from("clients").insert({
+    id,
+    last_name: lastName,
+    first_name: "Тексеру",
+    phone: `+7705${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`,
+    phone_owner: "self",
+    group_id: SEED_GROUP,
+    started_on: "2026-01-01",
+    message_locale: messageLocale,
+    created_by: SEED_OWNER,
+  });
+  if (error) throw new Error(`client insert failed: ${error.code}`);
+  const start = new Date(`${today}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - 29);
+  const { error: paymentError } = await service.from("payments").insert({
+    client_id: id,
+    kind: "payment",
+    amount: 15000,
+    method: "cash",
+    period_start: start.toISOString().slice(0, 10),
+    period_end: today,
+    idempotency_key: randomUUID(),
+    created_by: SEED_OWNER,
+    created_at: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+  });
+  if (paymentError)
+    throw new Error(`payment insert failed: ${paymentError.code}`);
+  return id;
+}
+
+test("step 19, criterion 4: the owner edits the Kazakh text; a Kazakh client gets it, a Russian one does not", async ({
+  page,
+  supabase,
+  consoleErrors,
+}) => {
+  const service = serviceClient(supabase);
+  const tag = randomUUID().slice(0, 6);
+  const { data: before, error } = await service
+    .from("message_templates")
+    .select("id, body, updated_by")
+    .eq("kind", "overdue")
+    .eq("locale", "kk")
+    .single();
+  if (error) throw new Error(`template read failed: ${error.code}`);
+  const kazakhId = await clientEndingToday(service, `Қазақ${tag}`, "kk");
+  const russianId = await clientEndingToday(service, `Орыс${tag}`, "ru");
+  const newText = `Сәлем, {имя}! Абонемент {дата_окончания} бітті. Белгі ${tag}.`;
+
+  try {
+    const owner = await createTempStaff(supabase, "owner");
+    await loginAs(page, owner.email, owner.password);
+    await page.goto("/settings/reminders");
+
+    // Russian texts first; the Kazakh ones are shipped drafts.
+    const kazakhTab = page.getByTestId("template-language-kk");
+    await expect(kazakhTab).toContainText(remindersText.settings.draft);
+    await kazakhTab.click();
+    await expect(kazakhTab).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("template-draft-note")).toBeVisible();
+
+    const overdue = page.getByTestId("template-overdue");
+    await expect(overdue.getByRole("textbox")).toHaveValue(before.body);
+    await overdue.getByRole("textbox").fill(newText);
+    // The preview writes the date in Kazakh.
+    await expect(overdue.getByTestId("template-preview")).toContainText(
+      `Белгі ${tag}.`,
+    );
+    await page
+      .getByRole("button", { name: remindersText.settings.save })
+      .click();
+    await expect(page.getByTestId("settings-status")).toHaveText(
+      remindersText.settings.saved,
+      SERVER_ROUND_TRIP,
+    );
+
+    const today = businessDate(new Date());
+    await page.goto(`/clients/${kazakhId}`);
+    const preview = page.getByTestId("reminder-preview");
+    await expect(preview).toHaveText(
+      `Сәлем, Тексеру! Абонемент ${formatDate(today, new Date(), "kk")} бітті. Белгі ${tag}.`,
+    );
+
+    await page.goto(`/clients/${russianId}`);
+    await expect(preview).toContainText("Здравствуйте, Тексеру!");
+    await expect(preview).not.toContainText(tag);
+
+    const { data: saved } = await service
+      .from("message_templates")
+      .select("body, updated_by")
+      .eq("id", before.id)
+      .single();
+    expect(saved).toEqual({ body: newText, updated_by: owner.id });
+    expect(consoleErrors).toEqual([]);
+  } finally {
+    // Back to the shipped draft (updated_by null keeps the "draft" mark).
+    await service
+      .from("message_templates")
+      .update({ body: before.body, updated_by: before.updated_by })
+      .eq("id", before.id);
+    await service
+      .from("clients")
+      .update({ archived_at: new Date().toISOString() })
+      .in("id", [kazakhId, russianId]);
   }
 });

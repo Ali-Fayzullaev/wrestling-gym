@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LOCALES } from "@/lib/locale";
+
 import { REMINDER_KINDS } from "./kinds";
 import { BODY_MAX, DAYS_MAX, DAYS_MIN } from "./limits";
 
@@ -28,7 +30,10 @@ export const reminderSettingsSchema = z
   .object({
     firstDays: days,
     secondDays: z.preprocess(emptyToNull, days.nullable()),
-    templates: z.array(z.object({ id, body })).max(REMINDER_KINDS.length),
+    // One text per kind and language (D-13).
+    templates: z
+      .array(z.object({ id, body }))
+      .max(REMINDER_KINDS.length * LOCALES.length),
   })
   .refine(
     (value) => value.secondDays === null || value.secondDays < value.firstDays,

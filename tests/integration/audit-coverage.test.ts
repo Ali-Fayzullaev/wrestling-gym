@@ -136,6 +136,7 @@ function clientInput(first: string, phoneNumber: string) {
     groupId: SEED_GROUP,
     startedOn: "2026-11-01",
     note: NOTE,
+    messageLocale: "ru",
     consents: ["data_processing"],
   });
 }
@@ -182,6 +183,8 @@ async function changeReminders(change: "days" | "text") {
     id: t.id,
     body: t.body,
   }));
+  // A Russian text: the Kazakh and Uzbek drafts stay marked as drafts for the suites that follow.
+  const edited = screen.context.templates.find((t) => t.locale === "ru")?.id;
   const restore = reminderSettingsSchema.parse({
     firstDays: String(days[0]),
     secondDays: days[1] === undefined ? "" : String(days[1]),
@@ -197,8 +200,8 @@ async function changeReminders(change: "days" | "text") {
       : {
           firstDays: String(days[0]),
           secondDays: days[1] === undefined ? "" : String(days[1]),
-          templates: templates.map((t, index) =>
-            index === 0 ? { ...t, body: `${t.body}${TEMPLATE_TAIL}` } : t,
+          templates: templates.map((t) =>
+            t.id === edited ? { ...t, body: `${t.body}${TEMPLATE_TAIL}` } : t,
           ),
         },
   );

@@ -18,6 +18,7 @@ const valid = {
   groupId: GROUP,
   startedOn: "2026-11-01",
   note: "",
+  messageLocale: "kk",
   consents: ["data_processing", "messaging", "messaging"],
 };
 
@@ -41,9 +42,17 @@ describe("clientInputSchema", () => {
       groupId: GROUP,
       startedOn: "2026-11-01",
       note: "",
+      messageLocale: "kk",
       consents: ["data_processing", "messaging"],
     });
   });
+
+  it.each(["", "en", "uz-Latn", "Қазақша"])(
+    "refuses the message language %j",
+    (messageLocale) => {
+      expect(issuesOf({ ...valid, messageLocale })).toEqual(["messageLocale"]);
+    },
+  );
 
   it.each(["123", "+79161234567", "8 701 123 45", "телефон", ""])(
     "refuses the phone %j",

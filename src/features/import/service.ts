@@ -170,6 +170,7 @@ type ImportRow = {
   group_id: string | null;
   new_group: string | null;
   ends_on: string | null;
+  message_locale: string;
 };
 
 type NewGroup = { name: string; coach_id: string; price: number };
@@ -208,6 +209,7 @@ export function planImport(
       group_id: groupId,
       new_group: newGroup,
       ends_on: row.endsOn,
+      message_locale: row.messageLocale,
     });
   }
   return { rows: planned, newGroups: [...newGroups.values()] };

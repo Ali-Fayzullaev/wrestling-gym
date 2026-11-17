@@ -214,6 +214,7 @@ describe("previewImport and commitImport", () => {
       phone: 2,
       group: null,
       endsOn: null,
+      locale: null,
     };
     const manual = await previewImport(ownerDb, owner, file, mapping);
     expect(manual.ok && manual.data.counts.new).toBe(1);
@@ -265,6 +266,50 @@ describe("previewImport and commitImport", () => {
         .eq("id", data[0].id);
   });
 
+  it("reads the language column: each client gets it, an unknown value is a row error", async () => {
+    const rows = [
+      [`${RUN}к`, "Язык", phone(), "", "", "қазақша"],
+      [`${RUN}л`, "Язык", phone(), "", "", "uz"],
+      [`${RUN}м`, "Язык", phone(), "", "", ""],
+      [`${RUN}н`, "Язык", phone(), "", "", "английский"],
+    ];
+    for (const row of rows) if (row[2]) importedPhones.push(row[2]);
+    const file = {
+      name: "languages.csv",
+      bytes: utf8(csvText([[...HEADERS, "Язык"], ...rows])),
+    };
+    const preview = await previewImport(ownerDb, owner, file, null);
+    expect(preview.ok && preview.data.mapping.locale).toBe(5);
+    expect(
+      preview.ok && preview.data.rows.map((row) => [row.status, row.errors]),
+    ).toEqual([
+      ["new", []],
+      ["new", []],
+      ["new", []],
+      ["error", ["locale_invalid"]],
+    ]);
+    const result = await commitImport(
+      ownerDb,
+      NOW,
+      owner,
+      file,
+      preview.ok ? preview.data.mapping : MAPPING,
+      NO_GROUPS,
+    );
+    expect(result.ok && result.data.created).toBe(3);
+    const { data } = await service
+      .from("clients")
+      .select("last_name, message_locale")
+      .like("last_name", `${RUN}%`)
+      .eq("first_name", "Язык")
+      .order("last_name");
+    expect(data?.map((client) => client.message_locale)).toEqual([
+      "kk",
+      "uz",
+      "ru",
+    ]);
+  });
+
   it("two parallel imports of the same file create each client once", async () => {
     const file = csvFile([
       [`${RUN}з`, "Параллельный", phone(), "", ""],
@@ -276,6 +321,7 @@ describe("previewImport and commitImport", () => {
       phone: 2,
       group: 3,
       endsOn: 4,
+      locale: null,
     };
     const results = await Promise.all([
       commitImport(ownerDb, NOW, owner, file, mapping, {}),
@@ -351,7 +397,14 @@ describe("previewImport and commitImport", () => {
   });
 });
 
-const MAPPING = { lastName: 0, firstName: 1, phone: 2, group: 3, endsOn: 4 };
+const MAPPING = {
+  lastName: 0,
+  firstName: 1,
+  phone: 2,
+  group: 3,
+  endsOn: 4,
+  locale: null,
+};
 
 function previewMapping(preview: Awaited<ReturnType<typeof previewImport>>) {
   if (!preview.ok) throw new Error(preview.error);

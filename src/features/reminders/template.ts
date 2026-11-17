@@ -1,8 +1,7 @@
 import { formatAmount, formatDate } from "@/lib/format";
-import type { Locale } from "@/lib/locale";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/locale";
 
-// STUB(D-13): the language of every message to a client, until the owner decides.
-const REMINDER_LOCALE: Locale = "ru";
+import type { ReminderKind } from "./kinds";
 
 /** What a template may contain; anything else in braces is left as written. */
 export const TEMPLATE_VARIABLES = [
@@ -59,6 +58,8 @@ function tidy(text: string): string {
 /** The fields of a client a reminder is built from. */
 export type ReminderContact = {
   firstName: string;
+  /** clients.message_locale: the language the client reads reminders in (D-13). */
+  messageLocale: Locale;
   phoneOwner: "self" | "parent";
   parentName: string | null;
   groupName: string | null;
@@ -67,15 +68,44 @@ export type ReminderContact = {
   endsOn: string | null;
 };
 
+/** A reminder template: a text for one kind in one language. */
+export type ReminderTemplate = {
+  id: string;
+  kind: ReminderKind;
+  locale: Locale;
+  body: string;
+  /** False while nobody has edited the shipped text (a Kazakh or Uzbek one is then a draft). */
+  edited: boolean;
+};
+
+/**
+ * The template of `kind` in the client's language, or the Russian one when that language has
+ * none; null without either. The same rule as reminder_template_for() in the database, which
+ * records the template of an opened chat.
+ */
+export function pickTemplate(
+  templates: readonly ReminderTemplate[],
+  kind: ReminderKind,
+  locale: Locale,
+): ReminderTemplate | null {
+  const ofKind = templates.filter((template) => template.kind === kind);
+  return (
+    ofKind.find((template) => template.locale === locale) ??
+    ofKind.find((template) => template.locale === DEFAULT_LOCALE) ??
+    null
+  );
+}
+
 /**
  * A child's phone belongs to a parent, so the text greets the parent by name when it is known.
- * STUB(D-13): templates are written in one language, so the date and amount are always formatted
- * in Russian; with a client language and three template versions this takes the client's.
+ * The date and amount are written in the template's language, so a Kazakh text says "16 қаңтар"
+ * and a Russian one, also when it stands in for a missing Kazakh text, "16 января".
  */
 export function reminderValues(
   contact: ReminderContact,
   gymName: string,
   today: Date,
+  locale: Locale,
 ): TemplateValues {
   return {
     имя:
@@ -83,12 +113,9 @@ export function reminderValues(
         ? contact.parentName
         : contact.firstName,
     дата_окончания: contact.endsOn
-      ? formatDate(contact.endsOn, today, REMINDER_LOCALE)
+      ? formatDate(contact.endsOn, today, locale)
       : null,
-    сумма:
-      contact.price === null
-        ? null
-        : formatAmount(contact.price, REMINDER_LOCALE),
+    сумма: contact.price === null ? null : formatAmount(contact.price, locale),
     группа: contact.groupName,
     название_зала: gymName,
   };

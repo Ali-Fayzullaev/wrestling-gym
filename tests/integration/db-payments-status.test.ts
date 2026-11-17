@@ -319,7 +319,7 @@ describe("dashboard_counts on a fixed date", () => {
       await tx`
         insert into public.reminder_events (client_id, payment_id, kind, template_id, opened_by)
         select ${opened.clientId}, ${opened.paymentId}, 'before_1', t.id, ${SEED_STAFF.owner}
-        from public.message_templates t where t.kind = 'before_1'
+        from public.message_templates t where t.kind = 'before_1' and t.locale = 'ru'
       `;
 
       // Paid today in Almaty: 00:30 local counts, 23:30 the evening before does not.

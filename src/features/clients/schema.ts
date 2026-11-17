@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
 import {
@@ -52,6 +53,8 @@ export const clientInputSchema = z
     groupId: z.preprocess(emptyToNull, z.uuid().nullable()),
     startedOn: calendarDate,
     note: z.string().max(NOTE_MAX),
+    /** The language of the client's WhatsApp reminders (D-13). */
+    messageLocale: z.enum(LOCALES),
     /** Consents given now; ones already on file are kept by the database, never withdrawn here. */
     consents: z
       .array(z.enum(CONSENT_KINDS))
@@ -112,6 +115,7 @@ export function clientFormToRaw(form: FormData): Record<string, unknown> {
     groupId: text(f.groupId),
     startedOn: text(f.startedOn),
     note: text(f.note),
+    messageLocale: text(f.messageLocale),
     consents: form
       .getAll(f.consent)
       .filter((value): value is string => typeof value === "string"),

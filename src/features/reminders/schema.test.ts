@@ -76,6 +76,16 @@ describe("reminderSettingsSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("takes a text per kind and language (9) and no more", () => {
+    const ids = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        body: "Текст",
+      }));
+    expect(settings({ templates: ids(9) }).success).toBe(true);
+    expect(settings({ templates: ids(10) }).success).toBe(false);
+  });
 });
 
 describe("openReminderSchema", () => {

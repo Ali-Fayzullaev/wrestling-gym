@@ -216,7 +216,7 @@ begin
     if ends_on - today = 7 and i % 2 = 0 then
       insert into public.reminder_events (client_id, payment_id, kind, template_id, opened_by)
       select client, current_payment, 'before_7', t.id, author
-      from public.message_templates t where t.kind = 'before_7';
+      from public.message_templates t where t.kind = 'before_7' and t.locale = 'ru';
     elsif ends_on - today between 1 and 6 then
       insert into public.reminder_events (
         client_id, payment_id, kind, status, template_id, opened_by, opened_at, marked_sent_by,
@@ -225,7 +225,7 @@ begin
       select client, current_payment, 'before_7', 'marked_sent', t.id, author,
              now() - make_interval(days => 7 - (ends_on - today)), author,
              now() - make_interval(days => 7 - (ends_on - today)) + interval '5 minutes'
-      from public.message_templates t where t.kind = 'before_7';
+      from public.message_templates t where t.kind = 'before_7' and t.locale = 'ru';
     end if;
   end loop;
 end;

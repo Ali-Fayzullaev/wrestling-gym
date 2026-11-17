@@ -47,6 +47,15 @@ describe("columnForHeader", () => {
   });
 });
 
+describe("columnForHeader: message language", () => {
+  it.each(["Язык", "язык сообщений", "Тілі", "Тили", "Language", "ЯЗЫК:"])(
+    "reads %j as the language column",
+    (header) => {
+      expect(columnForHeader(header)).toBe("locale");
+    },
+  );
+});
+
 describe("matchHeaders", () => {
   it("maps each field to its column; the first one naming a field wins", () => {
     const mapping = matchHeaders([
@@ -57,6 +66,7 @@ describe("matchHeaders", () => {
       "Телефон 2",
       "Топ",
       "Оплачено до",
+      "Тілі",
     ]);
     expect(mapping).toEqual({
       lastName: 1,
@@ -64,6 +74,7 @@ describe("matchHeaders", () => {
       phone: 3,
       group: 5,
       endsOn: 6,
+      locale: 7,
     });
     expect(missingColumns(mapping)).toEqual([]);
   });

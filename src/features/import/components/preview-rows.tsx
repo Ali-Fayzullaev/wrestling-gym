@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useLocale, useText } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import { formatDate } from "@/lib/format";
+import { DEFAULT_LOCALE, HTML_LANG, LOCALE_NAMES } from "@/lib/locale";
 import { formatPhone } from "@/lib/phone";
 
 import type { PreviewRow, RowStatus } from "../rows";
@@ -72,6 +73,14 @@ function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
               })
             : t.row.noDate}
         </span>
+        {row.messageLocale === DEFAULT_LOCALE ? null : (
+          <>
+            {" · "}
+            <span lang={HTML_LANG[row.messageLocale]}>
+              {LOCALE_NAMES[row.messageLocale]}
+            </span>
+          </>
+        )}
       </p>
       {row.status === "error" ? (
         <ul className="flex flex-col text-destructive">

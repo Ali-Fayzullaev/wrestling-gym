@@ -269,6 +269,10 @@ export const kk: Messages = {
       remindersEmpty: "Әзірге ескерту болған жоқ",
       remindersEmptyText:
         "Қызметкер ескертуі бар WhatsApp чатын ашқанда мұнда күні, түрі және кім ашқаны шығады.",
+      messageLocale: "Хабарлама тілі",
+      reminderPreview: "Ескерту мәтіні",
+      reminderPreviewHint:
+        "Клиент ескертуді өз тілінде осылай оқиды. Түйме WhatsApp-ты осы мәтінмен ашады, жіберетін өзіңіз.",
       consents: "Келісімдер",
       consentGiven: "{date}, тіркеген: {by}",
       consentMissing: "Алынбаған",
@@ -371,6 +375,9 @@ export const kk: Messages = {
     startedOn: "Сабақ басталған күн",
     note: "Ескертпе",
     noteHint: "Барлық қызметкерлер көреді. 2000 таңбаға дейін.",
+    messageLocale: "Хабарлама тілі",
+    messageLocaleHint:
+      "Клиентке WhatsApp-тағы ескертулер осы тілде барады. Қызметкердің интерфейсі өзгермейді.",
     consents: "Келісімдер",
     // STUB(D-10): тексты согласий временные, пока их не проверит юрист.
     consentsHint:
@@ -399,6 +406,7 @@ export const kk: Messages = {
       groupId: "Тізімнен топ таңдаңыз.",
       startedOn: "Сабақ басталған күнді көрсетіңіз.",
       note: "Ескертпе тым ұзын: 2000 таңбаға дейін.",
+      messageLocale: "Тізімнен тілді таңдаңыз.",
       consents: "Тізімнен келісімдерді белгілеңіз.",
     },
   },
@@ -533,9 +541,12 @@ export const kk: Messages = {
       lastDayNote:
         "Абонемент біткен күні ескерту әрқашан болады, оның мәтіні төменде.",
       templates: "Хабарлама мәтіндері",
-      // STUB(D-13): шаблоны одноязычные; язык клиента и три версии шаблона ждут решения.
       templatesLanguageNote:
-        "Клиентке хабарлама үлгіні қай тілде жазсаңыз, сол тілде барады.",
+        "Клиентке мәтін өз тілінде барады: тіл клиент карточкасында таңдалады. Бұл тілде мәтін болмаса, орысша барады.",
+      languages: "Мәтін тілі",
+      draft: "жоба",
+      draftNote:
+        "Аударма жоба нұсқасында: тексеріңіз немесе тіл иесінен сұраңыз. Өз мәтініңізді сақтағанда белгі жоғалады.",
       variablesTitle: "Мәтінге не қойылады",
       // Ключи: имена переменных в шаблонах, их не переводить.
       variables: {
@@ -614,6 +625,7 @@ export const kk: Messages = {
         phone: "Телефон",
         group: "Топ",
         endsOn: "Абонементтің аяқталу күні",
+        locale: "Хабарлама тілі",
       },
       none: "Файлда жоқ",
       column: "{number}-баған",
@@ -656,6 +668,8 @@ export const kk: Messages = {
         phone_missing: "Телефон жоқ",
         phone_invalid: "Телефон қате: +7 7XX XXX XX XX нөмірі керек",
         date_invalid: "Күн қате: 18.11.2025 пішімі керек",
+        locale_invalid:
+          "Тіл қате: ru, kk немесе uz керек (русский, қазақша, ўзбекча)",
       },
     },
     groups: {
@@ -692,13 +706,14 @@ export const kk: Messages = {
     },
     template: {
       fileName: "klientterdi-importtau-ulgisi.csv",
-      headers: ["Тегі", "Аты", "Телефон", "Тобы", "Аяқталу күні"],
+      headers: ["Тегі", "Аты", "Телефон", "Тобы", "Аяқталу күні", "Тілі"],
       example: [
         "Сериков",
         "Алихан",
         "+7 701 000 00 00",
         "Балалар 7-9 жас",
         "18.11.2025",
+        "қазақша",
       ],
     },
     skippedFileName: "import-qateleri.csv",
@@ -866,6 +881,7 @@ export const kk: Messages = {
       gym_whatsapp: "залдың WhatsApp нөмірі",
       reminder_days: "ескерту күндері",
       body: "мәтін",
+      message_locale: "хабарлама тілі",
     },
     methods: { cash: "қолма-қол", kaspi: "Kaspi", transfer: "аударым" },
     formats: { xlsx: "Excel", csv: "CSV" },
@@ -875,6 +891,7 @@ export const kk: Messages = {
       before_1: "екінші ескерту",
       overdue: "аяқталу күні",
     },
+    templateLocale: "{kind}, {language}",
     deleteReasons: {
       duplicate: "қайталану",
       created_by_mistake: "қателесіп құрылған",

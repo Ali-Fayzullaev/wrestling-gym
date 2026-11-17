@@ -256,10 +256,21 @@ describe("criterion 2: each policy allows its role and refuses the other", () =>
           `,
         ),
       ).rejects.toMatchObject(PERMISSION_DENIED);
+      // Nor moves one to another language (step 19).
+      await expect(
+        asActor(
+          sql,
+          owner,
+          (tx) => tx`
+            update public.message_templates set locale = 'uz', updated_by = ${SEED_STAFF.owner}
+            where kind = 'before_7' and locale = 'kk'
+          `,
+        ),
+      ).rejects.toMatchObject(PERMISSION_DENIED);
 
       const edit = (actorId: string) => (tx: Tx) => tx`
         update public.message_templates set body = 'Изменено', updated_by = ${actorId}
-        where kind = 'before_7' returning id
+        where kind = 'before_7' and locale = 'kk' returning id
       `;
       expect(await affected(owner, edit(SEED_STAFF.owner))).toBe(1);
       expect(await affected(admin, edit(SEED_STAFF.admin))).toBe(0);

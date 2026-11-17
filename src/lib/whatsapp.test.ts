@@ -23,6 +23,13 @@ describe("buildWaLink", () => {
     expect(textOf(link)).toBe(text);
   });
 
+  it("encodes Uzbek Cyrillic letters and decodes back to the same text", () => {
+    const text = "Ассалому алайкум, Ўғилой! Ў ў Қ қ Ғ ғ Ҳ ҳ, 16 январ";
+    const link = buildWaLink(PHONE, text);
+    expect(link).toMatch(/^[\x21-\x7e]+$/);
+    expect(textOf(link)).toBe(text);
+  });
+
   it("keeps line breaks as %0A", () => {
     const link = buildWaLink(PHONE, "Строка 1\nСтрока 2");
     expect(link).toContain("%0A");
