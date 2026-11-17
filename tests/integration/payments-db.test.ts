@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { nextPeriod } from "@/features/payments/period";
+import {
+  nextPeriod,
+  periodEnd,
+  periodEndBounds,
+} from "@/features/payments/period";
 
 import { connectLocalDb } from "./db";
 import { insertClient, insertPayment } from "./support/fixtures";
@@ -39,11 +43,12 @@ async function record(
   tx: Tx,
   clientId: string,
   key: string,
-  overrides: { amount?: number; method?: string } = {},
+  overrides: { amount?: number; method?: string; periodEnd?: string } = {},
 ): Promise<Recorded> {
   const [row] = await tx<{ r: Recorded }[]>`
     select public.record_payment(
-      ${clientId}, ${overrides.amount ?? 15000}, ${overrides.method ?? "cash"}, ${key}
+      ${clientId}, ${overrides.amount ?? 15000}, ${overrides.method ?? "cash"}, ${key},
+      1, ${overrides.periodEnd ?? null}::date
     ) as r
   `;
   if (!row) throw new Error("record_payment returned nothing");
@@ -102,8 +107,17 @@ const addDays = (iso: string, days: number) =>
     .toISOString()
     .slice(0, 10);
 
-describe("next_period() in SQL equals nextPeriod() in the form (STUB(D-03))", () => {
+describe("criterion 2: next_period() in SQL equals nextPeriod() in the form (D-03)", () => {
   const cases: [string | null, string][] = [
+    [null, "2026-11-17"],
+    ["2026-12-16", "2026-12-10"],
+    ["2026-12-16", "2026-12-22"],
+    ["2026-09-16", "2026-12-22"],
+    ["2026-12-16", "2027-01-16"],
+    ["2026-12-16", "2027-01-17"],
+    ["2026-01-30", "2026-02-28"],
+    ["2026-01-30", "2026-03-01"],
+    ["2026-12-20", "2027-01-05"],
     [null, "2026-11-19"],
     ["2026-11-25", "2026-11-19"],
     ["2026-11-19", "2026-11-19"],
@@ -128,6 +142,36 @@ describe("next_period() in SQL equals nextPeriod() in the form (STUB(D-03))", ()
       nextPeriod(currentEnd, paidOn),
     );
   });
+
+  it.each([
+    ["2026-01-31", 1],
+    ["2026-01-15", 12],
+    ["2027-12-31", 2],
+    ["2028-02-29", 12],
+  ] as const)(
+    "period_last_day(%s, %i) equals periodEnd()",
+    async (start, months) => {
+      const [row] = await sql<{ d: string }[]>`
+      select public.period_last_day(${start}::date, ${months})::text as d
+    `;
+      expect(row?.d).toBe(periodEnd(start, months));
+    },
+  );
+
+  it.each([
+    ["2026-12-17", "2026-12-22"],
+    ["2026-12-17", "2026-12-10"],
+    ["2028-02-29", "2028-02-29"],
+  ])(
+    "period_end_bounds(%s, %s) equals periodEndBounds()",
+    async (start, paidOn) => {
+      const [row] = await sql<{ min: string; max: string }[]>`
+      select min_end::text as min, max_end::text as max
+      from public.period_end_bounds(${start}::date, ${paidOn}::date)
+    `;
+      expect(row).toEqual(periodEndBounds(start, paidOn));
+    },
+  );
 });
 
 describe("record_payment()", () => {
@@ -187,6 +231,59 @@ describe("record_payment()", () => {
       return { today, payment: await record(tx, clientId, randomUUID()) };
     });
     expect(result.payment.period_start).toBe(addDays(result.today, 11));
+  });
+
+  it("D-03: paid 6 days late, the period continues from the old end", async () => {
+    const result = await rolledBack(sql, async (tx) => {
+      const clientId = await insertClient(tx);
+      const today = await serverToday(tx);
+      const oldEnd = addDays(today, -6);
+      await insertPayment(tx, {
+        clientId,
+        periodStart: addDays(oldEnd, -29),
+        periodEnd: oldEnd,
+      });
+      await become(tx, admin);
+      return { oldEnd, payment: await record(tx, clientId, randomUUID()) };
+    });
+    const expected = nextPeriod(result.oldEnd, addDays(result.oldEnd, 6));
+    expect(result.payment.period_start).toBe(addDays(result.oldEnd, 1));
+    expect(result.payment.period_end).toBe(expected.end);
+  });
+
+  it("D-03: an imported subscription that ended a few days ago is continued too", async () => {
+    const result = await rolledBack(sql, async (tx) => {
+      const clientId = await insertClient(tx);
+      const today = await serverToday(tx);
+      const oldEnd = addDays(today, -3);
+      await tx`
+        insert into public.payments (
+          client_id, kind, amount, method, period_start, period_end, reason, idempotency_key,
+          created_by
+        ) values (
+          ${clientId}, 'import_balance', 0, null, ${addDays(oldEnd, -29)}, ${oldEnd},
+          'Перенос из тетради', ${randomUUID()}, ${SEED_STAFF.owner}
+        )
+      `;
+      await become(tx, admin);
+      return { oldEnd, payment: await record(tx, clientId, randomUUID()) };
+    });
+    expect(result.payment.period_start).toBe(addDays(result.oldEnd, 1));
+  });
+
+  it("D-03: away longer than a month, the period starts today", async () => {
+    const result = await rolledBack(sql, async (tx) => {
+      const clientId = await insertClient(tx);
+      const today = await serverToday(tx);
+      await insertPayment(tx, {
+        clientId,
+        periodStart: addDays(today, -120),
+        periodEnd: addDays(today, -90),
+      });
+      await become(tx, owner);
+      return { today, payment: await record(tx, clientId, randomUUID()) };
+    });
+    expect(result.payment.period_start).toBe(result.today);
   });
 
   it("criterion 2: a resubmission with the same key returns the same payment, no second row", async () => {
@@ -624,5 +721,153 @@ describe("client_screen() carries the payment history and the group price", () =
       "reversal",
     ]);
     expect(screen?.payments[0]).toHaveProperty("created_by_name");
+  });
+});
+
+describe("D-16: last day chosen when recording a payment", () => {
+  type Audit = { details: Record<string, unknown> };
+
+  async function auditOf(tx: Tx, paymentId: string) {
+    await become(tx, "postgres");
+    const [row] = await tx<Audit[]>`
+      select details from public.audit_log
+      where action = 'payment.create' and entity_id = ${paymentId}
+    `;
+    return row?.details;
+  }
+
+  it("criteria 3, 5, 6: an admin sets the date; it is stored and the journal keeps the default one, no personal data", async () => {
+    const result = await rolledBack(sql, async (tx) => {
+      const clientId = await insertClient(tx, {
+        lastName: "Секретов",
+        phone: "+77015550199",
+      });
+      const today = await serverToday(tx);
+      const rule = nextPeriod(null, today);
+      const chosen = addDays(rule.end, 14);
+      await become(tx, admin);
+      const payment = await record(tx, clientId, randomUUID(), {
+        periodEnd: chosen,
+      });
+      const details = await auditOf(tx, payment.id);
+      const status = await (async () => {
+        const [row] = await tx<{ status: string; ends_on: string }[]>`
+          select status, ends_on::text from public.client_status() where client_id = ${clientId}
+        `;
+        return row;
+      })();
+      return { rule, chosen, payment, details, status };
+    });
+    expect(result.payment.period_start).toBe(result.rule.start);
+    expect(result.payment.period_end).toBe(result.chosen);
+    expect(result.status).toEqual({ status: "active", ends_on: result.chosen });
+    expect(result.details).toMatchObject({
+      period_end: result.chosen,
+      period_end_changed: true,
+      rule_period_end: result.rule.end,
+    });
+    const text = JSON.stringify(result.details);
+    expect(text).not.toContain("Секретов");
+    expect(text).not.toContain("7015550199");
+  });
+
+  it("the default date sent explicitly is not marked as changed", async () => {
+    const details = await rolledBack(sql, async (tx) => {
+      const clientId = await insertClient(tx);
+      const rule = nextPeriod(null, await serverToday(tx));
+      await become(tx, owner);
+      const payment = await record(tx, clientId, randomUUID(), {
+        periodEnd: rule.end,
+      });
+      return auditOf(tx, payment.id);
+    });
+    expect(details).not.toHaveProperty("period_end_changed");
+    expect(details).not.toHaveProperty("rule_period_end");
+  });
+
+  it("criterion 3: the bounds themselves are accepted", async () => {
+    const result = await rolledBack(sql, async (tx) => {
+      const first = await insertClient(tx);
+      const second = await insertClient(tx);
+      const today = await serverToday(tx);
+      const bounds = periodEndBounds(today, today);
+      await become(tx, admin);
+      return {
+        bounds,
+        first: await record(tx, first, randomUUID(), { periodEnd: bounds.min }),
+        second: await record(tx, second, randomUUID(), {
+          periodEnd: bounds.max,
+        }),
+      };
+    });
+    expect(result.first.period_end).toBe(result.bounds.min);
+    expect(result.second.period_end).toBe(result.bounds.max);
+  });
+
+  it.each([
+    ["the day before the payment day", (today: string) => addDays(today, -1)],
+    [
+      "a day past 12 months from the start",
+      (today: string) => addDays(periodEnd(today, 12), 1),
+    ],
+  ])(
+    "criterion 3: %s is refused by the database (22023), nothing stored",
+    async (_, pick) => {
+      await expect(
+        rolledBack(sql, async (tx) => {
+          const clientId = await insertClient(tx);
+          const today = await serverToday(tx);
+          await become(tx, admin);
+          await record(tx, clientId, randomUUID(), { periodEnd: pick(today) });
+        }),
+      ).rejects.toMatchObject({
+        code: "22023",
+        message: "period_end_out_of_range",
+      });
+    },
+  );
+
+  it("paid in advance: a date before the start of the new period is refused", async () => {
+    await expect(
+      rolledBack(sql, async (tx) => {
+        const clientId = await insertClient(tx);
+        const today = await serverToday(tx);
+        await insertPayment(tx, {
+          clientId,
+          periodStart: addDays(today, -20),
+          periodEnd: addDays(today, 10),
+        });
+        await become(tx, owner);
+        await record(tx, clientId, randomUUID(), {
+          periodEnd: addDays(today, 5),
+        });
+      }),
+    ).rejects.toMatchObject({ code: "22023" });
+  });
+
+  it("criterion 6: anon and an inactive employee are refused with a date too", async () => {
+    const clientId = "20000000-0000-4000-8000-000000000001";
+    const periodEndDate = addDays(new Date().toISOString().slice(0, 10), 40);
+    await expect(
+      asActor(sql, "anon", (tx) =>
+        record(tx, clientId, randomUUID(), { periodEnd: periodEndDate }),
+      ),
+    ).rejects.toMatchObject({ code: "42501" });
+    await expect(
+      rolledBack(sql, async (tx) => {
+        await tx`update public.staff set active = false where id = ${SEED_STAFF.otherAdmin}`;
+        await become(tx, otherAdmin);
+        await record(tx, clientId, randomUUID(), { periodEnd: periodEndDate });
+      }),
+    ).rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("the five-argument signature from step 07 is gone: no stale overload", async () => {
+    const [row] = await sql<{ n: number }[]>`
+      select count(*)::int as n from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'record_payment'
+    `;
+    expect(row?.n).toBe(1);
   });
 });

@@ -6,6 +6,7 @@ export type PaymentError =
   | "already_reversed"
   | "cancel_window_passed"
   | "idempotency_conflict"
+  | "period_end_out_of_range"
   | "invalid"
   | "unavailable";
 

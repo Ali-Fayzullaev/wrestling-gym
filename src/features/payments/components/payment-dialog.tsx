@@ -18,7 +18,7 @@ import {
   PAYMENT_MONTHS,
   type PaymentMethod,
 } from "../form-fields";
-import { nextPeriod } from "../period";
+import { isEndInBounds, nextPeriod, periodEndBounds } from "../period";
 import type { PaymentError, PaymentResult, RecordedPayment } from "../result";
 
 // This dialog reports with a toast: make sure the toast area is there.
@@ -29,6 +29,8 @@ export type RecordPayment = (input: {
   amount: number;
   method: PaymentMethod;
   idempotencyKey: string;
+  /** Last day chosen by hand (YYYY-MM-DD); absent when the default one stays. */
+  periodEnd?: string;
 }) => Promise<PaymentResult<RecordedPayment>>;
 
 export type CancelPayment = (input: {
@@ -69,7 +71,8 @@ const errorText = (t: Messages["payments"], error: PaymentError | "network") =>
   error === "network" ? t.network : t.errors[error];
 
 /**
- * "Paid": amount (the group price filled in), method, the period it will cover, one confirm tap.
+ * "Paid": amount (the group price filled in), method, the last day it is valid (the D-03 default,
+ * changeable within bounds, D-16), one confirm tap.
  * The idempotency key is made when the form opens for a client and kept until a payment is saved,
  * so a retry after a lost connection cannot record a second payment. The dialog closes at once;
  * `onOptimistic` lets the list show the new status while the request runs.
@@ -99,6 +102,10 @@ export default function PaymentDialog({
     target.price === null ? "" : String(target.price),
   );
   const [method, setMethod] = useState<PaymentMethod>("cash");
+  const paidOn = businessDate(today);
+  const period = nextPeriod(target.endsOn, paidOn, PAYMENT_MONTHS);
+  const bounds = periodEndBounds(period.start, paidOn);
+  const [endText, setEndText] = useState(period.end);
   const [touched, setTouched] = useState(false);
   const [key, setKey] = useState(() => crypto.randomUUID());
   const [, startTransition] = useTransition();
@@ -106,8 +113,10 @@ export default function PaymentDialog({
   const submitting = useRef(false);
 
   const amount = parseAmount(amountText);
-  const period = nextPeriod(target.endsOn, businessDate(today), PAYMENT_MONTHS);
   const showAmountError = touched && amount === null;
+  const endValid = isEndInBounds(endText, bounds);
+  const endChanged = endText !== period.end;
+  const showEndError = touched && !endValid;
 
   function undo(payment: RecordedPayment) {
     void settle(() =>
@@ -120,17 +129,19 @@ export default function PaymentDialog({
 
   function confirm() {
     setTouched(true);
-    if (amount === null || submitting.current) return;
+    if (amount === null || !endValid || submitting.current) return;
     submitting.current = true;
     onOpenChange(false);
     startTransition(async () => {
-      onOptimistic?.(period.end);
+      onOptimistic?.(endText);
       const result = await settle(() =>
         record({
           clientId: target.clientId,
           amount,
           method,
           idempotencyKey: key,
+          // Only a changed date is sent: the server keeps its own default otherwise.
+          ...(endChanged ? { periodEnd: endText } : {}),
         }),
       );
       submitting.current = false;
@@ -244,17 +255,60 @@ export default function PaymentDialog({
           </div>
         </fieldset>
 
-        <div className="flex flex-col gap-1 rounded-md bg-muted px-3 py-2 text-sm">
-          <p>
-            <span className="text-muted-foreground">{t.dialog.period}: </span>
-            {t.dialog.periodMonth}
-          </p>
-          <p className="font-medium" data-testid="payment-preview">
-            {fmt(t.dialog.preview, {
-              from: formatDate(period.start, today, locale),
-              to: formatDate(period.end, today, locale),
-            })}
-          </p>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${id}-end`} className="text-sm font-medium">
+            {t.dialog.periodEnd}
+          </label>
+          <input
+            id={`${id}-end`}
+            name="periodEnd"
+            type="date"
+            required
+            min={bounds.min}
+            max={bounds.max}
+            value={endText}
+            onChange={(event) => setEndText(event.target.value)}
+            onBlur={() => setTouched(true)}
+            aria-invalid={showEndError || undefined}
+            aria-describedby={`${id}-end-hint`}
+            className={`${inputClassName} tabular-nums`}
+            data-testid="payment-period-end"
+          />
+          <div
+            id={`${id}-end-hint`}
+            className="flex flex-col gap-0.5 text-sm"
+            data-testid="payment-preview"
+          >
+            <p className="text-muted-foreground">
+              {fmt(t.dialog.periodStart, {
+                from: formatDate(period.start, today, locale),
+              })}
+            </p>
+            {showEndError ? (
+              <p className="text-destructive">
+                {fmt(t.dialog.periodEndError, {
+                  min: formatDate(bounds.min, today, locale),
+                  max: formatDate(bounds.max, today, locale),
+                })}
+              </p>
+            ) : endChanged ? (
+              <p className="text-muted-foreground">
+                {fmt(t.dialog.periodEndChanged, {
+                  date: formatDate(period.end, today, locale),
+                })}
+              </p>
+            ) : null}
+          </div>
+          {endChanged ? (
+            <button
+              type="button"
+              className={`${buttonVariants({ variant: "outline" })} self-start`}
+              onClick={() => setEndText(period.end)}
+              data-testid="payment-period-reset"
+            >
+              {t.dialog.periodReset}
+            </button>
+          ) : null}
         </div>
       </form>
     </ResponsiveDialog>

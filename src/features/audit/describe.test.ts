@@ -75,6 +75,49 @@ describe("describeAuditEntry", () => {
     });
   });
 
+  it("payment with a last day set by hand: the changed date next to the default one (D-16)", () => {
+    const result = describeAuditEntry(
+      RU,
+      entry({
+        action: "payment.create",
+        entity: "payment",
+        details: {
+          client_id: CLIENT,
+          amount: 20000,
+          method: "cash",
+          period_start: "2026-12-17",
+          period_end: "2027-02-16",
+          period_end_changed: true,
+          rule_period_end: "2027-01-16",
+        },
+        clientId: CLIENT,
+        clientName: "Сериков Азамат",
+      }),
+      NOW,
+    );
+    expect(result.details.at(-1)).toBe(
+      `Дата изменена: до ${formatDate("2027-02-16", NOW, "ru")} (по правилу ${formatDate("2027-01-16", NOW, "ru")})`,
+    );
+    expect(result.details.join(" ")).not.toContain("Сериков");
+  });
+
+  it("payment without a hand-set date has no change line", () => {
+    const result = describeAuditEntry(
+      RU,
+      entry({
+        action: "payment.create",
+        entity: "payment",
+        details: {
+          period_start: "2026-12-17",
+          period_end: "2027-01-16",
+          rule_period_end: "2027-01-16",
+        },
+      }),
+      NOW,
+    );
+    expect(result.details.join(" ")).not.toContain("Дата изменена");
+  });
+
   it("export of payments: month, format and rows, no single client", () => {
     const result = describeAuditEntry(
       RU,

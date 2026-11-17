@@ -111,6 +111,39 @@ describe("criterion 4: one idempotency key, one payment", () => {
   });
 });
 
+describe("step 18 criterion 4: the same key with another last day", () => {
+  it("is refused by record_payment() and leaves one payment", async () => {
+    const result = await rolledBack(sql, async (tx) => {
+      const client = await insertClient(tx);
+      const [today] = await tx<{ d: string }[]>`
+        select ((now() at time zone 'Asia/Almaty')::date + 40)::text as d
+      `;
+      await become(tx, { userId: SEED_STAFF.owner });
+      const key = randomUUID();
+      await tx`select public.record_payment(${client}, 15000, 'cash', ${key}, 1, null)`;
+      let error: unknown = null;
+      try {
+        await tx`savepoint s`;
+        await tx`
+          select public.record_payment(${client}, 15000, 'cash', ${key}, 1, ${today?.d ?? null}::date)
+        `;
+      } catch (caught) {
+        error = caught;
+        await tx`rollback to savepoint s`;
+      }
+      const [row] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.payments where idempotency_key = ${key}
+      `;
+      return { error, rows: row?.n };
+    });
+    expect(result.error).toMatchObject({
+      code: "23505",
+      message: "idempotency_conflict",
+    });
+    expect(result.rows).toBe(1);
+  });
+});
+
 describe("criterion 5: one reminder per payment and kind", () => {
   async function paymentWithEvent(tx: Tx) {
     const client = await insertClient(tx);
