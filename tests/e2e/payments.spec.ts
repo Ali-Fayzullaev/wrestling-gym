@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import type { Locator, Page } from "@playwright/test";
 
+import { nextPeriod, periodEndBounds } from "@/features/payments/period";
+import { fmt } from "@/i18n/format";
 import { ru } from "@/i18n/ru";
+import { businessDate } from "@/lib/dates";
+import { formatDate } from "@/lib/format";
 
 import {
   SEED_EMAILS,
@@ -58,6 +62,46 @@ async function archive(supabase: Supabase, id: string) {
     .eq("id", id);
 }
 
+const addDays = (iso: string, days: number) =>
+  new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+/** A paid month that ended `daysAgo` days before today. */
+async function endedPayment(
+  supabase: Supabase,
+  clientId: string,
+  daysAgo: number,
+) {
+  const end = addDays(businessDate(new Date()), -daysAgo);
+  const { error } = await serviceClient(supabase)
+    .from("payments")
+    .insert({
+      client_id: clientId,
+      kind: "payment",
+      amount: 15000,
+      method: "cash",
+      period_start: addDays(end, -29),
+      period_end: end,
+      idempotency_key: randomUUID(),
+      created_by: SEED_ADMIN,
+      created_at: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+    });
+  if (error) throw new Error(`payment insert failed: ${error.code}`);
+  return end;
+}
+
+async function periodEndsOf(supabase: Supabase, clientId: string) {
+  const { data, error } = await serviceClient(supabase)
+    .from("payments")
+    .select("period_end")
+    .eq("client_id", clientId)
+    .eq("kind", "payment")
+    .order("period_end");
+  if (error) throw new Error(`payments read failed: ${error.code}`);
+  return data.map((row) => row.period_end);
+}
+
 async function paymentsOf(supabase: Supabase, clientId: string) {
   const { data, error } = await serviceClient(supabase)
     .from("payments")
@@ -106,7 +150,9 @@ test.describe("payment from the clients list", () => {
       taps += 1;
       const form = dialog(page);
       await expect(form.getByLabel(t.dialog.amount)).toHaveValue(/^\d+$/);
-      await expect(form.getByTestId("payment-preview")).toContainText("до");
+      await expect(form.getByTestId("payment-period-end")).toHaveValue(
+        /^\d{4}-\d{2}-\d{2}$/,
+      );
       await form.getByTestId("payment-confirm").click();
       taps += 1;
 
@@ -313,6 +359,134 @@ test.describe("payment history on the card", () => {
       );
       await expect(page.getByText(ru.status.none).first()).toBeVisible();
       await expect(entry.getByTestId("payment-reverse")).toHaveCount(0);
+    } finally {
+      await archive(supabase, clientId);
+    }
+  });
+});
+
+test.describe("step 18: renewal from the old end and the last day (D-03, D-16)", () => {
+  test("criterion 7: paid 6 days late, the form offers the old end + 1 month and the client turns active", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = surname("Опоздал");
+    const clientId = await newClient(supabase, lastName);
+    try {
+      const today = businessDate(new Date());
+      const oldEnd = await endedPayment(supabase, clientId, 6);
+      const expected = nextPeriod(oldEnd, today);
+      expect(expected.start).toBe(addDays(oldEnd, 1));
+
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      const row = await openList(page, lastName);
+      await expect(rowStatus(row)).toHaveText(ru.status.expired);
+      await row.getByTestId("row-pay").click();
+      const form = dialog(page);
+      await expect(form.getByLabel(t.dialog.periodEnd)).toHaveValue(
+        expected.end,
+      );
+      await expect(form.getByTestId("payment-preview")).toContainText(
+        fmt(t.dialog.periodStart, {
+          from: formatDate(expected.start, new Date(), "ru"),
+        }),
+      );
+      await form.getByTestId("payment-confirm").click();
+
+      await expect(rowStatus(row)).toHaveText(ru.status.active);
+      await expect(
+        page.getByText(
+          fmt(t.saved, { until: formatDate(expected.end, new Date(), "ru") }),
+        ),
+      ).toBeVisible();
+      await expect
+        .poll(() => periodEndsOf(supabase, clientId))
+        .toEqual([oldEnd, expected.end]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await archive(supabase, clientId);
+    }
+  });
+
+  test("criterion 8: the admin sets another last day; the client is active until it", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = surname("Свояд");
+    const clientId = await newClient(supabase, lastName);
+    try {
+      const today = businessDate(new Date());
+      const rule = nextPeriod(null, today);
+      const chosen = addDays(rule.end, 20);
+
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      await page.goto(`/clients/${clientId}`);
+      await page.getByTestId("pay-button").click();
+      const form = dialog(page);
+      const end = form.getByLabel(t.dialog.periodEnd);
+      await expect(end).toHaveValue(rule.end);
+
+      // Changed, then back to the rule, then changed again: the reset button follows.
+      await end.fill(chosen);
+      await expect(
+        form.getByText(
+          fmt(t.dialog.periodEndChanged, {
+            date: formatDate(rule.end, new Date(), "ru"),
+          }),
+        ),
+      ).toBeVisible();
+      await form.getByTestId("payment-period-reset").click();
+      await expect(end).toHaveValue(rule.end);
+      await expect(form.getByTestId("payment-period-reset")).toHaveCount(0);
+      await end.fill(chosen);
+      await form.getByTestId("payment-confirm").click();
+
+      await expect(
+        page.getByText(
+          fmt(t.saved, { until: formatDate(chosen, new Date(), "ru") }),
+        ),
+      ).toBeVisible();
+      await expect(page.getByTestId("payment-entry")).toHaveCount(1);
+      await expect
+        .poll(() => periodEndsOf(supabase, clientId))
+        .toEqual([chosen]);
+      await expect(page.getByText(ru.status.active).first()).toBeVisible();
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await archive(supabase, clientId);
+    }
+  });
+
+  test("criterion 8: a date out of bounds is explained next to the field and nothing is saved", async ({
+    page,
+    supabase,
+  }) => {
+    const lastName = surname("Граница");
+    const clientId = await newClient(supabase, lastName);
+    try {
+      const today = businessDate(new Date());
+      const bounds = periodEndBounds(nextPeriod(null, today).start, today);
+
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      const row = await openList(page, lastName);
+      await row.getByTestId("row-pay").click();
+      const form = dialog(page);
+      const end = form.getByLabel(t.dialog.periodEnd);
+      const error = fmt(t.dialog.periodEndError, {
+        min: formatDate(bounds.min, new Date(), "ru"),
+        max: formatDate(bounds.max, new Date(), "ru"),
+      });
+
+      for (const date of [addDays(today, -1), addDays(bounds.max, 1)]) {
+        await end.fill(date);
+        await form.getByTestId("payment-confirm").click();
+        await expect(end).toHaveAttribute("aria-invalid", "true");
+        await expect(form.getByText(error)).toBeVisible();
+      }
+      await expect(rowStatus(row)).toHaveText(ru.status.none);
+      expect(await paymentsOf(supabase, clientId)).toEqual([]);
     } finally {
       await archive(supabase, clientId);
     }

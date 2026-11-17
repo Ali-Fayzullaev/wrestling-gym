@@ -405,11 +405,19 @@ isOneToOne: false
 "payment_json":
 { Args: { "p": Omit<Database["public"]['Tables']["payments"]['Row'], Database["public"]['Tables']["payments"]['ComputedFields']>,"p_created": boolean }; Returns: Json
                            },
+"period_end_bounds":
+{ Args: { "p_paid_on": string,"p_period_start": string }; Returns: {
+              "max_end": string,"min_end": string
+            }[]
+                           },
+"period_last_day":
+{ Args: { "p_months": number,"p_start": string }; Returns: string
+                           },
 "phone_duplicates":
 { Args: { "p_exclude_id"?: string,"p_phone": string }; Returns: Json
                            },
 "record_payment":
-{ Args: { "p_amount": number,"p_client_id": string,"p_idempotency_key": string,"p_method": string,"p_months"?: number }; Returns: Json
+{ Args: { "p_amount": number,"p_client_id": string,"p_idempotency_key": string,"p_method": string,"p_months"?: number,"p_period_end"?: string }; Returns: Json
                            },
 "record_reminder_opened":
 { Args: { "p_kind": string,"p_payment_id": string }; Returns: Json

@@ -186,7 +186,7 @@ begin
 end;
 $$;
 
--- Renewal (STUB(D-03)): an imported subscription that is still valid is extended from its end,
+-- Renewal (rule replaced in *_payment_period.sql, step 18, D-03): an imported subscription that is still valid is extended from its end,
 -- like a paid one. Only the v_current_end query differs from step 07.
 create or replace function public.record_payment(
   p_client_id uuid,

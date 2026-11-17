@@ -1,8 +1,8 @@
 // Subscription period of a new payment. The database computes the period it stores with the same
-// rule (next_period() in supabase/migrations/*_payments_management.sql); this copy shows the
-// preview in the payment form, and an integration test keeps the two in step.
-// STUB(D-03): until the customer decides, a subscription that is still valid on the payment day
-// is extended from its end; an expired one (or the first payment) starts on the payment day.
+// rule (next_period() and period_end_bounds() in supabase/migrations/*_payment_period.sql); this
+// copy fills the payment form, and an integration test keeps the two in step.
+// D-03 (2026-11-17): renewal continues from the old end, so paying late gives no free days; only a
+// client who paid after the following month would have ended starts again on the payment day.
 
 export type Period = {
   /** YYYY-MM-DD, first day of the subscription. */
@@ -54,9 +54,31 @@ export function nextPeriod(
 ): Period {
   if (!Number.isInteger(months) || months < 1 || months > 12)
     throw new RangeError("months must be 1..12");
+  const paid = toIso(toUtc(paidOn));
+  const continued =
+    currentEndsOn === null ? null : toIso(addDays(toUtc(currentEndsOn), 1));
+  // Valid now, or paid within the month after the old end: continue from the old end.
   const start =
-    currentEndsOn !== null && currentEndsOn >= paidOn
-      ? toIso(addDays(toUtc(currentEndsOn), 1))
-      : toIso(toUtc(paidOn));
+    continued !== null && paid <= periodEnd(continued, 1) ? continued : paid;
   return { start, end: periodEnd(start, months) };
+}
+
+export type EndBounds = { min: string; max: string };
+
+/**
+ * Last days the person recording a payment may choose instead of the default one.
+ * STUB(D-16): proposed by the developer, the customer may change them. Not before the payment day
+ * (the client would be in debt again at once) nor before the start, at most 12 months from the
+ * start. The database checks the same bounds (period_end_bounds()).
+ */
+export function periodEndBounds(start: string, paidOn: string): EndBounds {
+  return {
+    min: start > paidOn ? start : paidOn,
+    max: periodEnd(start, 12),
+  };
+}
+
+/** Whether `end` (YYYY-MM-DD) is a date inside the bounds. */
+export function isEndInBounds(end: string, bounds: EndBounds): boolean {
+  return ISO_DATE.test(end) && end >= bounds.min && end <= bounds.max;
 }

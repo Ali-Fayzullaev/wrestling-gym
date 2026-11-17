@@ -7,11 +7,14 @@ import type { Db } from "@/db/client";
 import type { Database } from "@/db/types";
 import { authorizeStaff } from "@/features/auth/service";
 import { getClient } from "@/features/clients/service";
+import { nextPeriod, periodEnd } from "@/features/payments/period";
 import {
   cancelRecentPayment,
   recordPayment,
   reversePayment,
 } from "@/features/payments/service";
+
+import { businessDate } from "@/lib/dates";
 
 import { defined } from "../support/defined";
 import {
@@ -171,6 +174,36 @@ describe("recordPayment over the API", () => {
       idempotencyKey: randomUUID(),
     });
     expect(zero).toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("step 18: an admin's chosen last day is stored; one out of bounds is refused, nothing stored", async () => {
+    const clientId = await archivedClient();
+    const today = businessDate(new Date());
+    const rule = nextPeriod(null, today);
+    const chosen = periodEnd(rule.start, 2);
+    const saved = await recordPayment(admin.db, ADMIN, {
+      clientId,
+      amount: 15000,
+      method: "cash",
+      idempotencyKey: randomUUID(),
+      periodEnd: chosen,
+    });
+    expect(saved.ok && saved.data.periodEnd).toBe(chosen);
+
+    const other = await archivedClient();
+    const tooEarly = await recordPayment(admin.db, ADMIN, {
+      clientId: other,
+      amount: 15000,
+      method: "cash",
+      idempotencyKey: randomUUID(),
+      periodEnd: "2020-01-01",
+    });
+    expect(tooEarly).toEqual({ ok: false, error: "period_end_out_of_range" });
+    const { count } = await service
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", other);
+    expect(count).toBe(0);
   });
 });
 

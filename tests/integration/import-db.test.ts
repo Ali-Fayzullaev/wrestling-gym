@@ -440,7 +440,7 @@ describe("opening balance (import_balance)", () => {
     });
   });
 
-  it("is extended from its end by the next payment while still valid (STUB(D-03))", async () => {
+  it("is extended from its end by the next payment while still valid (D-03)", async () => {
     await asActor(sql, owner, async (tx) => {
       const { client_id } = await importedOne(tx, "31.12.2099");
       const [paid] = await tx<{ r: { period_start: string } }[]>`

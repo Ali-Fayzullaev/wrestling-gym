@@ -83,6 +83,7 @@ function paymentDetails(
   const amount = count(details.amount);
   const start = text(details.period_start);
   const end = text(details.period_end);
+  const rule = text(details.rule_period_end);
   return [
     amount === null ? null : formatMoney(amount, locale),
     label(t.methods, text(details.method)),
@@ -90,6 +91,13 @@ function paymentDetails(
       ? fmt(t.period, {
           from: formatDate(start, now, locale),
           to: formatDate(end, now, locale),
+        })
+      : null,
+    // D-16: a last day set by hand, next to the one the rule gave.
+    details.period_end_changed === true && end && rule
+      ? fmt(t.periodEndChanged, {
+          date: formatDate(end, now, locale),
+          rule: formatDate(rule, now, locale),
         })
       : null,
   ];

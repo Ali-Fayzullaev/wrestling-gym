@@ -42,6 +42,7 @@ const MESSAGE_ERRORS: Record<string, PaymentError> = {
   already_reversed: "already_reversed",
   cancel_window_passed: "cancel_window_passed",
   idempotency_conflict: "idempotency_conflict",
+  period_end_out_of_range: "period_end_out_of_range",
 };
 
 /** Postgres errors raised by the payment functions, mapped to what the screen can say. */
@@ -69,7 +70,7 @@ const isStaff = (actor: Actor) =>
 
 /**
  * Records a payment and its audit row in one transaction. The period comes from the database
- * (server date, STUB(D-03) rule). Repeating the request with the same key returns the same payment.
+ * (server date, D-03 rule); a last day chosen by hand is checked against the bounds there. Repeating the request with the same key returns the same payment.
  */
 export async function recordPayment(
   db: Db,
@@ -83,6 +84,7 @@ export async function recordPayment(
     p_method: input.method,
     p_idempotency_key: input.idempotencyKey,
     p_months: PAYMENT_MONTHS,
+    p_period_end: input.periodEnd,
   });
   if (error) return { ok: false, error: paymentError(error) };
   return { ok: true, data: toRecorded(data) };

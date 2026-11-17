@@ -8,7 +8,7 @@
 
 -- Period ---------------------------------------------------------------------------------------
 
--- STUB(D-03): a subscription still valid on the payment day is extended from the day after its
+-- Superseded by *_payment_period.sql (step 18, D-03 decided). Original rule: a subscription still valid on the payment day is extended from the day after its
 -- end; an expired one (or none) starts on the payment day. The period runs to the day before the
 -- same day number p_months later, or to the end of a shorter month (31 January: 28/29 February).
 -- src/features/payments/period.ts is the same rule for the form preview; a test keeps them equal.

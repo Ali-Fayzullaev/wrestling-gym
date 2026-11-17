@@ -9,6 +9,8 @@ export const recordPaymentSchema = z.object({
   amount: z.coerce.number().int().min(1).max(AMOUNT_MAX),
   method: z.enum(PAYMENT_METHODS),
   idempotencyKey: id,
+  /** Last day chosen by hand (D-16); absent: the default one. The database checks the bounds. */
+  periodEnd: z.iso.date().optional(),
 });
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 

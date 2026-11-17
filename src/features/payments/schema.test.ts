@@ -44,6 +44,32 @@ describe("recordPaymentSchema", () => {
   });
 });
 
+describe("recordPaymentSchema periodEnd (D-16)", () => {
+  const valid = {
+    clientId: ID,
+    amount: "15000",
+    method: "cash",
+    idempotencyKey: KEY,
+  };
+
+  it("is optional and takes a calendar date YYYY-MM-DD", () => {
+    expect(recordPaymentSchema.parse(valid).periodEnd).toBeUndefined();
+    expect(
+      recordPaymentSchema.parse({ ...valid, periodEnd: "2027-01-16" })
+        .periodEnd,
+    ).toBe("2027-01-16");
+  });
+
+  it.each([["16.01.2027"], ["2027-02-30"], ["2027-1-16"], [""], ["tomorrow"]])(
+    "rejects %s",
+    (periodEnd) => {
+      expect(
+        recordPaymentSchema.safeParse({ ...valid, periodEnd }).success,
+      ).toBe(false);
+    },
+  );
+});
+
 describe("reversePaymentSchema", () => {
   it("requires a reason, trimmed, at most 500 characters", () => {
     const base = { paymentId: ID, idempotencyKey: KEY };
