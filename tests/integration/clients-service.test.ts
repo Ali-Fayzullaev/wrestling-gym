@@ -84,6 +84,7 @@ function input(overrides: Record<string, unknown> = {}) {
     groupId: SEED_GROUP,
     startedOn: "2026-11-01",
     note: "",
+    messageLocale: "ru",
     consents: [],
     ...overrides,
   });

@@ -7,13 +7,20 @@ import { buttonVariants, inputClassName } from "@/components/ui/variants";
 import { useLocale, useText } from "@/i18n/client";
 import { fmt, plural } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages";
-import type { Locale } from "@/lib/locale";
+import {
+  DEFAULT_LOCALE,
+  HTML_LANG,
+  type Locale,
+  LOCALE_NAMES,
+  LOCALES,
+} from "@/lib/locale";
 
 import type { ReminderKind } from "../kinds";
 import type { SettingsFieldErrors, SettingsResult } from "../result";
 import { BODY_MAX, DAYS_MAX, DAYS_MIN } from "../limits";
 import {
   type ReminderContact,
+  type ReminderTemplate,
   reminderValues,
   renderTemplate,
   unknownVariables,
@@ -24,8 +31,6 @@ export type SaveReminderSettings = (input: {
   secondDays: string;
   templates: { id: string; body: string }[];
 }) => Promise<SettingsResult>;
-
-type Template = { id: string; kind: ReminderKind; body: string };
 
 const ORDER: Record<ReminderKind, number> = {
   before_7: 0,
@@ -83,9 +88,15 @@ function Preview({ text, unknown }: { text: string; unknown: string[] }) {
   );
 }
 
+/** A shipped Kazakh or Uzbek text nobody has edited yet: a draft translation (D-13). */
+const isDraft = (template: ReminderTemplate) =>
+  template.locale !== DEFAULT_LOCALE && !template.edited;
+
 /**
- * Days and texts of reminders on one screen, saved with one button. The preview fills the texts
- * with a real client's data as the owner types; nothing is sent from here.
+ * Days and texts of reminders on one screen, saved with one button. Texts are per language
+ * (D-13): a switcher shows one language at a time, and every language is saved together. The
+ * preview fills the texts with a real client's data, the date and amount in the text's language,
+ * as the owner types; nothing is sent from here.
  */
 export function ReminderSettingsForm({
   reminderDays,
@@ -97,7 +108,7 @@ export function ReminderSettingsForm({
   save,
 }: {
   reminderDays: number[];
-  templates: Template[];
+  templates: ReminderTemplate[];
   gymName: string;
   preview: ReminderContact;
   /** The real client the preview uses; null when it is made-up data. */
@@ -117,16 +128,19 @@ export function ReminderSettingsForm({
   const [bodies, setBodies] = useState<Record<string, string>>(() =>
     Object.fromEntries(templates.map((item) => [item.id, item.body])),
   );
+  const [language, setLanguage] = useState<Locale>(DEFAULT_LOCALE);
   const [errors, setErrors] = useState<SettingsFieldErrors>({});
   const [message, setMessage] = useState<
     "saved" | "forbidden" | "unavailable" | null
   >(null);
   const [pending, startTransition] = useTransition();
 
-  const values = reminderValues(preview, gymName, today);
+  const values = reminderValues(preview, gymName, today, language);
   const first = parseDays(firstDays) ?? sorted[0] ?? 0;
   const second = secondDays.trim() === "" ? null : parseDays(secondDays);
   const ordered = [...templates].sort((a, b) => ORDER[a.kind] - ORDER[b.kind]);
+  const shown = ordered.filter((item) => item.locale === language);
+  const draftLocales = new Set(templates.filter(isDraft).map((t) => t.locale));
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -146,7 +160,13 @@ export function ReminderSettingsForm({
           setMessage("saved");
           return;
         }
-        setErrors(result.fields ?? {});
+        const fields = result.fields ?? {};
+        setErrors(fields);
+        // A wrong text in another language: show that language, or the error stays hidden.
+        const wrong = ordered.find((item) =>
+          fields.templates?.includes(item.id),
+        );
+        if (wrong) setLanguage(wrong.locale);
         if (result.error !== "invalid") {
           setMessage(
             result.error === "forbidden" ? "forbidden" : "unavailable",
@@ -212,14 +232,47 @@ export function ReminderSettingsForm({
             ? fmt(t.previewFor, { name: previewName })
             : t.previewNoClient}
         </p>
-        {/* STUB(D-13): one template per kind; client language and three versions await the owner. */}
         <p className="text-sm text-muted-foreground">
           {t.templatesLanguageNote}
         </p>
-        {ordered.map((item) => {
+        <div
+          role="group"
+          aria-label={t.languages}
+          className="flex flex-wrap gap-2"
+          data-testid="template-languages"
+        >
+          {LOCALES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={language === option}
+              onClick={() => setLanguage(option)}
+              className={buttonVariants({
+                variant: language === option ? "default" : "outline",
+              })}
+              data-testid={`template-language-${option}`}
+            >
+              <span lang={HTML_LANG[option]}>{LOCALE_NAMES[option]}</span>
+              {draftLocales.has(option) ? (
+                <span className="text-xs font-normal opacity-80">
+                  ({t.draft})
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+        {draftLocales.has(language) ? (
+          <p
+            className="rounded-lg bg-status-expiring px-3 py-2 text-sm text-status-expiring-foreground"
+            data-testid="template-draft-note"
+          >
+            {t.draftNote}
+          </p>
+        ) : null}
+        {shown.map((item) => {
           const body = bodies[item.id] ?? "";
           const unknown = unknownVariables(body);
-          const fieldId = `${id}-${item.kind}`;
+          const fieldId = `${id}-${item.kind}-${item.locale}`;
           const invalid = errors.templates?.includes(item.id) ?? false;
           const unused = item.kind === "before_1" && second === null;
           return (
@@ -233,7 +286,8 @@ export function ReminderSettingsForm({
               </label>
               <textarea
                 id={fieldId}
-                name={`body-${item.kind}`}
+                lang={HTML_LANG[item.locale]}
+                name={`body-${item.kind}-${item.locale}`}
                 value={body}
                 maxLength={BODY_MAX}
                 rows={5}
@@ -263,6 +317,7 @@ export function ReminderSettingsForm({
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium">{t.preview}</p>
                 <p
+                  lang={HTML_LANG[item.locale]}
                   className="rounded-lg bg-muted px-3 py-2 text-sm break-words whitespace-pre-line"
                   data-testid="template-preview"
                 >

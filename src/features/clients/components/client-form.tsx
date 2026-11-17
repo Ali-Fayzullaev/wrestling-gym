@@ -17,6 +17,7 @@ import { buttonVariants, inputClassName } from "@/components/ui/variants";
 import { useLocale, useText } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import { formatDate } from "@/lib/format";
+import { HTML_LANG, type Locale, LOCALE_NAMES, LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
 import {
@@ -41,6 +42,7 @@ export type ClientFormValues = {
   groupId: string | null;
   startedOn: string;
   note: string;
+  messageLocale: Locale;
 };
 
 type Failure = Extract<ActionResult<unknown>, { ok: false }>;
@@ -273,6 +275,28 @@ export function ClientForm({
           />
         </Field>
       ) : null}
+
+      <Field
+        id={id}
+        field="messageLocale"
+        label={f.messageLocale}
+        hint={f.messageLocaleHint}
+        invalid={invalid}
+      >
+        <select
+          {...control("messageLocale", true)}
+          name={fields.messageLocale}
+          defaultValue={initial.messageLocale}
+          className={`${inputClassName} sm:max-w-[calc(50%-0.625rem)]`}
+        >
+          {LOCALES.map((option) => (
+            // Each language named in itself, as the client would recognise it.
+            <option key={option} value={option} lang={HTML_LANG[option]}>
+              {LOCALE_NAMES[option]}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id={id} field="groupId" label={f.group} invalid={invalid}>

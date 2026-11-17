@@ -62,6 +62,8 @@ const SYNONYMS: Record<ColumnKey, readonly string[]> = {
     "тугаш",
     "муддати",
   ],
+  // The language of the client's reminders (D-13).
+  locale: ["язык", "язык сообщений", "тілі", "тіл", "тили", "тил", "language"],
 };
 
 /** Lower case, "ё" as "е", anything but letters and digits as a single space. */
@@ -97,6 +99,7 @@ export function emptyMapping(): ColumnMapping {
     phone: null,
     group: null,
     endsOn: null,
+    locale: null,
   };
 }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "@/db/client";
 import type { Actor } from "@/features/auth/roles";
 import { businessDate } from "@/lib/dates";
+import { LOCALES, type Locale } from "@/lib/locale";
 import { buildWaLink } from "@/lib/whatsapp";
 
 import {
@@ -25,7 +26,9 @@ import {
   type ReminderSettingsInput,
 } from "./schema";
 import {
+  pickTemplate,
   type ReminderContact,
+  type ReminderTemplate,
   reminderValues,
   renderTemplate,
 } from "./template";
@@ -34,12 +37,19 @@ import {
 // rather than trusted.
 const kindShape = z.enum(REMINDER_KINDS);
 const statusShape = z.enum(["chat_opened", "marked_sent"]);
+const localeShape = z.enum(LOCALES);
 
 const contextShape = z.object({
   gym_name: z.string().nullable(),
   reminder_days: z.array(z.number()).nullable(),
   templates: z.array(
-    z.object({ id: z.string(), kind: kindShape, body: z.string() }),
+    z.object({
+      id: z.string(),
+      kind: kindShape,
+      locale: localeShape,
+      body: z.string(),
+      edited: z.boolean(),
+    }),
   ),
 });
 
@@ -50,6 +60,7 @@ const contactShape = z.object({
   phone: z.string(),
   phone_owner: z.enum(["self", "parent"]),
   parent_name: z.string().nullable(),
+  message_locale: localeShape,
   group_name: z.string().nullable(),
   price: z.number().nullable(),
   payment_id: z.string(),
@@ -74,7 +85,7 @@ const namedEventShape = eventShape.extend({
   first_name: z.string(),
 });
 
-export type ReminderTemplate = { id: string; kind: ReminderKind; body: string };
+export type { ReminderTemplate };
 
 export type ReminderContext = {
   gymName: string;
@@ -151,9 +162,33 @@ export function parseReminderContext(raw: unknown): ReminderContext {
   };
 }
 
+/** A reminder as the client will read it: the text and the language it is written in. */
+export type ReminderText = { text: string; locale: Locale };
+
 /**
- * The wa.me link for a reminder of `kind`: the template of that kind filled with this client's
- * data. Built on the server, so the template code never ships to the browser.
+ * The text of a reminder of `kind` for this client: the template of that kind in the client's
+ * language (or the Russian one) filled with the client's data in the template's language.
+ */
+export function buildReminderText(
+  contact: ReminderContact,
+  kind: ReminderKind,
+  context: ReminderContext,
+  today: Date,
+): ReminderText | null {
+  const template = pickTemplate(context.templates, kind, contact.messageLocale);
+  if (!template) return null;
+  return {
+    text: renderTemplate(
+      template.body,
+      reminderValues(contact, context.gymName, today, template.locale),
+    ),
+    locale: template.locale,
+  };
+}
+
+/**
+ * The wa.me link for a reminder of `kind` with the text of buildReminderText(). Built on the
+ * server, so the template code never ships to the browser.
  */
 export function buildReminderLink(
   contact: LinkContact,
@@ -161,13 +196,8 @@ export function buildReminderLink(
   context: ReminderContext,
   today: Date,
 ): string | null {
-  const template = context.templates.find((item) => item.kind === kind);
-  if (!template) return null;
-  const text = renderTemplate(
-    template.body,
-    reminderValues(contact, context.gymName, today),
-  );
-  return buildWaLink(contact.phone, text);
+  const reminder = buildReminderText(contact, kind, context, today);
+  return reminder ? buildWaLink(contact.phone, reminder.text) : null;
 }
 
 function toLinkContact(row: z.infer<typeof contactShape>): LinkContact {
@@ -175,6 +205,7 @@ function toLinkContact(row: z.infer<typeof contactShape>): LinkContact {
     firstName: row.first_name,
     phoneOwner: row.phone_owner,
     parentName: row.parent_name,
+    messageLocale: row.message_locale,
     groupName: row.group_name,
     price: row.price,
     endsOn: row.ends_on,

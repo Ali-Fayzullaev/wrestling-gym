@@ -8,6 +8,7 @@ import {
   type ReminderContext,
 } from "@/features/reminders/service";
 import { businessDate } from "@/lib/dates";
+import { LOCALES } from "@/lib/locale";
 
 // Shape of today_screen() (supabase/migrations/*_today_screen.sql). The database returns jsonb, so
 // the reply is checked rather than trusted. Counters come from dashboard_counts() inside it and are
@@ -28,6 +29,7 @@ const reminderShape = z.object({
   phone: z.string(),
   phone_owner: z.enum(["self", "parent"]),
   parent_name: z.string().nullable(),
+  message_locale: z.enum(LOCALES),
 });
 
 const screenShape = z.object({
@@ -98,6 +100,7 @@ function toRemindRow(
     firstName: row.first_name,
     phoneOwner: reminder.phone_owner,
     parentName: reminder.parent_name,
+    messageLocale: reminder.message_locale,
     groupName: row.group_name,
     price: row.price,
     endsOn: row.ends_on,

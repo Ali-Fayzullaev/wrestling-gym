@@ -44,6 +44,38 @@ describe("describeAuditEntry", () => {
     expect([...grouped].sort()).toEqual([...AUDIT_ACTIONS].sort());
   });
 
+  it("template text: the kind and, since step 19, its language", () => {
+    const describeTemplate = (details: Record<string, unknown>) =>
+      describeAuditEntry(
+        RU,
+        entry({
+          action: "template.update",
+          entity: "message_template",
+          details,
+        }),
+        NOW,
+      ).details;
+    expect(
+      describeTemplate({ fields: ["body"], kind: "overdue", locale: "kk" }),
+    ).toEqual(["в день окончания, Қазақша"]);
+    // Entries written before step 19 have no language.
+    expect(describeTemplate({ fields: ["body"], kind: "overdue" })).toEqual([
+      "в день окончания",
+    ]);
+    expect(
+      describeTemplate({ fields: ["body"], kind: "overdue", locale: "en" }),
+    ).toEqual(["в день окончания"]);
+  });
+
+  it("client: a changed message language is named in plain words", () => {
+    const result = describeAuditEntry(
+      RU,
+      entry({ details: { fields: ["message_locale"] } }),
+      NOW,
+    );
+    expect(result.details).toEqual(["Изменено: язык сообщений"]);
+  });
+
   it("payment: amount, method, period and a link to the client", () => {
     const result = describeAuditEntry(
       RU,

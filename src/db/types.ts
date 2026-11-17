@@ -59,14 +59,14 @@ isOneToOne: false
                   ]
                 },"clients": {
                   Row: {
-                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"deleted_at": string | null,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"note": string,"parent_name": string | null,"phone": string,"phone_owner": string,"search_text": string | null,"started_on": string,"updated_at": string
+                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"deleted_at": string | null,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"message_locale": string,"note": string,"parent_name": string | null,"phone": string,"phone_owner": string,"search_text": string | null,"started_on": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"note"?: string,"parent_name"?: string | null,"phone": string,"phone_owner": string,"search_text"?: never,"started_on": string,"updated_at"?: string
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"message_locale"?: string,"note"?: string,"parent_name"?: string | null,"phone": string,"phone_owner": string,"search_text"?: never,"started_on": string,"updated_at"?: string
                   }
                   Update: {
-                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"note"?: string,"parent_name"?: string | null,"phone"?: string,"phone_owner"?: string,"search_text"?: never,"started_on"?: string,"updated_at"?: string
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"message_locale"?: string,"note"?: string,"parent_name"?: string | null,"phone"?: string,"phone_owner"?: string,"search_text"?: never,"started_on"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -131,14 +131,14 @@ isOneToOne: false
                   ]
                 },"message_templates": {
                   Row: {
-                    "body": string,"id": string,"kind": string,"name": string,"updated_at": string,"updated_by": string | null
+                    "body": string,"id": string,"kind": string,"locale": string,"name": string,"updated_at": string,"updated_by": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "body": string,"id"?: string,"kind": string,"name": string,"updated_at"?: string,"updated_by"?: string | null
+                    "body": string,"id"?: string,"kind": string,"locale"?: string,"name": string,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Update: {
-                    "body"?: string,"id"?: string,"kind"?: string,"name"?: string,"updated_at"?: string,"updated_by"?: string | null
+                    "body"?: string,"id"?: string,"kind"?: string,"locale"?: string,"name"?: string,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -327,7 +327,7 @@ isOneToOne: false
 { Args: { "p_staff_id": string }; Returns: undefined
                            },
 "create_client":
-{ Args: { "p_birth_date"?: string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: string
+{ Args: { "p_birth_date"?: string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: string
                            },
 "create_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_name": string,"p_schedule": Json }; Returns: string
@@ -437,6 +437,9 @@ isOneToOne: false
 "reminder_settings_screen":
 { Args: { "p_today"?: string }; Returns: Json
                            },
+"reminder_template_for":
+{ Args: { "p_client_id": string,"p_kind": string }; Returns: string
+                           },
 "reminders_due":
 { Args: { "p_today"?: string }; Returns: {
               "client_id": string,"ends_on": string,"kind": string,"payment_id": string
@@ -472,7 +475,7 @@ isOneToOne: false
 { Args: { "p_today"?: string }; Returns: Json
                            },
 "update_client":
-{ Args: { "p_birth_date"?: string,"p_client_id": string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: undefined
+{ Args: { "p_birth_date"?: string,"p_client_id": string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: undefined
                            },
 "update_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_group_id": string,"p_name": string,"p_schedule": Json }; Returns: undefined

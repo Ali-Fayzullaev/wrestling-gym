@@ -130,7 +130,8 @@ describe("screens: at most two database requests, links built on the server", ()
     expect(counter.rest).toBe(3);
     const settings = await getReminderSettings(db, now);
     expect(counter.rest).toBe(4);
-    expect(settings.context.templates).toHaveLength(3);
+    // Three kinds in three languages (D-13).
+    expect(settings.context.templates).toHaveLength(9);
     expect(settings.preview?.name).toMatch(/^\S+ \S+/);
   });
 

@@ -1,7 +1,7 @@
 import { fmt } from "@/i18n/format";
 import type { I18n, Messages } from "@/i18n/messages";
 import { formatDate, formatMoney, formatMonth } from "@/lib/format";
-import type { Locale } from "@/lib/locale";
+import { isLocale, type Locale, LOCALE_NAMES } from "@/lib/locale";
 
 import type { AuditAction } from "./actions";
 
@@ -178,8 +178,16 @@ function detailLines(context: Context, entry: AuditEntry): (string | null)[] {
     }
     case "settings.update":
       return settingsDetails(context, details);
-    case "template.update":
-      return [label(t.templateKinds, text(details.kind))];
+    case "template.update": {
+      const kind = label(t.templateKinds, text(details.kind));
+      // Since step 19 the entry also names the template's language (D-13).
+      const language = text(details.locale);
+      return [
+        kind && isLocale(language)
+          ? fmt(t.templateLocale, { kind, language: LOCALE_NAMES[language] })
+          : kind,
+      ];
+    }
     case "report.export":
       return exportDetails(context, details, entry.entity);
     case "staff.invite": {

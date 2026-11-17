@@ -540,7 +540,7 @@ describe("criterion 5: only the owner changes templates and days", () => {
         action: "template.update",
         entity: "message_template",
         entity_id: result.before7,
-        details: { fields: ["body"], kind: "before_7" },
+        details: { fields: ["body"], kind: "before_7", locale: "ru" },
       },
     ]);
     expect(JSON.stringify(result.audit)).not.toContain("Секретная");
@@ -806,12 +806,15 @@ describe("client card and settings screen", () => {
     expect(reminders[0]?.marked_sent_by_name).toBe("Нурлан Тестов");
   });
 
-  it("reminder_settings_screen: days, three templates and a real client with a group", async () => {
+  it("reminder_settings_screen: days, three templates per language and a real client with a group", async () => {
     const screen = await asActor(sql, owner, async (tx) => {
       const [row] = await tx<
         {
           s: {
-            context: { reminder_days: number[]; templates: { kind: string }[] };
+            context: {
+              reminder_days: number[];
+              templates: { kind: string; locale: string; edited: boolean }[];
+            };
             preview: Contact | null;
           };
         }[]
@@ -819,11 +822,17 @@ describe("client card and settings screen", () => {
       return row?.s;
     });
     expect(screen?.context.reminder_days).toEqual([7, 1]);
-    expect(screen?.context.templates.map((t) => t.kind).sort()).toEqual([
-      "before_1",
-      "before_7",
-      "overdue",
-    ]);
+    // Ordered by kind, then language. Other suites edit (and put back) Russian texts only, so the
+    // shipped Kazakh and Uzbek drafts are still unedited.
+    const templates = screen?.context.templates ?? [];
+    expect(templates.map((t) => `${t.kind}:${t.locale}`)).toEqual(
+      ["before_1", "before_7", "overdue"].flatMap((kind) =>
+        ["kk", "ru", "uz"].map((locale) => `${kind}:${locale}`),
+      ),
+    );
+    expect(
+      templates.filter((t) => t.locale !== "ru").map((t) => t.edited),
+    ).toEqual(Array(6).fill(false));
     expect(screen?.preview?.group_name).toBeTruthy();
     expect(screen?.preview?.price).toBeGreaterThan(0);
   });

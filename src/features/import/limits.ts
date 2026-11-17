@@ -21,6 +21,7 @@ export const COLUMN_KEYS = [
   "phone",
   "group",
   "endsOn",
+  "locale",
 ] as const;
 export type ColumnKey = (typeof COLUMN_KEYS)[number];
 

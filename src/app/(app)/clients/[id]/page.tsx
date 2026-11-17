@@ -20,6 +20,7 @@ import { getClient } from "@/features/clients/service";
 import { PayButton } from "@/features/payments/components/pay-button";
 import { PaymentEntryActions } from "@/features/payments/components/payment-entry-actions";
 import { ReminderHistoryList } from "@/features/reminders/components/reminder-history-list";
+import { WhatsAppButton } from "@/features/reminders/components/whatsapp-button";
 import {
   buildHistory,
   canCancel,
@@ -31,8 +32,10 @@ import { fmt } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { Texts } from "@/i18n/texts";
 import { formatDate, formatTime } from "@/lib/format";
+import { HTML_LANG, LOCALE_NAMES } from "@/lib/locale";
 import { formatPhone } from "@/lib/phone";
 
+import { openReminderAction } from "../../reminders/actions";
 import { deleteClientAction, setClientArchivedAction } from "../actions";
 import { BackLink } from "@/components/back-link";
 import {
@@ -52,6 +55,7 @@ export default async function ClientPage({
 }: PageProps<"/clients/[id]">) {
   const { t: messages, locale } = await getI18n();
   const clientsText = messages.clients;
+  const remindersText = messages.reminders;
   const paymentsText = messages.payments;
   const c = messages.clients.card;
   const actor = await requireStaff(STAFF_ROLES);
@@ -209,6 +213,11 @@ export default async function ClientPage({
             <Row label={c.startedOn}>
               <DateText date={client.startedOn} today={now} locale={locale} />
             </Row>
+            <Row label={c.messageLocale}>
+              <span lang={HTML_LANG[client.messageLocale]}>
+                {LOCALE_NAMES[client.messageLocale]}
+              </span>
+            </Row>
           </dl>
         </Section>
 
@@ -233,6 +242,45 @@ export default async function ClientPage({
             })}
           </dl>
         </Section>
+
+        {screen.reminder && !client.archived ? (
+          <Section title={c.reminderPreview} className="lg:col-span-2">
+            <p className="text-sm text-muted-foreground">
+              {remindersText.kindShort[screen.reminder.kind]}
+              {" · "}
+              <span lang={HTML_LANG[screen.reminder.locale]}>
+                {LOCALE_NAMES[screen.reminder.locale]}
+              </span>
+            </p>
+            <p
+              lang={HTML_LANG[screen.reminder.locale]}
+              className="rounded-lg bg-muted px-3 py-2 text-sm break-words whitespace-pre-line"
+              data-testid="reminder-preview"
+            >
+              {screen.reminder.text}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {c.reminderPreviewHint}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:w-[17rem]">
+              <WhatsAppButton
+                href={screen.reminder.href}
+                target={{
+                  paymentId: screen.reminder.paymentId,
+                  kind: screen.reminder.kind,
+                }}
+                labels={{
+                  whatsapp: remindersText.whatsapp,
+                  chatOpened: remindersText.chatOpened,
+                  recordFailed: remindersText.recordFailed,
+                  retry: remindersText.retry,
+                }}
+                open={openReminderAction}
+                variant="outline"
+              />
+            </div>
+          </Section>
+        ) : null}
 
         <Section title={c.note} className="lg:col-span-2">
           <p className="text-sm break-words whitespace-pre-line">

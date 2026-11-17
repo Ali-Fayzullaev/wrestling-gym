@@ -268,6 +268,10 @@ export const uz: Messages = {
       remindersEmpty: "Ҳозирча эслатма бўлмаган",
       remindersEmptyText:
         "Ходим эслатмали WhatsApp чатини очганда бу ерда сана, тури ва ким очгани чиқади.",
+      messageLocale: "Хабарлар тили",
+      reminderPreview: "Эслатма матни",
+      reminderPreviewHint:
+        "Мижоз эслатмани ўз тилида шундай ўқийди. Тугма WhatsApp’ни шу матн билан очади, юборишни ўзингиз қиласиз.",
       consents: "Розиликлар",
       consentGiven: "{date}, қайд этган: {by}",
       consentMissing: "Олинмаган",
@@ -371,6 +375,9 @@ export const uz: Messages = {
     startedOn: "Машғулот бошланган сана",
     note: "Изоҳ",
     noteHint: "Барча ходимлар кўради. 2000 белгигача.",
+    messageLocale: "Хабарлар тили",
+    messageLocaleHint:
+      "Мижозга WhatsApp’даги эслатмалар шу тилда боради. Ходимнинг интерфейси ўзгармайди.",
     consents: "Розиликлар",
     // STUB(D-10): тексты согласий временные, пока их не проверит юрист.
     consentsHint:
@@ -400,6 +407,7 @@ export const uz: Messages = {
       groupId: "Рўйхатдан гуруҳ танланг.",
       startedOn: "Машғулот бошланган санани кўрсатинг.",
       note: "Изоҳ жуда узун: 2000 белгигача.",
+      messageLocale: "Рўйхатдан тилни танланг.",
       consents: "Рўйхатдан розиликларни белгиланг.",
     },
   },
@@ -535,9 +543,12 @@ export const uz: Messages = {
       lastDayNote:
         "Абонемент тугаган куни эслатма ҳар доим бор, унинг матни пастда.",
       templates: "Хабар матнлари",
-      // STUB(D-13): шаблоны одноязычные; язык клиента и три версии шаблона ждут решения.
       templatesLanguageNote:
-        "Мижозга хабар шаблонни қайси тилда ёзган бўлсангиз, ўша тилда боради.",
+        "Мижозга матн ўз тилида боради: тил мижоз карточкасида танланади. Бу тилда матн бўлмаса, русча боради.",
+      languages: "Матн тили",
+      draft: "қоралама",
+      draftNote:
+        "Таржима қоралама: текшириб чиқинг ёки тил эгасидан сўранг. Ўз матнингизни сақласангиз, белги йўқолади.",
       variablesTitle: "Матнга нима қўйилади",
       // Ключи: имена переменных в шаблонах, их не переводить.
       variables: {
@@ -618,6 +629,7 @@ export const uz: Messages = {
         phone: "Телефон",
         group: "Гуруҳ",
         endsOn: "Абонемент тугаш санаси",
+        locale: "Хабарлар тили",
       },
       none: "Файлда йўқ",
       column: "{number}-устун",
@@ -660,6 +672,8 @@ export const uz: Messages = {
         phone_missing: "Телефон йўқ",
         phone_invalid: "Телефон нотўғри: +7 7XX XXX XX XX рақами керак",
         date_invalid: "Сана нотўғри: 18.11.2025 формати керак",
+        locale_invalid:
+          "Тил нотўғри: ru, kk ёки uz керак (русский, қазақша, ўзбекча)",
       },
     },
     groups: {
@@ -696,13 +710,14 @@ export const uz: Messages = {
     },
     template: {
       fileName: "mijozlarni-import-shabloni.csv",
-      headers: ["Фамилия", "Исм", "Телефон", "Гуруҳ", "Тугаш санаси"],
+      headers: ["Фамилия", "Исм", "Телефон", "Гуруҳ", "Тугаш санаси", "Тили"],
       example: [
         "Каримов",
         "Алишер",
         "+7 701 000 00 00",
         "Болалар 7-9 ёш",
         "18.11.2025",
+        "ўзбекча",
       ],
     },
     skippedFileName: "import-xatolari.csv",
@@ -871,6 +886,7 @@ export const uz: Messages = {
       gym_whatsapp: "залнинг WhatsApp рақами",
       reminder_days: "эслатма кунлари",
       body: "матн",
+      message_locale: "хабарлар тили",
     },
     methods: { cash: "нақд", kaspi: "Kaspi", transfer: "ўтказма" },
     formats: { xlsx: "Excel", csv: "CSV" },
@@ -880,6 +896,7 @@ export const uz: Messages = {
       before_1: "иккинчи эслатма",
       overdue: "тугаш кунида",
     },
+    templateLocale: "{kind}, {language}",
     deleteReasons: {
       duplicate: "такрор",
       created_by_mistake: "хато билан яратилган",

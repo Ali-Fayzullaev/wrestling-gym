@@ -45,6 +45,7 @@ describe("buildPreview", () => {
       groupName: "взрослые вечер",
       groupId: GROUP_ID,
       endsOn: "2025-11-18",
+      messageLocale: "ru",
       status: "new",
       errors: [],
       duplicateOf: null,
@@ -84,5 +85,52 @@ describe("buildPreview", () => {
       context,
     );
     expect(row).toMatchObject({ status: "error", errors: ["name_too_long"] });
+  });
+});
+
+describe("buildPreview: message language column", () => {
+  const headers = [...HEADERS, "Язык"];
+  const rows = buildPreview(
+    {
+      headers,
+      rows: [
+        ["Сериков", "Әлихан", "87019990011", "", "", "қазақша"],
+        ["Каримов", "Жасур", "87019990012", "", "", "uz"],
+        ["Иванов", "Пётр", "87019990013", "", "", ""],
+        ["Плохой", "Язык", "87019990014", "", "", "английский"],
+      ].map((cells, i) => ({ line: i + 2, cells })),
+    },
+    matchHeaders(headers),
+    context,
+  );
+
+  it("sets the language of each row; an empty cell means Russian", () => {
+    expect(rows.map((row) => row.messageLocale)).toEqual([
+      "kk",
+      "uz",
+      "ru",
+      "ru",
+    ]);
+    expect(rows.slice(0, 3).map((row) => row.status)).toEqual([
+      "new",
+      "new",
+      "new",
+    ]);
+  });
+
+  it("makes an unknown language a row error in the preview", () => {
+    expect(rows[3]).toMatchObject({
+      status: "error",
+      errors: ["locale_invalid"],
+    });
+  });
+
+  it("reads every row as Russian without the column", () => {
+    const [row] = buildPreview(
+      table([["Сериков", "Әлихан", "87019990011", "", ""]]),
+      matchHeaders(HEADERS),
+      context,
+    );
+    expect(row).toMatchObject({ status: "new", messageLocale: "ru" });
   });
 });

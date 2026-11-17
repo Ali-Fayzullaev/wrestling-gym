@@ -9,6 +9,7 @@ import { listActiveGroups } from "@/features/clients/service";
 import { getI18n } from "@/i18n/server";
 import { Texts } from "@/i18n/texts";
 import { businessDate } from "@/lib/dates";
+import { DEFAULT_LOCALE } from "@/lib/locale";
 
 import { checkPhoneAction, createClientAction } from "../actions";
 import { BackLink } from "@/components/back-link";
@@ -44,6 +45,7 @@ export default async function NewClientPage() {
             groupId: null,
             startedOn: businessDate(now),
             note: "",
+            messageLocale: DEFAULT_LOCALE,
           }}
           groups={groups}
           archivedGroup={null}
