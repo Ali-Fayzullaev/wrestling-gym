@@ -1,4 +1,4 @@
-// Draws the mascot, a young freestyle wrestler in ear guards and a red singlet, in every mood the
+// Draws the mascot, a young Greco-Roman wrestler in ear guards and a red singlet, in every mood the
 // interface uses, and writes them to public/mascot/<mood>.svg. The files are plain images: no
 // JavaScript, cached by the browser, the same for every language. Run after changing a part:
 //   pnpm mascot:build
