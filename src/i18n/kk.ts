@@ -272,7 +272,7 @@ export const kk: Messages = {
       messageLocale: "Хабарлама тілі",
       reminderPreview: "Ескерту мәтіні",
       reminderPreviewHint:
-        "Клиент ескертуді өз тілінде осылай оқиды. Түйме WhatsApp-ты осы мәтінмен ашады, жіберетін өзіңіз.",
+        "Клиент ескертуді осылай оқиды. Түйме WhatsApp-ты осы мәтінмен ашады, жіберетін өзіңіз.",
       consents: "Келісімдер",
       consentGiven: "{date}, тіркеген: {by}",
       consentMissing: "Алынбаған",
@@ -492,6 +492,13 @@ export const kk: Messages = {
     recordFailed: "Чаттың ашылғанын жазу мүмкін болмады.",
     markFailed: "Белгіні сақтау мүмкін болмады. Қайталап көріңіз.",
     retry: "Қайталау",
+    sendLanguage: {
+      label: "Хабарлама тілі",
+      sendingIn: "Хабарлама тілі: {language}",
+      draft: "жоба",
+      hint: "Тіл тек осы хабарламаға таңдалды. Клиенттің тілі карточкада өзгертіледі.",
+      showText: "Хабарлама мәтіні",
+    },
     kinds: {
       first: { other: "Бірінші ескерту ({count} күн бұрын)" },
       second: { other: "Екінші ({count} күн бұрын)" },

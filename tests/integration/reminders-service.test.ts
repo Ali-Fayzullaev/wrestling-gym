@@ -115,7 +115,16 @@ describe("screens: at most two database requests, links built on the server", ()
     const screen = await getTodayScreen(db, new Date());
     expect(screen.remind).toHaveLength(screen.counts.remindToday);
     for (const row of screen.remind) {
-      expect(row.reminder.href).toMatch(/^https:\/\/wa\.me\/77\d{9}\?text=/);
+      // Step 20 (D-17): a ready link in every language, the card's language picked first.
+      const message = row.reminder.message;
+      expect(message?.defaultLocale).toMatch(/^(ru|kk|uz)$/);
+      for (const variant of Object.values(message?.variants ?? {})) {
+        expect(variant.href).toMatch(/^https:\/\/wa\.me\/77\d{9}\?text=/);
+        expect(decodedText(variant.href)).toBe(variant.text);
+      }
+      expect(message?.variants.ru.text).toContain("Здравствуйте");
+      expect(message?.variants.kk.text).toContain("Сәлеметсіз бе");
+      expect(message?.variants.uz.text).toContain("Ассалому алайкум");
       expect(row.reminder.paymentId).toMatch(/^[0-9a-f-]{36}$/);
     }
   });
@@ -183,6 +192,28 @@ describe("chat opened and marked sent through the service", () => {
       ok: true,
       data: { status: "marked_sent", changed: false },
     });
+  });
+
+  it("step 20: the chosen language reaches the database, the card keeps its own", async () => {
+    const paymentId = await archivedSubscription();
+    const { db } = await signedIn(SEED_EMAILS.admin);
+    // Committed: before_7, whose templates no test removes (the step 19 test deletes overdue/kk).
+    const opened = await openReminder(db, ADMIN, {
+      paymentId,
+      kind: "before_7",
+      locale: "kk",
+    });
+    if (!opened.ok) throw new Error("open failed");
+    const [row] = await sql<
+      { template_locale: string; client_locale: string }[]
+    >`
+      select t.locale as template_locale, c.message_locale as client_locale
+      from public.reminder_events e
+      join public.message_templates t on t.id = e.template_id
+      join public.clients c on c.id = e.client_id
+      where e.id = ${opened.data.id}
+    `;
+    expect(row).toEqual({ template_locale: "kk", client_locale: "ru" });
   });
 
   it("reports an unknown payment or event as not_found", async () => {

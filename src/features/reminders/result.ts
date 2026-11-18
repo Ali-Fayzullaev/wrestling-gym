@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/locale";
+
 import type { ReminderKind, ReminderStatus } from "./kinds";
 
 /** Errors a reminder action can report to the screen: codes only, never internal details. */
@@ -39,5 +41,12 @@ export type SettingsResult =
   | { ok: true; daysChanged: boolean; templatesChanged: number }
   | { ok: false; error: ReminderError; fields?: SettingsFieldErrors };
 
-/** Arguments of the "chat opened" action: which subscription and which reminder. */
-export type OpenReminderInput = { paymentId: string; kind: ReminderKind };
+/**
+ * Arguments of the "chat opened" action: which subscription, which reminder and the language it
+ * went out in (D-17; absent means the client's language from the card).
+ */
+export type OpenReminderInput = {
+  paymentId: string;
+  kind: ReminderKind;
+  locale?: Locale;
+};

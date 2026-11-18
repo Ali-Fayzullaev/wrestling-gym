@@ -420,7 +420,7 @@ isOneToOne: false
 { Args: { "p_amount": number,"p_client_id": string,"p_idempotency_key": string,"p_method": string,"p_months"?: number,"p_period_end"?: string }; Returns: Json
                            },
 "record_reminder_opened":
-{ Args: { "p_kind": string,"p_payment_id": string }; Returns: Json
+{ Args: { "p_kind": string,"p_locale"?: string,"p_payment_id": string }; Returns: Json
                            },
 "reminder_contact_json":
 { Args: { "p_client": Omit<Database["public"]['Tables']["clients"]['Row'], Database["public"]['Tables']["clients"]['ComputedFields']>,"p_ends_on": string,"p_group_name": string,"p_kind": string,"p_payment_id": string,"p_price": number }; Returns: Json
@@ -438,7 +438,7 @@ isOneToOne: false
 { Args: { "p_today"?: string }; Returns: Json
                            },
 "reminder_template_for":
-{ Args: { "p_client_id": string,"p_kind": string }; Returns: string
+{ Args: { "p_client_id": string,"p_kind": string,"p_locale"?: string }; Returns: string
                            },
 "reminders_due":
 { Args: { "p_today"?: string }; Returns: {

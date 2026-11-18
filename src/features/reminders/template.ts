@@ -78,10 +78,15 @@ export type ReminderTemplate = {
   edited: boolean;
 };
 
+/** A shipped Kazakh or Uzbek text nobody has edited yet: a draft translation (D-13). */
+export function isDraftTemplate(template: ReminderTemplate): boolean {
+  return template.locale !== DEFAULT_LOCALE && !template.edited;
+}
+
 /**
- * The template of `kind` in the client's language, or the Russian one when that language has
- * none; null without either. The same rule as reminder_template_for() in the database, which
- * records the template of an opened chat.
+ * The template of `kind` in `locale` (the client's language, or the one chosen for this message),
+ * or the Russian one when that language has none; null without either. The same rule as
+ * reminder_template_for() in the database, which records the template of an opened chat.
  */
 export function pickTemplate(
   templates: readonly ReminderTemplate[],

@@ -100,6 +100,24 @@ describe("openReminderSchema", () => {
       openReminderSchema.safeParse({ paymentId: "1", kind: "overdue" }).success,
     ).toBe(false);
   });
+
+  it("step 20: takes ru, kk or uz as the language of this message, or none", () => {
+    for (const locale of ["ru", "kk", "uz"]) {
+      expect(
+        openReminderSchema.safeParse({ paymentId: ID, kind: "overdue", locale })
+          .data?.locale,
+      ).toBe(locale);
+    }
+    expect(
+      openReminderSchema.safeParse({ paymentId: ID, kind: "overdue" }).data,
+    ).toEqual({ paymentId: ID, kind: "overdue" });
+    for (const locale of ["en", "uz-Cyrl", "", null, 1]) {
+      expect(
+        openReminderSchema.safeParse({ paymentId: ID, kind: "overdue", locale })
+          .success,
+      ).toBe(false);
+    }
+  });
 });
 
 describe("historyFilterSchema", () => {

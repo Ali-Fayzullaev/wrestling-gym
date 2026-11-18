@@ -20,7 +20,7 @@ import { getClient } from "@/features/clients/service";
 import { PayButton } from "@/features/payments/components/pay-button";
 import { PaymentEntryActions } from "@/features/payments/components/payment-entry-actions";
 import { ReminderHistoryList } from "@/features/reminders/components/reminder-history-list";
-import { WhatsAppButton } from "@/features/reminders/components/whatsapp-button";
+import { ReminderComposer } from "@/features/reminders/components/send-language";
 import {
   buildHistory,
   canCancel,
@@ -247,38 +247,23 @@ export default async function ClientPage({
           <Section title={c.reminderPreview} className="lg:col-span-2">
             <p className="text-sm text-muted-foreground">
               {remindersText.kindShort[screen.reminder.kind]}
-              {" · "}
-              <span lang={HTML_LANG[screen.reminder.locale]}>
-                {LOCALE_NAMES[screen.reminder.locale]}
-              </span>
             </p>
-            <p
-              lang={HTML_LANG[screen.reminder.locale]}
-              className="rounded-lg bg-muted px-3 py-2 text-sm break-words whitespace-pre-line"
-              data-testid="reminder-preview"
-            >
-              {screen.reminder.text}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {c.reminderPreviewHint}
-            </p>
-            <div className="grid grid-cols-2 gap-2 sm:w-[17rem]">
-              <WhatsAppButton
-                href={screen.reminder.href}
-                target={{
-                  paymentId: screen.reminder.paymentId,
-                  kind: screen.reminder.kind,
-                }}
-                labels={{
-                  whatsapp: remindersText.whatsapp,
-                  chatOpened: remindersText.chatOpened,
-                  recordFailed: remindersText.recordFailed,
-                  retry: remindersText.retry,
-                }}
-                open={openReminderAction}
-                variant="outline"
-              />
-            </div>
+            <ReminderComposer
+              message={screen.reminder.message}
+              target={{
+                paymentId: screen.reminder.paymentId,
+                kind: screen.reminder.kind,
+              }}
+              labels={remindersText.sendLanguage}
+              whatsappLabels={{
+                whatsapp: remindersText.whatsapp,
+                chatOpened: remindersText.chatOpened,
+                recordFailed: remindersText.recordFailed,
+                retry: remindersText.retry,
+              }}
+              hint={c.reminderPreviewHint}
+              open={openReminderAction}
+            />
           </Section>
         ) : null}
 
