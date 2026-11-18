@@ -41,7 +41,11 @@ export type ClientRow = {
   id: string;
   lastName: string;
   firstName: string;
-  phone: string;
+  /** Null for a child without a phone of their own. */
+  phone: string | null;
+  /** A child's parent: the search finds the child by the parent's name or phone too. */
+  parentName: string | null;
+  parentPhone: string | null;
   groupId: string | null;
   archived: boolean;
   status: SubscriptionStatus;
@@ -115,7 +119,10 @@ export type IndexedRow = ClientRow & { search: Searchable };
 export function indexRows(rows: ClientRow[]): IndexedRow[] {
   return rows.map((row) => ({
     ...row,
-    search: toSearchable(`${row.lastName} ${row.firstName}`, row.phone),
+    search: toSearchable(
+      [row.lastName, row.firstName, row.parentName ?? ""].join(" "),
+      [row.phone, row.parentPhone],
+    ),
   }));
 }
 

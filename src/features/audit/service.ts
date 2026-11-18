@@ -67,6 +67,7 @@ const entryShape = z.object({
   client_name: z.string().nullable(),
   group_name: z.string().nullable(),
   staff_name: z.string().nullable(),
+  parent_name: z.string().nullable(),
 });
 
 const feedShape = z.object({
@@ -111,6 +112,7 @@ export async function getAuditFeed(
     clientName: row.client_name,
     groupName: row.group_name,
     staffName: row.staff_name,
+    parentName: row.parent_name,
   }));
   return {
     entries,

@@ -32,9 +32,10 @@ export const paymentRowShape = z.object({
 export const clientRowShape = z.object({
   last_name: z.string(),
   first_name: z.string(),
-  phone: z.string(),
-  phone_owner: z.enum(["self", "parent"]),
+  // A child may have no phone of their own; the parent's is in its own column (D-18).
+  phone: z.string().nullable(),
   parent_name: z.string().nullable(),
+  parent_phone: z.string().nullable(),
   birth_date: z.string().nullable(),
   group_name: z.string().nullable(),
   started_on: z.string(),
@@ -88,13 +89,13 @@ export function clientsTable(
   const t = texts.file;
   return {
     header: t.clientsHeader,
-    widths: [16, 14, 14, 11, 16, 12, 20, 12, 15, 12, 8, 30],
+    widths: [16, 14, 14, 16, 14, 12, 20, 12, 15, 12, 8, 30],
     rows: rows.map((row) => [
       row.last_name,
       row.first_name,
       row.phone,
-      t.phoneOwners[row.phone_owner],
       row.parent_name,
+      row.parent_phone,
       row.birth_date,
       row.group_name,
       row.started_on,

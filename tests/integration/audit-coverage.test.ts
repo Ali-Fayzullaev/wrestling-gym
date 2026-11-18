@@ -16,6 +16,7 @@ import {
   updateClient,
 } from "@/features/clients/service";
 import { groupInputSchema } from "@/features/groups/schema";
+import { updateParent } from "@/features/parents/service";
 import {
   archiveGroup,
   createGroup,
@@ -71,6 +72,8 @@ const NEW_FIRST_NAME = `Изменён${RUN}`;
 const NOTE = `заметка-${RUN}`;
 const REASON = `причина-сторно-${RUN}`;
 const IMPORT_NAME = `Импортов${RUN}`;
+const PARENT_NAME = `Родитель${RUN}`;
+const NEW_PARENT_NAME = `Родительница${RUN}`;
 const STAFF_NAME = `Приглашённый ${RUN}`;
 const GYM_NAME = `Зал ${RUN}`;
 const TEMPLATE_TAIL = ` ${RUN}-хвост`;
@@ -78,7 +81,7 @@ const INVITE_EMAIL = `invite-${randomUUID()}@example.test`;
 const TEMP_PASSWORD = `temp-${RUN}-${randomUUID()}`;
 const RESET_PASSWORD = `reset-${RUN}-${randomUUID()}`;
 const phone = () => `+7704${String(randomInt(1e7)).padStart(7, "0")}`;
-const PHONES = [phone(), phone(), phone()] as const;
+const PHONES = [phone(), phone(), phone(), phone()] as const;
 
 /** Values that must never reach audit_log.details. */
 const SECRETS = [
@@ -88,6 +91,8 @@ const SECRETS = [
   NOTE,
   REASON,
   IMPORT_NAME,
+  PARENT_NAME,
+  NEW_PARENT_NAME,
   STAFF_NAME,
   GYM_NAME,
   TEMPLATE_TAIL.trim(),
@@ -108,6 +113,7 @@ const state: {
   clients: string[];
   paymentId?: string;
   invitedId?: string;
+  parentId?: string;
 } = { clients: [] };
 
 function freshClient(): Db {
@@ -131,8 +137,7 @@ function clientInput(first: string, phoneNumber: string) {
     firstName: first,
     birthDate: "",
     phone: phoneNumber,
-    phoneOwner: "self",
-    parentName: "",
+    kind: "adult",
     groupId: SEED_GROUP,
     startedOn: "2026-11-01",
     note: NOTE,
@@ -250,6 +255,43 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
   "client.create": async () => {
     await newClient(FIRST_NAME, PHONES[0]);
     await newClient(FIRST_NAME, PHONES[1]);
+  },
+  "parent.create": async () => {
+    // A child entered together with a new parent: two audit rows, ids only.
+    const child = clientInputSchema.parse({
+      lastName: LAST_NAME,
+      firstName: FIRST_NAME,
+      birthDate: "",
+      phone: "",
+      kind: "child",
+      parentMode: "new",
+      newParentName: PARENT_NAME,
+      newParentPhone: PHONES[3],
+      newParentLocale: "kk",
+      groupId: SEED_GROUP,
+      startedOn: "2026-11-01",
+      note: NOTE,
+      messageLocale: "ru",
+      consents: [],
+    });
+    const { id } = must(await createClient(db, actor, child));
+    const { data, error } = await service
+      .from("clients")
+      .select("parent_id")
+      .eq("id", id)
+      .single();
+    if (error) throw new Error(`child read failed: ${error.code}`);
+    state.parentId = defined(data.parent_id ?? undefined);
+  },
+  "parent.update": async () => {
+    must(
+      await updateParent(db, actor, defined(state.parentId), {
+        name: NEW_PARENT_NAME,
+        phone: PHONES[3],
+        messageLocale: "uz",
+        note: NOTE,
+      }),
+    );
   },
   "client.update": async () => {
     must(
@@ -460,6 +502,13 @@ describe("criterion 1: every mutating action writes an audit row without persona
   it("no audit row of the run holds a name, phone, email, note, reason or text", () => {
     const text = JSON.stringify(rows);
     for (const secret of SECRETS) expect(text).not.toContain(secret);
+  });
+
+  it("parent.update names the changed fields, never their values", () => {
+    const updated = rows.find((row) => row.action === "parent.update");
+    expect(updated?.details).toEqual({
+      fields: ["parent_name", "message_locale", "note"],
+    });
   });
 
   it("client.import records counts, not rows", () => {

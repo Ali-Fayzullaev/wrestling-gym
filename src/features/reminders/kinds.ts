@@ -2,6 +2,13 @@
 export const REMINDER_KINDS = ["before_7", "before_1", "overdue"] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
 
+/**
+ * Kinds of a template: the reminder kinds, and "family", the one message to a parent with several
+ * children due on the same day (D-18). Events keep the reminder kind of each child.
+ */
+export const TEMPLATE_KINDS = [...REMINDER_KINDS, "family"] as const;
+export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
+
 export type ReminderStatus = "chat_opened" | "marked_sent";
 
 /**

@@ -1,15 +1,18 @@
 import { z } from "zod";
 
-import { LOCALES } from "@/lib/locale";
+import { DEFAULT_LOCALE, type Locale, LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
 import {
+  CLIENT_KINDS,
   clientFormFields,
+  type ClientKind,
   CONSENT_KINDS,
   DELETE_REASONS,
   NAME_MAX,
   NOTE_MAX,
-  PHONE_OWNERS,
+  PARENT_MODES,
+  type ParentMode,
 } from "./form-fields";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -32,28 +35,68 @@ const calendarDate = z
 const emptyToNull = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? null : value;
 
+/** The parent fields are absent for an adult (the form shows them for a child only). */
+const absentToEmpty = (value: unknown) => value ?? "";
+
 const name = z.string().trim().min(1).max(NAME_MAX);
+
+/** Typed in any usual way; stored as +77XXXXXXXXX. Empty is null; a wrong number is an issue. */
+const optionalPhone = z.string().transform((value, ctx) => {
+  if (value.trim() === "") return null;
+  const phone = normalizePhone(value);
+  if (phone === null) {
+    ctx.addIssue({ code: "custom" });
+    return z.NEVER;
+  }
+  return phone;
+});
+
+/** The parent of a client being saved: none (an adult), one on file, or a new one. */
+export type ParentInput =
+  | null
+  | { kind: "existing"; id: string }
+  | { kind: "new"; name: string; phone: string; messageLocale: Locale };
+
+/** Form fields of the client form; issues name these, the values never leave the form. */
+export type ClientField =
+  | "lastName"
+  | "firstName"
+  | "birthDate"
+  | "phone"
+  | "kind"
+  | "parentId"
+  | "newParentName"
+  | "newParentPhone"
+  | "newParentLocale"
+  | "groupId"
+  | "startedOn"
+  | "note"
+  | "messageLocale"
+  | "consents";
 
 export const clientInputSchema = z
   .object({
     lastName: name,
     firstName: name,
     birthDate: z.preprocess(emptyToNull, calendarDate.nullable()),
-    /** Typed in any usual way; stored as +77XXXXXXXXX. */
-    phone: z.string().transform((value, ctx) => {
-      const phone = normalizePhone(value);
-      if (phone === null) {
-        ctx.addIssue({ code: "custom" });
-        return z.NEVER;
-      }
-      return phone;
-    }),
-    phoneOwner: z.enum(PHONE_OWNERS),
-    parentName: z.preprocess(emptyToNull, name.nullable()),
+    /** Required for an adult; a child may have a phone of their own or none (D-18). */
+    phone: optionalPhone,
+    kind: z.enum(CLIENT_KINDS),
+    parentMode: z.enum(PARENT_MODES).catch("existing"),
+    parentId: z.preprocess(
+      (value) => emptyToNull(absentToEmpty(value)),
+      z.uuid().nullable(),
+    ),
+    newParentName: z.preprocess(
+      (value) => emptyToNull(absentToEmpty(value)),
+      name.nullable(),
+    ),
+    newParentPhone: z.preprocess(absentToEmpty, optionalPhone),
+    newParentLocale: z.enum(LOCALES).catch(DEFAULT_LOCALE),
     groupId: z.preprocess(emptyToNull, z.uuid().nullable()),
     startedOn: calendarDate,
     note: z.string().max(NOTE_MAX),
-    /** The language of the client's WhatsApp reminders (D-13). */
+    /** The language of an adult's WhatsApp reminders (D-13); a child's go in the parent's. */
     messageLocale: z.enum(LOCALES),
     /** Consents given now; ones already on file are kept by the database, never withdrawn here. */
     consents: z
@@ -61,17 +104,58 @@ export const clientInputSchema = z
       .max(10)
       .transform((kinds) => [...new Set(kinds)]),
   })
-  // A child's phone belongs to a parent; reminders address the parent by name.
-  .refine((input) => input.phoneOwner === "self" || input.parentName !== null, {
-    path: ["parentName"],
+  .superRefine((input, ctx) => {
+    const missing = (field: ClientField) =>
+      ctx.addIssue({ code: "custom", path: [field] });
+    if (input.kind === "adult") {
+      // The database refuses it too (clients_phone_or_parent).
+      if (input.phone === null) missing("phone");
+      return;
+    }
+    if (input.parentMode === "existing") {
+      if (input.parentId === null) missing("parentId");
+      return;
+    }
+    if (input.newParentName === null) missing("newParentName");
+    if (input.newParentPhone === null) missing("newParentPhone");
   })
   .transform((input) => ({
-    ...input,
-    parentName: input.phoneOwner === "parent" ? input.parentName : null,
+    lastName: input.lastName,
+    firstName: input.firstName,
+    birthDate: input.birthDate,
+    phone: input.phone,
+    parent: parentOf(input),
+    groupId: input.groupId,
+    startedOn: input.startedOn,
+    note: input.note,
+    messageLocale: input.messageLocale,
+    consents: input.consents,
   }));
 
+function parentOf(input: {
+  kind: ClientKind;
+  parentMode: ParentMode;
+  parentId: string | null;
+  newParentName: string | null;
+  newParentPhone: string | null;
+  newParentLocale: Locale;
+}): ParentInput {
+  if (input.kind === "adult") return null;
+  if (input.parentMode === "existing")
+    return input.parentId === null
+      ? null
+      : { kind: "existing", id: input.parentId };
+  return input.newParentName === null || input.newParentPhone === null
+    ? null
+    : {
+        kind: "new",
+        name: input.newParentName,
+        phone: input.newParentPhone,
+        messageLocale: input.newParentLocale,
+      };
+}
+
 export type ClientInput = z.infer<typeof clientInputSchema>;
-export type ClientField = keyof ClientInput;
 
 export const clientIdSchema = z.uuid();
 
@@ -110,8 +194,12 @@ export function clientFormToRaw(form: FormData): Record<string, unknown> {
     firstName: text(f.firstName),
     birthDate: text(f.birthDate),
     phone: text(f.phone),
-    phoneOwner: text(f.phoneOwner),
-    parentName: text(f.parentName),
+    kind: text(f.kind),
+    parentMode: text(f.parentMode),
+    parentId: text(f.parentId),
+    newParentName: text(f.newParentName),
+    newParentPhone: text(f.newParentPhone),
+    newParentLocale: text(f.newParentLocale),
     groupId: text(f.groupId),
     startedOn: text(f.startedOn),
     note: text(f.note),

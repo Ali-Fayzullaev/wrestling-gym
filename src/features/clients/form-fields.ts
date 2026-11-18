@@ -6,8 +6,12 @@ export const clientFormFields = {
   firstName: "firstName",
   birthDate: "birthDate",
   phone: "phone",
-  phoneOwner: "phoneOwner",
-  parentName: "parentName",
+  kind: "kind",
+  parentMode: "parentMode",
+  parentId: "parentId",
+  newParentName: "newParentName",
+  newParentPhone: "newParentPhone",
+  newParentLocale: "newParentLocale",
   groupId: "groupId",
   startedOn: "startedOn",
   note: "note",
@@ -15,8 +19,13 @@ export const clientFormFields = {
   consent: "consent",
 } as const;
 
-export const PHONE_OWNERS = ["self", "parent"] as const;
-export type PhoneOwner = (typeof PHONE_OWNERS)[number];
+/** An adult is reminded on their own phone; a child through the parent (D-18). */
+export const CLIENT_KINDS = ["adult", "child"] as const;
+export type ClientKind = (typeof CLIENT_KINDS)[number];
+
+/** A child's parent: one already on file, or a new one entered with the child. */
+export const PARENT_MODES = ["existing", "new"] as const;
+export type ParentMode = (typeof PARENT_MODES)[number];
 
 /** consents.kind in the database. STUB(D-10): the consent texts await legal review. */
 export const CONSENT_KINDS = ["data_processing", "messaging"] as const;

@@ -46,6 +46,8 @@ describe("buildPreview", () => {
       groupId: GROUP_ID,
       endsOn: "2025-11-18",
       messageLocale: "ru",
+      parentName: "",
+      parentStatus: "none",
       status: "new",
       errors: [],
       duplicateOf: null,
@@ -132,5 +134,48 @@ describe("buildPreview: message language column", () => {
       context,
     );
     expect(row).toMatchObject({ status: "new", messageLocale: "ru" });
+  });
+});
+
+describe("buildPreview: children and their parent (D-18)", () => {
+  const headers = [...HEADERS, "Родитель"];
+  const rows = buildPreview(
+    {
+      headers,
+      rows: [
+        ["Серикова", "Дана", "8 701 222 33 44", "", "", "Айгуль"],
+        ["Сериков", "Арман", "8 701 222 33 44", "", "", "  айгуль "],
+        ["Омаров", "Тимур", "8 701 555 66 77", "", "", "Динара"],
+        ["Жумабаев", "Ерлан", "8 701 888 99 00", "", "", ""],
+        ["Длинный", "Родитель", "8 701 000 11 22", "", "", "x".repeat(101)],
+      ].map((cells, i) => ({ line: i + 2, cells })),
+    },
+    matchHeaders(headers),
+    {
+      existing: [],
+      groups: [],
+      parents: [{ phone: "+77015556677", name: "динара" }],
+    },
+  );
+
+  it("says whether the parent is new or already on file, ignoring case and spaces", () => {
+    expect(rows.map((row) => row.parentStatus)).toEqual([
+      "new",
+      "new",
+      "found",
+      "none",
+      "none",
+    ]);
+  });
+
+  it("brothers and sisters with one parent's phone are not duplicates of each other", () => {
+    expect(rows.slice(0, 2).map((row) => row.status)).toEqual(["new", "new"]);
+  });
+
+  it("refuses a parent's name longer than 100 characters", () => {
+    expect(rows[4]).toMatchObject({
+      status: "error",
+      errors: ["name_too_long"],
+    });
   });
 });

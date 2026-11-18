@@ -39,9 +39,9 @@ const reversal: PaymentRow = {
 const client: ClientRow = {
   last_name: "Ким",
   first_name: "Аружан",
-  phone: "+77000000001",
-  phone_owner: "parent",
+  phone: null,
   parent_name: "Гульнара",
+  parent_phone: "+77000020001",
   birth_date: "2017-04-02",
   group_name: null,
   started_on: "2026-01-10",
@@ -83,9 +83,9 @@ describe("clientsTable", () => {
     expect(row).toEqual([
       "Ким",
       "Аружан",
-      "+77000000001",
-      "Родителя",
+      null,
       "Гульнара",
+      "+77000020001",
       "2017-04-02",
       null,
       "2026-01-10",
@@ -132,7 +132,7 @@ describe("buildExportFile", () => {
     const [header, line] = text.split("\r\n");
     expect(header).toBe(`﻿${ru.reports.file.clientsHeader.join(";")}`);
     expect(line).toBe(
-      "Ким;Аружан;+77000000001;Родителя;Гульнара;2017-04-02;;2026-01-10;Долг;2026-11-01;Нет;'-не звонить после 21:00",
+      "Ким;Аружан;;Гульнара;+77000020001;2017-04-02;;2026-01-10;Долг;2026-11-01;Нет;'-не звонить после 21:00",
     );
   });
 

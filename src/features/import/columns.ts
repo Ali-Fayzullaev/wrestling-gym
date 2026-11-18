@@ -64,6 +64,21 @@ const SYNONYMS: Record<ColumnKey, readonly string[]> = {
   ],
   // The language of the client's reminders (D-13).
   locale: ["язык", "язык сообщений", "тілі", "тіл", "тили", "тил", "language"],
+  // A child's parent (D-18): the row's phone is then the parent's.
+  parent: [
+    "родитель",
+    "имя родителя",
+    "мама",
+    "папа",
+    "ата-анасы",
+    "ата-ана",
+    "ата-анасының аты",
+    "ота-онаси",
+    "ота-она",
+    "ота-онасининг исми",
+    "parent",
+    "parent name",
+  ],
 };
 
 /** Lower case, "ё" as "е", anything but letters and digits as a single space. */
@@ -100,6 +115,7 @@ export function emptyMapping(): ColumnMapping {
     group: null,
     endsOn: null,
     locale: null,
+    parent: null,
   };
 }
 

@@ -1,4 +1,4 @@
-import { Archive, Pencil, TriangleAlert } from "lucide-react";
+import { Archive, Pencil, TriangleAlert, UserPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -64,7 +64,7 @@ export default async function ClientPage({
   const now = new Date();
   const screen = await getClient(await createServerDb(), now, id.data);
   if (!screen) notFound();
-  const { client, group, subscription, consents } = screen;
+  const { client, parent, group, subscription, consents } = screen;
   const history = buildHistory(screen.payments);
   const consentByKind = new Map(
     consents.map((consent) => [consent.kind, consent]),
@@ -196,15 +196,14 @@ export default async function ClientPage({
         <Section title={c.contacts}>
           <dl className="grid gap-2 text-sm">
             <Row label={c.phone}>
-              <span className="tabular-nums">{formatPhone(client.phone)}</span>
-              {" · "}
-              {client.phoneOwner === "parent"
-                ? c.phoneOwnerParent
-                : c.phoneOwnerSelf}
+              {client.phone ? (
+                <span className="tabular-nums">
+                  {formatPhone(client.phone)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">{c.noPhone}</span>
+              )}
             </Row>
-            {client.parentName ? (
-              <Row label={c.parentName}>{client.parentName}</Row>
-            ) : null}
             {client.birthDate ? (
               <Row label={c.birthDate}>
                 <DateText date={client.birthDate} today={now} locale={locale} />
@@ -213,13 +212,53 @@ export default async function ClientPage({
             <Row label={c.startedOn}>
               <DateText date={client.startedOn} today={now} locale={locale} />
             </Row>
-            <Row label={c.messageLocale}>
-              <span lang={HTML_LANG[client.messageLocale]}>
-                {LOCALE_NAMES[client.messageLocale]}
-              </span>
-            </Row>
+            {parent ? null : (
+              <Row label={c.messageLocale}>
+                <span lang={HTML_LANG[client.messageLocale]}>
+                  {LOCALE_NAMES[client.messageLocale]}
+                </span>
+              </Row>
+            )}
           </dl>
         </Section>
+
+        {parent ? (
+          <Section title={c.parent}>
+            <div className="grid gap-3 text-sm" data-testid="client-parent">
+              <dl className="grid gap-2">
+                <Row label={c.parentName}>
+                  <Link
+                    href={`/parents/${parent.id}`}
+                    className="font-medium underline-offset-4 hover:underline"
+                  >
+                    {parent.name}
+                  </Link>
+                </Row>
+                <Row label={c.phone}>
+                  <span className="tabular-nums">
+                    {formatPhone(parent.phone)}
+                  </span>
+                </Row>
+                <Row label={c.messageLocale}>
+                  <span lang={HTML_LANG[parent.messageLocale]}>
+                    {LOCALE_NAMES[parent.messageLocale]}
+                  </span>
+                </Row>
+              </dl>
+              <p className="text-muted-foreground">{c.parentReminders}</p>
+              {parent.archived ? null : (
+                <Link
+                  href={`/clients/new?parent=${parent.id}`}
+                  className={`${buttonVariants({ variant: "outline" })} w-full sm:w-fit`}
+                  data-testid="add-sibling"
+                >
+                  <UserPlus aria-hidden />
+                  {c.addSibling}
+                </Link>
+              )}
+            </div>
+          </Section>
+        ) : null}
 
         <Section title={c.consents}>
           <dl className="grid gap-2 text-sm">

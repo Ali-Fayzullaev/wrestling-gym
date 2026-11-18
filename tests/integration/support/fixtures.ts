@@ -26,11 +26,11 @@ export async function insertClient(
   const id = randomUUID();
   await tx`
     insert into public.clients (
-      id, last_name, first_name, phone, phone_owner, group_id, started_on, archived_at, created_by,
+      id, last_name, first_name, phone, group_id, started_on, archived_at, created_by,
       message_locale
     ) values (
       ${id}, ${overrides.lastName ?? "Тестовый"}, ${"Клиент"}, ${overrides.phone ?? testPhone()},
-      'self', ${SEED_GROUP}, '2026-01-10',
+      ${SEED_GROUP}, '2026-01-10',
       ${overrides.archived ? new Date("2026-01-11T00:00:00Z") : null},
       ${overrides.createdBy ?? SEED_STAFF.owner}, ${overrides.messageLocale ?? "ru"}
     )

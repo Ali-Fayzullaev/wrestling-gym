@@ -63,6 +63,7 @@ function notebook(
 type ImportReply = {
   created: number;
   duplicates: number;
+  parents_created: number;
   groups_created: number;
 };
 
@@ -95,6 +96,7 @@ describe("import_clients", () => {
       expect(await importClients(tx, file)).toEqual({
         created: 150,
         duplicates: 0,
+        parents_created: 0,
         groups_created: 0,
       });
       expect(await countClients(tx)).toBe(before + 150);
@@ -102,6 +104,7 @@ describe("import_clients", () => {
       expect(await importClients(tx, file)).toEqual({
         created: 0,
         duplicates: 150,
+        parents_created: 0,
         groups_created: 0,
       });
       expect(await countClients(tx)).toBe(before + 150);
@@ -114,7 +117,14 @@ describe("import_clients", () => {
       expect(audit).toHaveLength(2);
       // Counts and the hash only: no names or phones in the audit log.
       expect(Object.keys(audit[0]?.details ?? {}).sort()).toEqual(
-        ["created", "duplicates", "file_hash", "groups_created", "rows"].sort(),
+        [
+          "created",
+          "duplicates",
+          "file_hash",
+          "groups_created",
+          "parents_created",
+          "rows",
+        ].sort(),
       );
       expect(JSON.stringify(audit)).not.toContain("Импортов");
       expect(JSON.stringify(audit)).not.toContain(phone(1));
@@ -168,11 +178,11 @@ describe("import_clients", () => {
         },
       ]);
       const [client] = await tx`
-        select phone_owner, started_on::text, group_id, created_by from public.clients
+        select parent_id, started_on::text, group_id, created_by from public.clients
         where phone = ${phone(0)}
       `;
       expect(client).toEqual({
-        phone_owner: "self",
+        parent_id: null,
         started_on: TODAY,
         group_id: null,
         created_by: SEED_STAFF.owner,

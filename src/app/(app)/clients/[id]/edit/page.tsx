@@ -12,7 +12,11 @@ import { getI18n } from "@/i18n/server";
 import { Texts } from "@/i18n/texts";
 import { formatPhone } from "@/lib/phone";
 
-import { checkPhoneAction, updateClientAction } from "../../actions";
+import {
+  checkPhoneAction,
+  searchParentsAction,
+  updateClientAction,
+} from "../../actions";
 import { BackLink } from "@/components/back-link";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,7 +35,7 @@ export default async function EditClientPage({
   const now = new Date();
   const screen = await getClient(await createServerDb(), now, id.data);
   if (!screen) notFound();
-  const { client, group } = screen;
+  const { client, group, parent } = screen;
 
   return (
     <>
@@ -44,7 +48,18 @@ export default async function EditClientPage({
         <ClientForm
           mode="edit"
           clientId={client.id}
-          initial={{ ...client, phone: formatPhone(client.phone) }}
+          initial={{
+            ...client,
+            phone: client.phone ? formatPhone(client.phone) : "",
+            kind: parent ? "child" : "adult",
+            parent: parent && {
+              id: parent.id,
+              name: parent.name,
+              phone: parent.phone,
+              messageLocale: parent.messageLocale,
+              children: null,
+            },
+          }}
           groups={screen.groups}
           archivedGroup={
             group?.archived ? { id: group.id, name: group.name } : null
@@ -53,6 +68,7 @@ export default async function EditClientPage({
           today={now}
           submit={updateClientAction.bind(null, client.id)}
           checkPhone={checkPhoneAction}
+          searchParents={searchParentsAction}
         />
       </Texts>
     </>

@@ -1,5 +1,6 @@
 -- Local development and test data only (applied by `supabase db reset`, never pushed to production).
--- All people are fictional; phones use the reserved +7700000XXXX range.
+-- All people are fictional; phones use the reserved +7700000XXXX (clients) and +7700002XXXX
+-- (parents) ranges.
 -- Dates are relative to "today" in Asia/Almaty, so every status is present whenever the seed runs.
 --
 -- Staff accounts (local only, password `local-dev-only`):
@@ -111,11 +112,13 @@ declare
   current_payment uuid;
   extra_payment uuid;
   author uuid;
+  family_no integer;
+  parent uuid;
 begin
   for i in 1..150 loop
     client := ('20000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid;
     group_no := case when i % 37 = 0 then null else 1 + i % 6 end;
-    is_child := group_no in (1, 2, 3) or (group_no = 4 and i % 2 = 0);
+    is_child := coalesce(group_no in (1, 2, 3) or (group_no = 4 and i % 2 = 0), false);
     is_girl := i % 9 = 4;
     surname := last_names[1 + i % array_length(last_names, 1)];
     if is_girl and surname ~ '(ов|ев|ин)$' then
@@ -123,8 +126,27 @@ begin
     end if;
     author := staff_ids[1 + i % 3];
 
+    -- Children of four neighbouring numbers share a parent: families of one to three children.
+    -- The older ones (group 4) also have a phone of their own.
+    parent := null;
+    if is_child then
+      family_no := i / 4;
+      parent := ('30000000-0000-4000-8000-' || lpad(family_no::text, 12, '0'))::uuid;
+      surname := last_names[1 + family_no % array_length(last_names, 1)];
+      if is_girl and surname ~ '(ов|ев|ин)$' then
+        surname := surname || 'а';
+      end if;
+      insert into public.parents (id, name, phone, created_by)
+      values (
+        parent,
+        parent_names[1 + family_no % array_length(parent_names, 1)],
+        '+7700002' || lpad(family_no::text, 4, '0'),
+        author
+      )
+      on conflict (id) do nothing;
+    end if;
     insert into public.clients (
-      id, last_name, first_name, birth_date, phone, phone_owner, parent_name, group_id,
+      id, last_name, first_name, birth_date, phone, parent_id, group_id,
       started_on, note, archived_at, created_by
     ) values (
       client,
@@ -134,9 +156,8 @@ begin
       case when is_child then today - make_interval(years => 6 + i % 10, days => i)
            when i % 4 = 0 then null
            else today - make_interval(years => 18 + i % 20, days => i) end,
-      '+7700000' || lpad(i::text, 4, '0'),
-      case when is_child then 'parent' else 'self' end,
-      case when is_child then parent_names[1 + i % array_length(parent_names, 1)] end,
+      case when not is_child or group_no = 4 then '+7700000' || lpad(i::text, 4, '0') end,
+      parent,
       case when group_no is null then null
            else ('10000000-0000-4000-8000-' || lpad(group_no::text, 12, '0'))::uuid end,
       today - (40 + i * 3),
@@ -144,7 +165,6 @@ begin
       case when i % 30 = 7 then now() - interval '10 days' end,
       author
     );
-
     if i % 4 <> 0 then
       insert into public.consents (client_id, kind, given_on, recorded_by)
       values (client, 'data_processing', today - (40 + i * 3), author);

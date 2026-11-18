@@ -113,10 +113,13 @@ describe("screens: at most two database requests, links built on the server", ()
   it("Today: the remind rows carry the same kind of link and the counter matches", async () => {
     const { db } = await signedIn(SEED_EMAILS.owner);
     const screen = await getTodayScreen(db, new Date());
-    expect(screen.remind).toHaveLength(screen.counts.remindToday);
-    for (const row of screen.remind) {
+    // One message per client or per parent (D-18); the counter counts clients.
+    expect(screen.remind.flatMap((group) => group.rows)).toHaveLength(
+      screen.counts.remindToday,
+    );
+    for (const group of screen.remind) {
       // Step 20 (D-17): a ready link in every language, the card's language picked first.
-      const message = row.reminder.message;
+      const { message } = group;
       expect(message?.defaultLocale).toMatch(/^(ru|kk|uz)$/);
       for (const variant of Object.values(message?.variants ?? {})) {
         expect(variant.href).toMatch(/^https:\/\/wa\.me\/77\d{9}\?text=/);
@@ -125,7 +128,14 @@ describe("screens: at most two database requests, links built on the server", ()
       expect(message?.variants.ru.text).toContain("Здравствуйте");
       expect(message?.variants.kk.text).toContain("Сәлеметсіз бе");
       expect(message?.variants.uz.text).toContain("Ассалому алайкум");
-      expect(row.reminder.paymentId).toMatch(/^[0-9a-f-]{36}$/);
+      if ("parentId" in group.target) {
+        // The seed has families: several children in one message, one line each.
+        expect(group.target.items).toHaveLength(group.rows.length);
+        for (const name of group.firstNames)
+          expect(message?.variants.ru.text).toContain(`${name}: до `);
+      } else {
+        expect(group.target.paymentId).toMatch(/^[0-9a-f-]{36}$/);
+      }
     }
   });
 
@@ -139,8 +149,8 @@ describe("screens: at most two database requests, links built on the server", ()
     expect(counter.rest).toBe(3);
     const settings = await getReminderSettings(db, now);
     expect(counter.rest).toBe(4);
-    // Three kinds in three languages (D-13).
-    expect(settings.context.templates).toHaveLength(9);
+    // Three kinds and the several-children text in three languages (D-13, D-18).
+    expect(settings.context.templates).toHaveLength(12);
     expect(settings.preview?.name).toMatch(/^\S+ \S+/);
   });
 

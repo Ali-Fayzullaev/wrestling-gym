@@ -22,6 +22,11 @@ const STAFF_ROUTES = [
   "/clients/new",
   "/clients/20000000-0000-4000-8000-000000000001",
   "/clients/20000000-0000-4000-8000-000000000001/edit",
+  // Step 21: the parent's card and edit form (seed parent 0, the parent of seed client 1), and the
+  // client form opened as "another child of this parent" with the parent picker.
+  "/parents/30000000-0000-4000-8000-000000000000",
+  "/parents/30000000-0000-4000-8000-000000000000/edit",
+  "/clients/new?parent=30000000-0000-4000-8000-000000000000",
 ];
 /** Owner-only screens, measured with the owner's session. */
 const OWNER_ROUTES = [

@@ -121,7 +121,8 @@ describe("criterion 1: the template follows the client's language", () => {
       payment_id: result.kk.paymentId,
       kind: "before_7",
     });
-    expect(result.card?.reminder_context.templates).toHaveLength(9);
+    // Three reminder kinds and the several-children text, in three languages each.
+    expect(result.card?.reminder_context.templates).toHaveLength(12);
   });
 
   it("the card offers the overdue text once the subscription has ended, nothing without one", async () => {
@@ -154,7 +155,7 @@ describe("criterion 5: admin changes a client's language, not the templates", ()
       const [created] = await tx<{ id: string }[]>`
         select public.create_client(
           p_last_name => 'Сериков', p_first_name => 'Әлихан', p_phone => ${testPhone()},
-          p_phone_owner => 'self', p_started_on => ${TODAY}::date, p_message_locale => 'kk'
+          p_started_on => ${TODAY}::date, p_message_locale => 'kk'
         ) as id
       `;
       const id = created?.id ?? "";
@@ -168,7 +169,7 @@ describe("criterion 5: admin changes a client's language, not the templates", ()
         select public.update_client(
           p_client_id => ${id}, p_last_name => 'Сериков', p_first_name => 'Әлихан',
           p_phone => (select phone from public.clients where id = ${id}),
-          p_phone_owner => 'self', p_started_on => ${TODAY}::date,
+          p_started_on => ${TODAY}::date,
           p_message_locale => ${locale}
         )
       `;
@@ -204,7 +205,7 @@ describe("criterion 5: admin changes a client's language, not the templates", ()
       const [created] = await tx<{ id: string }[]>`
         select public.create_client(
           p_last_name => 'Иванов', p_first_name => 'Пётр', p_phone => ${testPhone()},
-          p_phone_owner => 'self', p_started_on => ${TODAY}::date
+          p_started_on => ${TODAY}::date
         ) as id
       `;
       const [row] = await tx<{ message_locale: string }[]>`
@@ -303,7 +304,8 @@ describe("criterion 6: one template per kind and language, known languages only"
       return rows.map((row) => row.pair);
     });
     expect(pairs).toEqual(
-      ["before_1", "before_7", "overdue"].flatMap((kind) =>
+      // Step 21 (D-18): the several-children text is a fourth kind.
+      ["before_1", "before_7", "family", "overdue"].flatMap((kind) =>
         ["kk", "ru", "uz"].map((locale) => `${kind}:${locale}`),
       ),
     );
@@ -319,7 +321,7 @@ describe("criterion 6: one template per kind and language, known languages only"
           (tx) => tx`
             select public.create_client(
               p_last_name => 'Неверный', p_first_name => 'Язык', p_phone => ${testPhone()},
-              p_phone_owner => 'self', p_started_on => ${TODAY}::date,
+              p_started_on => ${TODAY}::date,
               p_message_locale => ${locale}
             )
           `,

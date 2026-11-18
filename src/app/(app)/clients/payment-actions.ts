@@ -21,9 +21,11 @@ import {
 } from "@/features/payments/service";
 
 function refreshAfterPayment() {
-  // Statuses change on the client list and card, the group screens and the Today counters.
+  // Statuses change on the client list and card, the group and parent screens and the Today
+  // counters.
   revalidatePath("/clients", "layout");
   revalidatePath("/groups", "layout");
+  revalidatePath("/parents", "layout");
   revalidatePath("/today");
 }
 

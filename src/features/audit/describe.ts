@@ -20,6 +20,8 @@ export type AuditEntry = {
   clientName: string | null;
   groupName: string | null;
   staffName: string | null;
+  /** The parent a parent entry is about (step 21). */
+  parentName: string | null;
 };
 
 export type AuditTarget = {
@@ -159,6 +161,7 @@ function detailLines(context: Context, entry: AuditEntry): (string | null)[] {
       return [consents > 0 ? fmt(t.consents, { count: consents }) : null];
     }
     case "client.update":
+    case "parent.update":
     case "group.update":
       return [fieldList(context, details)];
     case "client.delete": {
@@ -232,6 +235,14 @@ function target(t: Messages["audit"], entry: AuditEntry): AuditTarget | null {
   }
   if (entry.entity === "client" || entry.entity === "payment") {
     return clientTarget(t, entry);
+  }
+  if (entry.entity === "parent" && entry.entityId && entry.parentName) {
+    return {
+      label: t.target.parent,
+      name: entry.parentName,
+      href: `/parents/${entry.entityId}`,
+      linkLabel: t.target.openParent,
+    };
   }
   if (entry.entity === "group" && entry.entityId && entry.groupName) {
     return {

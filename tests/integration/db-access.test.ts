@@ -26,6 +26,7 @@ const TABLES = [
   "staff",
   "groups",
   "clients",
+  "parents",
   "consents",
   "payments",
   "reminder_events",
@@ -509,8 +510,8 @@ describe("criterion 2: each policy allows its role and refuses the other", () =>
       [
         "clients.created_at",
         (tx: Tx) => tx`
-          insert into public.clients (last_name, first_name, phone, phone_owner, started_on, created_by, created_at)
-          values ('Время', 'Клиент', '+77001234567', 'self', '2026-01-10', ${SEED_STAFF.admin}, '2099-01-01')
+          insert into public.clients (last_name, first_name, phone, started_on, created_by, created_at)
+          values ('Время', 'Клиент', '+77001234567', '2026-01-10', ${SEED_STAFF.admin}, '2099-01-01')
         `,
       ],
     ] as const)("admin cannot set %s", async (_name, statement) => {

@@ -73,7 +73,6 @@ async function archivedClient(): Promise<string> {
       last_name: "Оплатов",
       first_name: "Тест",
       phone: `+7700000${String(phoneNo).padStart(4, "0")}`,
-      phone_owner: "self",
       group_id: SEED_GROUP,
       started_on: "2026-11-01",
       archived_at: new Date().toISOString(),

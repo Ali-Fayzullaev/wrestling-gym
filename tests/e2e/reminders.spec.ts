@@ -48,21 +48,28 @@ function addDays(isoDate: string, days: number): string {
 }
 
 /**
- * A throwaway child whose subscription ends tomorrow (the "1 day before" reminder is due today);
- * the phone is a parent's. Events and payments cannot be deleted, so afterwards it is archived.
+ * A throwaway child whose subscription ends tomorrow (the "1 day before" reminder is due today),
+ * with no phone of their own: the reminder goes to the parent (D-18). Events and payments cannot
+ * be deleted, so afterwards it is archived.
  */
 async function childEndingTomorrow(supabase: Supabase, lastName: string) {
   const db = serviceClient(supabase);
   const id = randomUUID();
+  const parentId = randomUUID();
   const phone = `+7700${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`;
   const today = businessDate(new Date());
+  const { error: parentError } = await db.from("parents").insert({
+    id: parentId,
+    name: "Гульнара",
+    phone,
+    created_by: SEED_OWNER,
+  });
+  if (parentError) throw new Error(`parent insert failed: ${parentError.code}`);
   const { error } = await db.from("clients").insert({
     id,
     last_name: lastName,
     first_name: "Ребёнок",
-    phone,
-    phone_owner: "parent",
-    parent_name: "Гульнара",
+    parent_id: parentId,
     group_id: SEED_GROUP,
     started_on: addDays(today, -60),
     created_by: SEED_OWNER,
@@ -82,7 +89,7 @@ async function childEndingTomorrow(supabase: Supabase, lastName: string) {
   });
   if (paymentError)
     throw new Error(`payment insert failed: ${paymentError.code}`);
-  return { id, phone, periodEnd };
+  return { id, parentId, phone, periodEnd };
 }
 
 async function archive(supabase: Supabase, id: string) {
@@ -336,14 +343,16 @@ test.describe("Reminders through wa.me", () => {
         page.getByText(LOCALE_NAMES.ru, { exact: true }).first(),
       ).toBeVisible();
 
+      // Step 21 (D-18): a child's reminders go in the parent's language, set on the parent.
       const setLanguage = async (locale: "kk" | "uz") => {
-        await menuLink(page, ru.clients.edit).click();
-        await page.getByLabel(ru.clientForm.messageLocale).selectOption(locale);
-        await page.getByRole("button", { name: ru.clientForm.save }).click();
+        await page.goto(`/parents/${client.parentId}/edit`);
+        await page.getByLabel(ru.parents.messageLocale).selectOption(locale);
+        await page.getByRole("button", { name: ru.parents.save }).click();
         await expect(page).toHaveURL(
-          new RegExp(`/clients/${client.id}$`),
+          new RegExp(`/parents/${client.parentId}$`),
           SERVER_ROUND_TRIP,
         );
+        await page.goto(`/clients/${client.id}`);
       };
       const todayLink = async () => {
         await menuLink(page, ru.nav.today).click();
@@ -376,8 +385,7 @@ test.describe("Reminders through wa.me", () => {
       expect(kazakh.text).toContain(formatDate(client.periodEnd, now, "kk"));
       expect(kazakh.text).not.toContain("Здравствуйте");
 
-      // Uzbek, without reloading the page by hand: the next chat opens with the Uzbek text.
-      await page.goto(`/clients/${client.id}`);
+      // Uzbek: the next chat opens with the Uzbek text.
       await setLanguage("uz");
       await expect(preview).toContainText("Ассалому алайкум, Гульнара!");
       const uzbek = await todayLink();

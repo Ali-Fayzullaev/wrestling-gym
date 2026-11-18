@@ -87,7 +87,6 @@ async function seedClient(groupId: string): Promise<string> {
     last_name: "Тестов",
     first_name: "Перевод",
     phone: `+7700000${String(9500 + createdClients.length).padStart(4, "0")}`,
-    phone_owner: "self",
     group_id: groupId,
     started_on: "2026-11-01",
     created_by: SEED_STAFF.owner,

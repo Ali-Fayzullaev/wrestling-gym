@@ -77,14 +77,14 @@ describe("reminderSettingsSchema", () => {
     ).toBe(true);
   });
 
-  it("takes a text per kind and language (9) and no more", () => {
+  it("takes a text per kind and language (12, the several-children text included) and no more", () => {
     const ids = (count: number) =>
       Array.from({ length: count }, (_, index) => ({
         id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
         body: "Текст",
       }));
-    expect(settings({ templates: ids(9) }).success).toBe(true);
-    expect(settings({ templates: ids(10) }).success).toBe(false);
+    expect(settings({ templates: ids(12) }).success).toBe(true);
+    expect(settings({ templates: ids(13) }).success).toBe(false);
   });
 });
 
@@ -132,5 +132,54 @@ describe("historyFilterSchema", () => {
       historyFilterSchema.parse({ date: "14.11.2026", staff: "x" }),
     ).toEqual({});
     expect(historyFilterSchema.parse({ date: ["2026-11-14"] })).toEqual({});
+  });
+});
+
+describe("openReminderSchema: one message to a parent (D-18)", () => {
+  const PARENT = "3f1c2a7e-0000-4000-8000-000000000003";
+  const items = [
+    { paymentId: ID, kind: "before_7" },
+    { paymentId: ID2, kind: "overdue" },
+  ];
+  const parse = (raw: unknown) => openReminderSchema.safeParse(raw);
+
+  it("accepts a parent with two or more children's reminders and a language", () => {
+    expect(parse({ parentId: PARENT, items, locale: "kk" }).data).toEqual({
+      parentId: PARENT,
+      items,
+      locale: "kk",
+    });
+  });
+
+  it.each([
+    ["one child", { parentId: PARENT, items: items.slice(0, 1) }],
+    [
+      "the same payment twice",
+      { parentId: PARENT, items: [items[0], items[0]] },
+    ],
+    ["a bad parent id", { parentId: "Айгуль", items }],
+    [
+      "a bad kind",
+      {
+        parentId: PARENT,
+        items: [items[0], { paymentId: ID2, kind: "family" }],
+      },
+    ],
+    [
+      "more than 20 children",
+      {
+        parentId: PARENT,
+        items: Array.from({ length: 21 }, (_, i) => ({
+          paymentId: `3f1c2a7e-0000-4000-8000-${String(i).padStart(12, "0")}`,
+          kind: "overdue",
+        })),
+      },
+    ],
+    [
+      "a mix of both shapes",
+      { parentId: PARENT, items, paymentId: ID, kind: "overdue" },
+    ],
+  ])("refuses %s", (_label, raw) => {
+    expect(parse(raw).success).toBe(false);
   });
 });

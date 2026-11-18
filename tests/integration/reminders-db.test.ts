@@ -595,7 +595,7 @@ type Contact = {
   id: string;
   last_name: string;
   phone: string;
-  phone_owner: string;
+  parent_id: string | null;
   parent_name: string | null;
   group_name: string | null;
   price: number | null;
@@ -661,7 +661,6 @@ describe("reminders_screen", () => {
     expect(screen.s.due[0]).toMatchObject({
       id: screen.dueId,
       last_name: "Неделя",
-      phone_owner: "self",
       group_name: "Дети 6–9 лет, утро",
       price: 15000,
       kind: "before_7",
@@ -826,13 +825,14 @@ describe("client card and settings screen", () => {
     // shipped Kazakh and Uzbek drafts are still unedited.
     const templates = screen?.context.templates ?? [];
     expect(templates.map((t) => `${t.kind}:${t.locale}`)).toEqual(
-      ["before_1", "before_7", "overdue"].flatMap((kind) =>
+      // Step 21 (D-18): the several-children text is a fourth kind.
+      ["before_1", "before_7", "family", "overdue"].flatMap((kind) =>
         ["kk", "ru", "uz"].map((locale) => `${kind}:${locale}`),
       ),
     );
     expect(
       templates.filter((t) => t.locale !== "ru").map((t) => t.edited),
-    ).toEqual(Array(6).fill(false));
+    ).toEqual(Array(8).fill(false));
     expect(screen?.preview?.group_name).toBeTruthy();
     expect(screen?.preview?.price).toBeGreaterThan(0);
   });

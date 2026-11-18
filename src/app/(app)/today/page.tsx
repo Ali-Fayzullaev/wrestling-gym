@@ -136,7 +136,12 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
                 />
               }
               today={now}
-              labels={{ ...rowLabels, pay: messages.payments.pay }}
+              labels={{
+                ...rowLabels,
+                pay: messages.payments.pay,
+                family: t.family,
+                familyHint: t.familyHint,
+              }}
               whatsappLabels={{
                 whatsapp: remindersText.whatsapp,
                 chatOpened: remindersText.chatOpened,

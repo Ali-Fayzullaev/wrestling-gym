@@ -6,7 +6,7 @@ import { buttonVariants } from "@/components/ui/variants";
 import { fmt } from "@/i18n/format";
 import { HTML_LANG, type Locale, LOCALE_NAMES, LOCALES } from "@/lib/locale";
 
-import type { OpenReminderInput } from "../result";
+import type { ReminderTargetInput } from "../result";
 import type { ReminderMessage, ReminderVariant } from "../service";
 import {
   type OpenReminder,
@@ -106,14 +106,16 @@ export function ReminderComposer({
   open,
 }: {
   message: ReminderMessage;
-  target: Omit<OpenReminderInput, "locale">;
+  /** One child's reminder, or one message to a parent about several children (D-18). */
+  target: ReminderTargetInput;
   labels: SendLanguageLabels;
   whatsappLabels: WhatsAppLabels;
   /** What the button does, shown under the text. */
   hint: string;
   open: OpenReminder;
 }) {
-  // The client's language first; another one is for this message only, the card never changes.
+  // The language on the card first (the parent's for a child); another one is for this message
+  // only, the card never changes.
   const [locale, setLocale] = useState<Locale>(message.defaultLocale);
   const variant = message.variants[locale];
   return (

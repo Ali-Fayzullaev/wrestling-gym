@@ -21,8 +21,8 @@ import { LOCALES, type Locale } from "@/lib/locale";
 
 import type { ClientRow, GroupOption } from "./filters";
 import { STATUSES } from "./filters";
-import type { ConsentKind, DeleteReason, PhoneOwner } from "./form-fields";
-import { CONSENT_KINDS, PHONE_OWNERS } from "./form-fields";
+import type { ConsentKind, DeleteReason } from "./form-fields";
+import { CONSENT_KINDS } from "./form-fields";
 import type {
   ArchiveClientInput,
   ClientInput,
@@ -40,6 +40,7 @@ export type ClientError =
   | "forbidden"
   | "not_found"
   | "group_not_found"
+  | "parent_not_found"
   | "confirmation_mismatch"
   | "invalid"
   | "unavailable";
@@ -59,7 +60,9 @@ const clientsScreenShape = z.object({
       id: z.string(),
       last_name: z.string(),
       first_name: z.string(),
-      phone: z.string(),
+      phone: z.string().nullable(),
+      parent_name: z.string().nullable(),
+      parent_phone: z.string().nullable(),
       group_id: z.string().nullable(),
       archived: z.boolean(),
       status,
@@ -84,15 +87,22 @@ const clientScreenShape = z.object({
     last_name: z.string(),
     first_name: z.string(),
     birth_date: z.string().nullable(),
-    phone: z.string(),
-    phone_owner: z.enum(PHONE_OWNERS),
-    parent_name: z.string().nullable(),
+    phone: z.string().nullable(),
     message_locale: z.enum(LOCALES),
     group_id: z.string().nullable(),
     started_on: z.string(),
     note: z.string(),
     archived: z.boolean(),
   }),
+  parent: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      phone: z.string(),
+      message_locale: z.enum(LOCALES),
+      archived: z.boolean(),
+    })
+    .nullable(),
   group: z
     .object({
       id: z.string(),
@@ -171,10 +181,9 @@ export type ClientDetails = {
   lastName: string;
   firstName: string;
   birthDate: string | null;
-  phone: string;
-  phoneOwner: PhoneOwner;
-  parentName: string | null;
-  /** Language of the client's WhatsApp reminders (D-13). */
+  /** Required for an adult; a child may have none (D-18). */
+  phone: string | null;
+  /** Language of an adult's WhatsApp reminders (D-13); a child's go in the parent's. */
   messageLocale: Locale;
   groupId: string | null;
   startedOn: string;
@@ -182,8 +191,19 @@ export type ClientDetails = {
   archived: boolean;
 };
 
+/** The parent of a child: reminders go to their phone in their language (D-18). */
+export type ClientParent = {
+  id: string;
+  name: string;
+  phone: string;
+  messageLocale: Locale;
+  archived: boolean;
+};
+
 export type ClientScreen = {
   client: ClientDetails;
+  /** Null for an adult. */
+  parent: ClientParent | null;
   group: {
     id: string;
     name: string;
@@ -242,6 +262,8 @@ export async function listClients(
       lastName: row.last_name,
       firstName: row.first_name,
       phone: row.phone,
+      parentName: row.parent_name,
+      parentPhone: row.parent_phone,
       groupId: row.group_id,
       archived: row.archived,
       status: row.status,
@@ -272,18 +294,21 @@ export async function getClient(
   if (data === null) return null;
   const screen = clientScreenShape.parse(data);
   const c = screen.client;
+  const { parent } = screen;
+  // STUB(D-20): a child with a parent is reminded through the parent only.
+  const recipientPhone = parent?.phone ?? c.phone;
   const reminderMessage =
     screen.reminder &&
+    recipientPhone !== null &&
     buildReminderMessage(
       {
         firstName: c.first_name,
-        messageLocale: c.message_locale,
-        phoneOwner: c.phone_owner,
-        parentName: c.parent_name,
+        messageLocale: parent?.message_locale ?? c.message_locale,
+        parentName: parent?.name ?? null,
         groupName: screen.group?.archived ? null : (screen.group?.name ?? null),
         price: screen.group?.archived ? null : (screen.group?.price ?? null),
         endsOn: screen.subscription.ends_on,
-        phone: c.phone,
+        phone: recipientPhone,
       },
       screen.reminder.kind,
       parseReminderContext(screen.reminder_context),
@@ -296,13 +321,18 @@ export async function getClient(
       firstName: c.first_name,
       birthDate: c.birth_date,
       phone: c.phone,
-      phoneOwner: c.phone_owner,
-      parentName: c.parent_name,
       messageLocale: c.message_locale,
       groupId: c.group_id,
       startedOn: c.started_on,
       note: c.note,
       archived: c.archived,
+    },
+    parent: parent && {
+      id: parent.id,
+      name: parent.name,
+      phone: parent.phone,
+      messageLocale: parent.message_locale,
+      archived: parent.archived,
     },
     group: screen.group && {
       id: screen.group.id,
@@ -365,10 +395,11 @@ const isStaff = (actor: Actor) =>
 /** Postgres errors raised by the client functions, mapped to what the screen can say. */
 function clientError(error: { code?: string; message?: string }): ClientError {
   if (error.code === "42501") return "forbidden";
-  if (error.code === "P0002")
-    return error.message === "group_not_found"
-      ? "group_not_found"
-      : "not_found";
+  if (error.code === "P0002") {
+    if (error.message === "group_not_found") return "group_not_found";
+    if (error.message === "parent_not_found") return "parent_not_found";
+    return "not_found";
+  }
   if (error.code === "22023" && error.message === "confirmation_mismatch")
     return "confirmation_mismatch";
   // Check constraints and invalid input: the server-side Zod check should have caught these.
@@ -405,19 +436,30 @@ export async function findPhoneDuplicates(
   };
 }
 
+function parentArgs(parent: ClientInput["parent"]) {
+  if (parent === null) return {};
+  if (parent.kind === "existing") return { p_parent_id: parent.id };
+  return {
+    p_new_parent: {
+      name: parent.name,
+      phone: parent.phone,
+      message_locale: parent.messageLocale,
+    },
+  };
+}
+
 function clientArgs(input: ClientInput) {
   // The generated types make optional arguments non-null: leave them out for "no value".
   return {
     p_last_name: input.lastName,
     p_first_name: input.firstName,
-    p_phone: input.phone,
-    p_phone_owner: input.phoneOwner,
     p_started_on: input.startedOn,
     p_note: input.note,
     p_consents: input.consents,
     p_message_locale: input.messageLocale,
+    ...(input.phone === null ? {} : { p_phone: input.phone }),
     ...(input.birthDate === null ? {} : { p_birth_date: input.birthDate }),
-    ...(input.parentName === null ? {} : { p_parent_name: input.parentName }),
+    ...parentArgs(input.parent),
     ...(input.groupId === null ? {} : { p_group_id: input.groupId }),
   };
 }
