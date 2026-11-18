@@ -16,7 +16,6 @@ export const clientFormFields = {
   startedOn: "startedOn",
   note: "note",
   messageLocale: "messageLocale",
-  consent: "consent",
 } as const;
 
 /** An adult is reminded on their own phone; a child through the parent (D-18). */
@@ -26,10 +25,6 @@ export type ClientKind = (typeof CLIENT_KINDS)[number];
 /** A child's parent: one already on file, or a new one entered with the child. */
 export const PARENT_MODES = ["existing", "new"] as const;
 export type ParentMode = (typeof PARENT_MODES)[number];
-
-/** consents.kind in the database. STUB(D-10): the consent texts await legal review. */
-export const CONSENT_KINDS = ["data_processing", "messaging"] as const;
-export type ConsentKind = (typeof CONSENT_KINDS)[number];
 
 /**
  * Why a client was fully deleted. A fixed list, not free text: the reason goes into the audit

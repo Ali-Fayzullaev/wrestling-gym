@@ -84,7 +84,6 @@ function input(overrides: Record<string, unknown> = {}) {
     startedOn: "2026-11-01",
     note: "",
     messageLocale: "ru",
-    consents: [],
     ...overrides,
   });
 }
@@ -119,6 +118,42 @@ describe("criterion 10: the list costs one data request, the card stays within t
   it("an unknown client is null, not an error", async () => {
     const { db } = await signedIn(SEED_EMAILS.admin);
     await expect(getClient(db, NOW, randomUUID())).resolves.toBeNull();
+  });
+});
+
+describe("D-10: consents are no longer recorded or shown", () => {
+  it("a create and an update sent with consents record none", async () => {
+    const { db } = await signedIn(SEED_EMAILS.admin);
+    const withConsents = { consents: ["data_processing", "messaging"] };
+    const created = await createClient(db, ADMIN, input(withConsents));
+    if (!created.ok) throw new Error(`createClient failed: ${created.error}`);
+    const id = created.data.id;
+    createdClients.push(id);
+    const updated = await updateClient(
+      db,
+      ADMIN,
+      id,
+      input({ ...withConsents, note: "x" }),
+    );
+    expect(updated.ok).toBe(true);
+    const { data, error } = await service
+      .from("consents")
+      .select("id")
+      .eq("client_id", id);
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
+
+  it("the card of a client with old consents does not carry them", async () => {
+    const { count } = await service
+      .from("consents")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", SEED_CLIENT);
+    expect(count).toBeGreaterThan(0);
+    const { db } = await signedIn(SEED_EMAILS.admin);
+    const screen = await getClient(db, NOW, SEED_CLIENT);
+    expect(screen).not.toBeNull();
+    expect(screen).not.toHaveProperty("consents");
   });
 });
 

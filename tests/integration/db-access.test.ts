@@ -366,23 +366,45 @@ describe("criterion 2: each policy allows its role and refuses the other", () =>
   });
 
   describe("consents", () => {
-    it("both roles record consent in their own name only", async () => {
-      const record = (actor: Actor, recordedBy: string) =>
-        rolledBack(sql, async (tx) => {
-          const id = await insertClient(tx);
-          await become(tx, actor);
-          return (
+    // D-10: consents are no longer recorded; the ones on file stay readable to staff.
+    it.each([
+      ["owner", owner, SEED_STAFF.owner],
+      ["admin", admin, SEED_STAFF.admin],
+      ["anon", "anon", SEED_STAFF.admin],
+    ] as const)(
+      "%s cannot record a consent, even in their own name",
+      async (_name, actor, recordedBy) => {
+        await expect(
+          rolledBack(sql, async (tx) => {
+            const id = await insertClient(tx);
+            await become(tx, actor);
             await tx`
               insert into public.consents (client_id, kind, given_on, recorded_by)
-              values (${id}, 'messaging', '2026-01-10', ${recordedBy}) returning id
-            `
-          ).length;
-        });
-      expect(await record(owner, SEED_STAFF.owner)).toBe(1);
-      expect(await record(admin, SEED_STAFF.admin)).toBe(1);
-      await expect(record(admin, SEED_STAFF.owner)).rejects.toMatchObject(
-        PERMISSION_DENIED,
+              values (${id}, 'messaging', '2026-01-10', ${recordedBy})
+            `;
+          }),
+        ).rejects.toMatchObject(PERMISSION_DENIED);
+      },
+    );
+
+    it("both roles still read the consents on file", async () => {
+      for (const actor of [owner, admin]) {
+        expect(
+          await asActor(sql, actor, (tx) => countRows(tx, "consents")),
+        ).toBeGreaterThan(0);
+      }
+    });
+
+    it("the insert policy is gone", async () => {
+      const policies = await rolledBack(
+        sql,
+        (tx) => tx`
+          select policyname from pg_policies
+          where schemaname = 'public' and tablename = 'consents'
+          order by policyname
+        `,
       );
+      expect(policies.map((p) => p.policyname)).toEqual(["consents_select"]);
     });
   });
 

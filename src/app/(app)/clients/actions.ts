@@ -46,7 +46,6 @@ const CLIENT_FIELDS = new Set<string>([
   "startedOn",
   "note",
   "messageLocale",
-  "consents",
 ]);
 
 /** Which form fields are wrong; the values themselves never leave the form. */

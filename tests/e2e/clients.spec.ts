@@ -32,7 +32,7 @@ const UUID_PATH = /^\/clients(\/[0-9a-f-]{36}(\/edit)?|\/new|\/import)?$/;
 
 type Supabase = Parameters<typeof serviceClient>[0];
 
-/** A throwaway client (no consents, no payments) so tests do not change the seed clients. */
+/** A throwaway client (no payments) so tests do not change the seed clients. */
 async function seedClient(
   supabase: Supabase,
   lastName: string,
@@ -250,7 +250,8 @@ test.describe("form", () => {
         .locator("form")
         .getByLabel(c.form.group, { exact: true })
         .selectOption({ label: SEED_GROUP_NAME });
-      await page.getByLabel(c.form.consentKinds.messaging).check();
+      // D-10: the form has no consent marks any more.
+      await expect(page.locator("form").getByRole("checkbox")).toHaveCount(0);
       await page.getByRole("button", { name: c.form.save }).click();
 
       await expect(page).toHaveURL(/\/clients\/[0-9a-f-]{36}$/);
@@ -264,20 +265,32 @@ test.describe("form", () => {
       ).toBeVisible();
       expect(consoleErrors).toEqual([]);
     } finally {
-      // The new client has a consent (append-only), so it stays in the local database; blank it.
-      const { data: created } = await serviceClient(supabase)
-        .from("clients")
-        .select("id")
-        .eq("last_name", lastName);
-      for (const row of created ?? [])
-        await serviceClient(supabase)
-          .from("clients")
-          .update({
-            phone: "+77000000000",
-            archived_at: new Date().toISOString(),
-          })
-          .eq("id", row.id);
+      // No consents and no payments, so nothing append-only keeps the client.
+      await removeClients(supabase, [lastName]);
     }
+  });
+
+  test("D-10: the card and the edit form of a client with old consents show none", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const { count } = await serviceClient(supabase)
+      .from("consents")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", SEED_CLIENT);
+    expect(count).toBeGreaterThan(0);
+    await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+    await page.goto(`/clients/${SEED_CLIENT}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("main")).not.toContainText("Согласи");
+    await page.goto(`/clients/${SEED_CLIENT}/edit`);
+    await expect(
+      page.getByLabel(c.form.lastName, { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator("form").getByRole("checkbox")).toHaveCount(0);
+    await expect(page.getByRole("main")).not.toContainText("Согласи");
+    expect(consoleErrors).toEqual([]);
   });
 
   test("a wrong phone stays in the form with a message next to the field", async ({

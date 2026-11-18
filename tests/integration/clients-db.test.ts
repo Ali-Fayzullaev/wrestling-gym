@@ -75,7 +75,6 @@ function createClient(
   overrides: Partial<{
     phone: string | null;
     groupId: string | null;
-    consents: string[];
   }> = {},
 ) {
   return tx<{ id: string }[]>`
@@ -84,8 +83,7 @@ function createClient(
       p_first_name => 'Алихан',
       p_phone => ${overrides.phone === undefined ? testPhone() : overrides.phone},
       p_started_on => ${TODAY}::date,
-      p_group_id => ${overrides.groupId === undefined ? SEED_GROUP : overrides.groupId}::uuid,
-      p_consents => ${overrides.consents ?? []}::text[]
+      p_group_id => ${overrides.groupId === undefined ? SEED_GROUP : overrides.groupId}::uuid
     ) as id
   `;
 }
@@ -254,14 +252,27 @@ describe("criterion 5: only the owner deletes a client, the audit row has no per
     );
   });
 
-  it("consents alone are history too: the client is blanked, not removed", async () => {
-    await asActor(sql, owner, async (tx) => {
-      const id = defined(
-        (await createClient(tx, { consents: ["messaging"] }))[0],
-      ).id;
-      const [row] = await deleteClient(tx, id, "Қасымов");
-      expect(row?.mode).toBe("anonymized");
-    });
+  it("old consents alone are history too: the client is blanked, not removed", async () => {
+    // D-10: new consents are no longer recorded, but ones on file from before stay (append-only).
+    await withFixtures(
+      owner,
+      async (tx) => {
+        const id = await insertClient(tx, { lastName: "Қасымов" });
+        await tx`
+          insert into public.consents (client_id, kind, given_on, recorded_by)
+          values (${id}, 'messaging', ${TODAY}, ${SEED_STAFF.admin})
+        `;
+        return id;
+      },
+      async (tx, id) => {
+        const [row] = await deleteClient(tx, id, "Қасымов");
+        expect(row?.mode).toBe("anonymized");
+        await become(tx, "postgres");
+        expect(
+          await tx`select kind from public.consents where client_id = ${id}`,
+        ).toEqual([{ kind: "messaging" }]);
+      },
+    );
   });
 
   it("refuses a wrong last name and a reason outside the list", async () => {
@@ -289,15 +300,9 @@ describe("criterion 5: only the owner deletes a client, the audit row has no per
 });
 
 describe("create_client and update_client", () => {
-  it("creates the client, its consents and one audit row; names are trimmed", async () => {
+  it("creates the client and one audit row without consents; names are trimmed", async () => {
     await asActor(sql, admin, async (tx) => {
-      const id = defined(
-        (
-          await createClient(tx, {
-            consents: ["messaging", "data_processing", "messaging"],
-          })
-        )[0],
-      ).id;
+      const id = defined((await createClient(tx))[0]).id;
       const [client] = await tx`
         select last_name, created_by from public.clients where id = ${id}
       `;
@@ -305,21 +310,13 @@ describe("create_client and update_client", () => {
         last_name: "Қасымов",
         created_by: SEED_STAFF.admin,
       });
-      const consents = await tx`
-        select kind, recorded_by from public.consents where client_id = ${id} order by kind
-      `;
-      expect(consents).toEqual([
-        { kind: "data_processing", recorded_by: SEED_STAFF.admin },
-        { kind: "messaging", recorded_by: SEED_STAFF.admin },
-      ]);
+      expect(
+        await tx`select id from public.consents where client_id = ${id}`,
+      ).toHaveLength(0);
       expect(await auditRows(tx, "client.create", id, admin)).toEqual([
         {
           actor_id: SEED_STAFF.admin,
-          details: {
-            group_id: SEED_GROUP,
-            parent_id: null,
-            consents: ["data_processing", "messaging"],
-          },
+          details: { group_id: SEED_GROUP, parent_id: null },
         },
       ]);
     });
@@ -361,11 +358,10 @@ describe("create_client and update_client", () => {
         expect(audit).toHaveLength(2);
         expect(audit[0]?.details).toMatchObject({
           fields: ["last_name", "phone"],
-          consents: [],
         });
+        expect(audit[0]?.details).not.toHaveProperty("consents");
         expect(audit[1]?.details).toEqual({
           fields: ["group_id"],
-          consents: [],
           from_group_id: kept,
           to_group_id: SEED_GROUP,
           from_parent_id: null,
@@ -376,46 +372,64 @@ describe("create_client and update_client", () => {
     );
   });
 
-  it("update_client adds a consent once and never withdraws one", async () => {
-    await asActor(sql, admin, async (tx) => {
-      const id = defined(
-        (await createClient(tx, { consents: ["data_processing"] }))[0],
-      ).id;
-      for (let i = 0; i < 2; i += 1) {
-        await tx`
-          select public.update_client(
-            p_client_id => ${id}, p_last_name => 'Қасымов', p_first_name => 'Алихан',
-            p_phone => (select phone from public.clients where id = ${id}),
-            p_started_on => ${TODAY}::date,
-            p_group_id => ${SEED_GROUP}::uuid, p_consents => ${["messaging"]}::text[]
-          )
-        `;
-      }
-      const kinds =
-        await tx`select kind from public.consents where client_id = ${id} order by kind`;
-      expect(kinds.map((k) => k.kind)).toEqual([
-        "data_processing",
-        "messaging",
-      ]);
-      // The second save changed nothing, so it logged nothing.
-      expect(await auditRows(tx, "client.update", id, admin)).toHaveLength(1);
-    });
-  });
+  it.each([
+    [
+      "create_client",
+      (tx: Tx) => tx`
+        select public.create_client(
+          p_last_name => 'Қасымов', p_first_name => 'Алихан', p_phone => ${testPhone()},
+          p_started_on => ${TODAY}::date, p_consents => ${["messaging"]}::text[]
+        )
+      `,
+    ],
+    [
+      "update_client",
+      (tx: Tx) => tx`
+        select public.update_client(
+          p_client_id => ${randomUUID()}::uuid, p_last_name => 'Қасымов',
+          p_first_name => 'Алихан', p_phone => ${testPhone()},
+          p_started_on => ${TODAY}::date, p_consents => ${["messaging"]}::text[]
+        )
+      `,
+    ],
+    [
+      "add_client_consents",
+      (tx: Tx) => tx`
+        select public.add_client_consents(${randomUUID()}::uuid, ${["messaging"]}::text[])
+      `,
+    ],
+  ] as const)(
+    "D-10: %s with consents no longer exists",
+    async (_name, call) => {
+      await expect(
+        rolledBack(sql, async (tx) => {
+          await become(tx, admin);
+          await call(tx);
+        }),
+      ).rejects.toMatchObject({ code: "42883" });
+    },
+  );
 
-  it("an admin cannot record a consent in another employee's name", async () => {
-    await withFixtures(
-      admin,
-      (tx) => insertClient(tx),
-      async (tx, id) => {
-        await expect(
-          tx`
-          insert into public.consents (client_id, kind, given_on, recorded_by)
-          values (${id}, 'messaging', ${TODAY}, ${SEED_STAFF.owner})
-        `,
-        ).rejects.toMatchObject(PERMISSION_DENIED);
-      },
-    );
-  });
+  it.each([
+    ["owner", owner, SEED_STAFF.owner],
+    ["admin", admin, SEED_STAFF.admin],
+  ] as const)(
+    "D-10: %s cannot record a new consent directly, even in their own name",
+    async (_name, actor, recordedBy) => {
+      await withFixtures(
+        actor,
+        (tx) => insertClient(tx),
+        async (tx, id) => {
+          await expect(
+            tx`
+            insert into public.consents (client_id, kind, given_on, recorded_by)
+            values (${id}, 'messaging', ${TODAY}, ${recordedBy})
+          `,
+          ).rejects.toMatchObject(PERMISSION_DENIED);
+        },
+      );
+    },
+  );
 });
 
 describe("archive and bring back", () => {

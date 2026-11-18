@@ -14,9 +14,8 @@ import {
 
 import { requestToaster } from "@/components/deferred-toaster";
 import { buttonVariants, inputClassName } from "@/components/ui/variants";
-import { useLocale, useText } from "@/i18n/client";
+import { useText } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import { formatDate } from "@/lib/format";
 import { HTML_LANG, type Locale, LOCALE_NAMES, LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
@@ -26,8 +25,6 @@ import {
   CLIENT_KINDS,
   clientFormFields as fields,
   type ClientKind,
-  CONSENT_KINDS,
-  type ConsentKind,
   NAME_MAX,
   NOTE_MAX,
 } from "../form-fields";
@@ -65,8 +62,6 @@ export function ClientForm({
   initial,
   groups,
   archivedGroup,
-  consentsOnFile,
-  today,
   submit,
   checkPhone,
   searchParents,
@@ -78,8 +73,6 @@ export function ClientForm({
   groups: ActiveGroup[];
   /** The client's current group when it is archived: it may stay, but cannot be chosen anew. */
   archivedGroup: ActiveGroup | null;
-  consentsOnFile: { kind: ConsentKind; givenOn: string }[];
-  today: Date;
   submit: (form: FormData) => Promise<ActionResult<{ id: string } | null>>;
   checkPhone: (
     input: PhoneCheckInput,
@@ -88,7 +81,6 @@ export function ClientForm({
 }) {
   const clientErrorText = useText("clients").errors;
   const f = useText("clientForm");
-  const locale = useLocale();
   const router = useRouter();
   const id = useId();
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -109,7 +101,6 @@ export function ClientForm({
     (failure.error !== "invalid" || (failure.fields ?? []).length === 0)
       ? clientErrorText[failure.error]
       : null;
-  const onFile = new Map(consentsOnFile.map((c) => [c.kind, c.givenOn]));
   const cancelHref = clientId ? `/clients/${clientId}` : "/clients";
 
   function onPhoneBlur(value: string) {
@@ -370,49 +361,6 @@ export function ClientForm({
           className={`${inputClassName} h-auto min-h-24 py-2`}
         />
       </Field>
-
-      <fieldset
-        className="grid gap-1.5"
-        aria-describedby={`${id}-consents-hint`}
-      >
-        <legend className="mb-1.5 text-sm font-medium">{f.consents}</legend>
-        <p id={`${id}-consents-hint`} className="text-sm text-muted-foreground">
-          {f.consentsHint}
-        </p>
-        {CONSENT_KINDS.map((kind) => {
-          const givenOn = onFile.get(kind);
-          return (
-            <label
-              key={kind}
-              className="flex min-h-11 items-start gap-2.5 py-2 text-sm"
-            >
-              <input
-                type="checkbox"
-                name={fields.consent}
-                value={kind}
-                defaultChecked={givenOn !== undefined}
-                disabled={givenOn !== undefined}
-                className="mt-0.5 size-5 shrink-0 accent-primary"
-              />
-              <span>
-                {f.consentKinds[kind]}
-                {givenOn ? (
-                  <span className="block text-muted-foreground">
-                    {fmt(f.consentOnFile, {
-                      date: formatDate(givenOn, today, locale),
-                    })}
-                  </span>
-                ) : null}
-              </span>
-            </label>
-          );
-        })}
-        {invalid.has("consents") ? (
-          <p id={`${id}-consents-error`} className="text-sm text-destructive">
-            {f.errors.consents}
-          </p>
-        ) : null}
-      </fieldset>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Link

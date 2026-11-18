@@ -157,6 +157,7 @@ function detailLines(context: Context, entry: AuditEntry): (string | null)[] {
       return [amount === null ? null : formatMoney(amount, locale)];
     }
     case "client.create": {
+      // Only rows written before step 23 (D-10) carry consents; newer ones show no line here.
       const consents = strings(details.consents).length;
       return [consents > 0 ? fmt(t.consents, { count: consents }) : null];
     }

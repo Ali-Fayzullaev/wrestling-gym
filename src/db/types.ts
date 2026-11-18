@@ -287,10 +287,7 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "add_client_consents":
-{ Args: { "p_client_id": string,"p_kinds": (string)[] }; Returns: (string)[]
-                           },
-"add_staff":
+            "add_staff":
 { Args: { "p_full_name": string,"p_id": string,"p_role": string }; Returns: undefined
                            },
 "archive_group":
@@ -353,7 +350,7 @@ isOneToOne: false
 { Args: { "p_staff_id": string }; Returns: undefined
                            },
 "create_client":
-{ Args: { "p_birth_date"?: string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: string
+{ Args: { "p_birth_date"?: string,"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: string
                            },
 "create_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_name": string,"p_schedule": Json }; Returns: string
@@ -525,7 +522,7 @@ isOneToOne: false
 { Args: { "p_links": Json }; Returns: Json
                            },
 "update_client":
-{ Args: { "p_birth_date"?: string,"p_client_id": string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: undefined
+{ Args: { "p_birth_date"?: string,"p_client_id": string,"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: undefined
                            },
 "update_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_group_id": string,"p_name": string,"p_schedule": Json }; Returns: undefined

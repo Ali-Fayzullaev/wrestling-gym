@@ -113,7 +113,7 @@ create policy clients_delete on public.clients
 create table public.consents (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null references public.clients (id) on delete restrict,
-  -- STUB(D-10): only the fact, date and recorder are stored; the consent text awaits legal review.
+  -- Only the fact, date and recorder are stored. D-10: no longer recorded since step 23.
   kind text not null check (kind in ('data_processing', 'messaging')),
   given_on date not null,
   recorded_by uuid not null default auth.uid() references public.staff (id) on delete restrict,

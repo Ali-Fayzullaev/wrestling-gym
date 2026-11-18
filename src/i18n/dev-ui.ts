@@ -23,7 +23,7 @@ export const devUi = {
   groupPlaceholder: "Выберите группу",
   groupA: "Младшая группа",
   groupB: "Старшая группа",
-  consent: "Согласие получено",
+  checkbox: "Показывать архивных",
   disabledField: "Только чтение",
   overlays: "Окна и меню",
   openDialog: "Открыть форму",

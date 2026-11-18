@@ -21,8 +21,7 @@ import { LOCALES, type Locale } from "@/lib/locale";
 
 import type { ClientRow, GroupOption } from "./filters";
 import { STATUSES } from "./filters";
-import type { ConsentKind, DeleteReason } from "./form-fields";
-import { CONSENT_KINDS } from "./form-fields";
+import type { DeleteReason } from "./form-fields";
 import type {
   ArchiveClientInput,
   ClientInput,
@@ -120,13 +119,6 @@ const clientScreenShape = z.object({
     ends_on: z.string().nullable(),
     days_left: z.number().nullable(),
   }),
-  consents: z.array(
-    z.object({
-      kind: z.enum(CONSENT_KINDS),
-      given_on: z.string(),
-      recorded_by: z.string(),
-    }),
-  ),
   payments: z.array(
     z.object({
       id: z.string(),
@@ -172,12 +164,6 @@ export type ClientsScreen = {
 
 export type ActiveGroup = { id: string; name: string };
 
-export type Consent = {
-  kind: ConsentKind;
-  givenOn: string;
-  recordedBy: string;
-};
-
 export type ClientDetails = {
   id: string;
   lastName: string;
@@ -220,7 +206,6 @@ export type ClientScreen = {
     endsOn: string | null;
     daysLeft: number | null;
   };
-  consents: Consent[];
   /** Payments and reversals, newest first. */
   payments: HistoryRow[];
   /** Reminder events (chat opened, marked sent), newest first. */
@@ -282,7 +267,7 @@ export async function listClients(
   };
 }
 
-/** One client with group, subscription, consents, payments and the groups to choose from, or null. */
+/** One client with group, subscription, payments and the groups to choose from, or null. */
 export async function getClient(
   db: Db,
   now: Date,
@@ -349,11 +334,6 @@ export async function getClient(
       endsOn: screen.subscription.ends_on,
       daysLeft: screen.subscription.days_left,
     },
-    consents: screen.consents.map((consent) => ({
-      kind: consent.kind,
-      givenOn: consent.given_on,
-      recordedBy: consent.recorded_by,
-    })),
     payments: screen.payments.map((payment) => ({
       id: payment.id,
       kind: payment.kind,
@@ -459,7 +439,6 @@ function clientArgs(input: ClientInput) {
     p_first_name: input.firstName,
     p_started_on: input.startedOn,
     p_note: input.note,
-    p_consents: input.consents,
     p_message_locale: input.messageLocale,
     ...(input.phone === null ? {} : { p_phone: input.phone }),
     ...(input.birthDate === null ? {} : { p_birth_date: input.birthDate }),
@@ -468,7 +447,7 @@ function clientArgs(input: ClientInput) {
   };
 }
 
-/** Creates the client, its consents and the audit row together. */
+/** Creates the client and the audit row together. */
 export async function createClient(
   db: Db,
   actor: Actor,
@@ -480,7 +459,7 @@ export async function createClient(
   return { ok: true, data: { id: data } };
 }
 
-/** Saves the client; ticked consents not yet on file are added (consents are never withdrawn). */
+/** Saves the client and logs the names of the changed fields. */
 export async function updateClient(
   db: Db,
   actor: Actor,
@@ -512,7 +491,7 @@ export async function setClientArchived(
 }
 
 export type DeleteOutcome = {
-  /** deleted: the row is gone; anonymized: payments or consents remain, the personal data do not. */
+  /** deleted: the row is gone; anonymized: payments or old consents remain, the personal data do not. */
   mode: "deleted" | "anonymized";
   reason: DeleteReason;
 };

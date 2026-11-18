@@ -200,7 +200,7 @@ end;
 $$;
 
 -- Consents are recorded as given today by the caller; ones already on file are not repeated.
--- STUB(D-10): only the fact, date and recorder; the consent text awaits legal review.
+-- Only the fact, date and recorder. D-10: dropped in step 23 (*_remove_consents.sql).
 create function public.add_client_consents(p_client_id uuid, p_kinds text[])
 returns text[]
 language plpgsql

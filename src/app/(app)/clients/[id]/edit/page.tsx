@@ -64,8 +64,6 @@ export default async function EditClientPage({
           archivedGroup={
             group?.archived ? { id: group.id, name: group.name } : null
           }
-          consentsOnFile={screen.consents}
-          today={now}
           submit={updateClientAction.bind(null, client.id)}
           checkPhone={checkPhoneAction}
           searchParents={searchParentsAction}
