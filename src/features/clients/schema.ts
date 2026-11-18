@@ -7,7 +7,6 @@ import {
   CLIENT_KINDS,
   clientFormFields,
   type ClientKind,
-  CONSENT_KINDS,
   DELETE_REASONS,
   NAME_MAX,
   NOTE_MAX,
@@ -71,8 +70,7 @@ export type ClientField =
   | "groupId"
   | "startedOn"
   | "note"
-  | "messageLocale"
-  | "consents";
+  | "messageLocale";
 
 export const clientInputSchema = z
   .object({
@@ -98,11 +96,6 @@ export const clientInputSchema = z
     note: z.string().max(NOTE_MAX),
     /** The language of an adult's WhatsApp reminders (D-13); a child's go in the parent's. */
     messageLocale: z.enum(LOCALES),
-    /** Consents given now; ones already on file are kept by the database, never withdrawn here. */
-    consents: z
-      .array(z.enum(CONSENT_KINDS))
-      .max(10)
-      .transform((kinds) => [...new Set(kinds)]),
   })
   .superRefine((input, ctx) => {
     const missing = (field: ClientField) =>
@@ -129,7 +122,6 @@ export const clientInputSchema = z
     startedOn: input.startedOn,
     note: input.note,
     messageLocale: input.messageLocale,
-    consents: input.consents,
   }));
 
 function parentOf(input: {
@@ -204,8 +196,5 @@ export function clientFormToRaw(form: FormData): Record<string, unknown> {
     startedOn: text(f.startedOn),
     note: text(f.note),
     messageLocale: text(f.messageLocale),
-    consents: form
-      .getAll(f.consent)
-      .filter((value): value is string => typeof value === "string"),
   };
 }

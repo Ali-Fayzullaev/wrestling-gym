@@ -14,7 +14,6 @@ import { createServerDb } from "@/db/server";
 import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { ClientActions } from "@/features/clients/components/client-actions";
-import { CONSENT_KINDS } from "@/features/clients/form-fields";
 import { clientIdSchema } from "@/features/clients/schema";
 import { getClient } from "@/features/clients/service";
 import { PayButton } from "@/features/payments/components/pay-button";
@@ -64,11 +63,8 @@ export default async function ClientPage({
   const now = new Date();
   const screen = await getClient(await createServerDb(), now, id.data);
   if (!screen) notFound();
-  const { client, parent, group, subscription, consents } = screen;
+  const { client, parent, group, subscription } = screen;
   const history = buildHistory(screen.payments);
-  const consentByKind = new Map(
-    consents.map((consent) => [consent.kind, consent]),
-  );
 
   return (
     <Texts ns={["clients", "payments"]}>
@@ -268,28 +264,6 @@ export default async function ClientPage({
             </div>
           </Section>
         ) : null}
-
-        <Section title={c.consents}>
-          <dl className="grid gap-2 text-sm">
-            {CONSENT_KINDS.map((kind) => {
-              const consent = consentByKind.get(kind);
-              return (
-                <Row key={kind} label={messages.clientForm.consentKinds[kind]}>
-                  {consent ? (
-                    fmt(c.consentGiven, {
-                      date: formatDate(consent.givenOn, now, locale),
-                      by: consent.recordedBy,
-                    })
-                  ) : (
-                    <span className="text-status-expired-foreground">
-                      {c.consentMissing}
-                    </span>
-                  )}
-                </Row>
-              );
-            })}
-          </dl>
-        </Section>
 
         {screen.reminder && !client.archived ? (
           <Section title={c.reminderPreview} className="lg:col-span-2">

@@ -149,6 +149,7 @@ function clientInput(first: string, phoneNumber: string) {
     startedOn: "2026-11-01",
     note: NOTE,
     messageLocale: "ru",
+    // D-10: a stray consents field is dropped by the schema and never recorded.
     consents: ["data_processing"],
   });
 }
@@ -279,7 +280,6 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
       startedOn: "2026-11-01",
       note: NOTE,
       messageLocale: "ru",
-      consents: [],
     });
     const { id } = must(await createClient(db, actor, child));
     const { data, error } = await service
@@ -565,6 +565,15 @@ describe("criterion 1: every mutating action writes an audit row without persona
   it("parent.delete records the reason only", () => {
     const deleted = rows.find((row) => row.action === "parent.delete");
     expect(deleted?.details).toEqual({ reason: "created_by_mistake" });
+  });
+
+  it("D-10: client.create and client.update no longer carry consents", () => {
+    const clientRows = rows.filter(
+      (row) => row.action === "client.create" || row.action === "client.update",
+    );
+    expect(clientRows.length).toBeGreaterThan(0);
+    for (const row of clientRows)
+      expect(row.details).not.toHaveProperty("consents");
   });
 
   it("client.import records counts, not rows", () => {

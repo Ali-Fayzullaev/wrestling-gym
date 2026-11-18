@@ -24,7 +24,6 @@ const valid = {
   startedOn: "2026-11-01",
   note: "",
   messageLocale: "kk",
-  consents: ["data_processing", "messaging", "messaging"],
 };
 
 function issuesOf(raw: unknown): PropertyKey[] {
@@ -36,7 +35,7 @@ function issuesOf(raw: unknown): PropertyKey[] {
 }
 
 describe("clientInputSchema", () => {
-  it("normalizes the phone, trims names, empties to null, de-duplicates consents", () => {
+  it("normalizes the phone, trims names, empties to null", () => {
     expect(clientInputSchema.parse(valid)).toEqual({
       lastName: "Қасымов",
       firstName: "Алихан",
@@ -47,8 +46,15 @@ describe("clientInputSchema", () => {
       startedOn: "2026-11-01",
       note: "",
       messageLocale: "kk",
+    });
+  });
+
+  it("D-10: drops a consents field sent anyway, so it never reaches the database", () => {
+    const parsed = clientInputSchema.parse({
+      ...valid,
       consents: ["data_processing", "messaging"],
     });
+    expect(parsed).not.toHaveProperty("consents");
   });
 
   it.each(["", "en", "uz-Latn", "Қазақша"])(
@@ -157,23 +163,21 @@ describe("clientInputSchema: other fields", () => {
     [{ groupId: "Дети" }, "groupId"],
     [{ kind: "neighbour" }, "kind"],
     [{ note: "x".repeat(2001) }, "note"],
-    [{ consents: ["marketing"] }, "consents"],
   ])("refuses %j", (override, field) => {
     expect(issuesOf({ ...valid, ...override })).toEqual([field]);
   });
 });
 
 describe("clientFormToRaw", () => {
-  it("reads every field and all ticked consents", () => {
+  it("reads every field and ignores a consent field (D-10)", () => {
     const form = new FormData();
     form.set("lastName", "Иванов");
     form.set("phone", "7011234567");
     form.append("consent", "data_processing");
-    form.append("consent", "messaging");
     const raw = clientFormToRaw(form);
     expect(raw.lastName).toBe("Иванов");
     expect(raw.firstName).toBe("");
-    expect(raw.consents).toEqual(["data_processing", "messaging"]);
+    expect(raw).not.toHaveProperty("consents");
   });
 });
 
@@ -202,7 +206,6 @@ describe("clientInputSchema: an adult without parent fields", () => {
       startedOn: "2026-11-01",
       note: "",
       messageLocale: "ru",
-      consents: [],
     };
     expect(clientInputSchema.parse(adult).parent).toBeNull();
   });

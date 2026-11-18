@@ -68,6 +68,28 @@ describe("describeAuditEntry", () => {
     ).toEqual(["в день окончания"]);
   });
 
+  it("client.create: old rows count their consents, rows since D-10 have none", () => {
+    const describeCreate = (details: Record<string, unknown>) =>
+      describeAuditEntry(RU, entry({ action: "client.create", details }), NOW)
+        .details;
+    expect(
+      describeCreate({
+        group_id: GROUP,
+        consents: ["data_processing", "messaging"],
+      }),
+    ).toEqual(["согласий отмечено: 2"]);
+    expect(describeCreate({ group_id: GROUP, parent_id: null })).toEqual([]);
+  });
+
+  it("client.update: an old row with consents still names its fields", () => {
+    const result = describeAuditEntry(
+      RU,
+      entry({ details: { fields: ["note"], consents: ["messaging"] } }),
+      NOW,
+    );
+    expect(result.details).toEqual(["Изменено: заметка"]);
+  });
+
   it("client: a changed message language is named in plain words", () => {
     const result = describeAuditEntry(
       RU,

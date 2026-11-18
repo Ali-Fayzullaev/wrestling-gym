@@ -65,8 +65,6 @@ export default async function NewClientPage({
           }}
           groups={groups}
           archivedGroup={null}
-          consentsOnFile={[]}
-          today={now}
           submit={createClientAction}
           checkPhone={checkPhoneAction}
           searchParents={searchParentsAction}

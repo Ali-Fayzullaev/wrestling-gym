@@ -1,6 +1,6 @@
 # 23. Убрать согласия из интерфейса
 
-Статус: todo
+Статус: done
 Зависит от: 22, D-10
 Ветка: `step/23-remove-consents`
 Навыки: `backend-development`, `secure-coding`, `ui-ux-design`, `browser-verification`
@@ -63,14 +63,17 @@
 
 ## Чек-лист
 
-- [ ] Падающие тесты: форма и карточка без согласий, вставка в `consents` отклоняется
-- [ ] Миграция: `create_client()` и `update_client()` без `p_consents`, право `insert` отозвано
-- [ ] `pnpm db:types`
-- [ ] Схема, сервис, Server Actions без согласий
-- [ ] Форма, карточка, `/dev/ui`, тексты ru/kk/uz
-- [ ] Журнал: старые строки описываются как раньше
-- [ ] `docs/admin-guide.md`, `docs/acceptance.md`
-- [ ] Браузер 390 и 1440 px
-- [ ] `pnpm check`, `/security-review`
+- [x] Падающие тесты: форма и карточка без согласий, вставка в `consents` отклоняется
+- [x] Миграция: `create_client()` и `update_client()` без `p_consents`, право `insert` отозвано
+- [x] `pnpm db:types`
+- [x] Схема, сервис, Server Actions без согласий
+- [x] Форма, карточка, `/dev/ui`, тексты ru/kk/uz
+- [x] Журнал: старые строки описываются как раньше
+- [x] `docs/admin-guide.md`, `docs/acceptance.md`
+- [x] Браузер 390 и 1440 px (e2e mobile и desktop; скриншоты по просьбе владельца пропущены)
+- [x] `pnpm check`, `/security-review`
 
 ## Заметки на будущее
+
+- Текст окна удаления клиента («если есть оплаты или согласия, они останутся») по-прежнему верен для старых отметок; при желании заказчика можно упростить до «оплаты».
+- Локальный `pnpm check` на e2e с воркерами по умолчанию иногда упирается в `statement_timeout` (57014) локальной БД; с `--workers=2` весь набор зелёный.

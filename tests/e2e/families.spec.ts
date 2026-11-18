@@ -208,8 +208,12 @@ test.describe("A parent and several children", () => {
       await page.getByLabel(f.newParentName).fill(parentName);
       await page.getByLabel(f.newParentPhone).fill(parentPhone);
       await page.getByLabel(f.newParentLocale).selectOption("kk");
+      // D-10: the child form has no consent marks; the parent choice is radios, not checkboxes.
+      await expect(page.locator("form").getByRole("checkbox")).toHaveCount(0);
       await save(page);
       await expect(page).toHaveURL(/\/clients\/[0-9a-f-]{36}$/);
+      // ...and the child's card has no consents section.
+      await expect(page.getByRole("main")).not.toContainText("Согласи");
       const parentBlock = page.getByTestId("client-parent");
       await expect(parentBlock).toContainText(parentName);
       await expect(parentBlock).toContainText(formatPhone(parentPhone));

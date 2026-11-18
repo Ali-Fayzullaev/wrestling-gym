@@ -76,7 +76,7 @@ export function FormDemo() {
       </div>
       <Label className="flex min-h-11 items-center gap-3">
         <Checkbox defaultChecked />
-        {d.consent}
+        {d.checkbox}
       </Label>
       <div className="grid gap-1.5">
         <Label htmlFor="demo-disabled">{d.disabledField}</Label>
