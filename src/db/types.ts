@@ -372,6 +372,9 @@ isOneToOne: false
 "delete_client":
 { Args: { "p_client_id": string,"p_last_name": string,"p_reason": string }; Returns: string
                            },
+"delete_parent":
+{ Args: { "p_name": string,"p_parent_id": string,"p_reason": string }; Returns: undefined
+                           },
 "export_clients":
 { Args: { "p_format": string,"p_today"?: string }; Returns: Json
                            },
@@ -406,6 +409,9 @@ isOneToOne: false
                            },
 "lock_group":
 { Args: { "p_group_id": string }; Returns: undefined
+                           },
+"mark_family_reminders_sent":
+{ Args: { "p_items": Json,"p_parent_id": string }; Returns: Json
                            },
 "mark_reminder_sent":
 { Args: { "p_event_id": string }; Returns: Json
@@ -505,6 +511,9 @@ isOneToOne: false
                            },
 "set_my_locale":
 { Args: { "p_locale": string }; Returns: undefined
+                           },
+"set_parent_archived":
+{ Args: { "p_archived": boolean,"p_parent_id": string }; Returns: boolean
                            },
 "staff_screen":
 { Args: Record<PropertyKey, never>; Returns: Json

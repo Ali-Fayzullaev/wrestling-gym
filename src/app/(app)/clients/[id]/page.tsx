@@ -233,6 +233,15 @@ export default async function ClientPage({
                   >
                     {parent.name}
                   </Link>
+                  {parent.archived ? (
+                    <span
+                      className="text-muted-foreground"
+                      data-testid="client-parent-archived"
+                    >
+                      {" "}
+                      ({c.parentArchived})
+                    </span>
+                  ) : null}
                 </Row>
                 <Row label={c.phone}>
                   <span className="tabular-nums">

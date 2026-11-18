@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { type DueRow, groupDueRows } from "./service";
+import { groupDueRows } from "./group";
 
-function due(id: string, parentId: string | null = null): DueRow {
+function due(id: string, parentId: string | null = null) {
   return {
     id,
     name: `Фамилия ${id}`,
@@ -19,7 +19,7 @@ function due(id: string, parentId: string | null = null): DueRow {
   };
 }
 
-const ids = (groups: DueRow[][]) =>
+const ids = (groups: { id: string }[][]) =>
   groups.map((group) => group.map((r) => r.id));
 
 describe("groupDueRows (D-18)", () => {

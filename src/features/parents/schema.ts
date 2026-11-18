@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DELETE_REASONS } from "@/features/clients/form-fields";
 import { LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
@@ -29,6 +30,21 @@ export type ParentInput = z.infer<typeof parentInputSchema>;
 export type ParentField = keyof ParentInput;
 
 export const parentIdSchema = z.uuid();
+
+export const archiveParentSchema = z.object({
+  parentId: z.uuid(),
+  archived: z.boolean(),
+});
+export type ArchiveParentInput = z.infer<typeof archiveParentSchema>;
+
+/** The reasons are the clients' fixed list: free text could carry personal data into the audit. */
+export const deleteParentSchema = z.object({
+  parentId: z.uuid(),
+  reason: z.enum(DELETE_REASONS),
+  /** The parent's name as typed by the owner to confirm. */
+  name: z.string().trim().min(1).max(PARENT_NAME_MAX),
+});
+export type DeleteParentInput = z.infer<typeof deleteParentSchema>;
 
 export const parentSearchSchema = z.object({
   query: z.string().max(PARENT_QUERY_MAX),

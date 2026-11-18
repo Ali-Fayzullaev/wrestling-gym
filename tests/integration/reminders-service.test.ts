@@ -100,7 +100,10 @@ describe("screens: at most two database requests, links built on the server", ()
     const today = await getRemindersToday(db, new Date());
     expect(counter.rest).toBeLessThanOrEqual(2);
     expect(today.due.length).toBeGreaterThan(0);
-    for (const target of today.due) {
+    // A client on their own carries a link; a parent's children share the family message.
+    for (const target of today.due.flatMap((block) =>
+      block.family ? [] : block.items,
+    )) {
       expect(target.href).toMatch(/^https:\/\/wa\.me\/77\d{9}\?text=/);
       const text = decodedText(target.href ?? "");
       expect(text).not.toMatch(

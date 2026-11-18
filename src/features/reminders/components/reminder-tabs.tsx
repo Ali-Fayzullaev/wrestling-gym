@@ -1,4 +1,4 @@
-import { History } from "lucide-react";
+import { History, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -13,13 +13,22 @@ import { businessDate } from "@/lib/dates";
 import { formatWhen, kindLabel } from "../labels";
 import type {
   NamedReminderEvent,
+  OpenedBlock,
+  OverdueTarget,
+  ReminderBlock,
   ReminderEvent,
+  ReminderFamily,
   ReminderHistory,
   RemindersOverdue,
   RemindersToday,
   ReminderTarget,
 } from "../service";
-import { type MarkReminderSent, MarkSentButton } from "./mark-sent-button";
+import {
+  type MarkFamilySent,
+  type MarkReminderSent,
+  MarkSentButton,
+} from "./mark-sent-button";
+import { ReminderComposer } from "./send-language";
 import { type OpenReminder, WhatsAppButton } from "./whatsapp-button";
 
 function whatsappLabels(r: Messages["reminders"]) {
@@ -45,7 +54,12 @@ async function reminderTexts() {
 export type ReminderActions = {
   open: OpenReminder;
   mark: MarkReminderSent;
+  markFamily: MarkFamilySent;
 };
+
+function sendLanguageLabels(r: Messages["reminders"]) {
+  return r.sendLanguage;
+}
 
 /**
  * A list row: who and what on the left, buttons on the right (full width on a phone, in the thumb
@@ -197,21 +211,43 @@ export async function TodayTab({
           />
         ) : (
           <List testId="due-list">
-            {data.due.map((target) => (
-              <Row
-                key={target.clientId}
-                testId="due-row"
-                actions={<OpenButton target={target} actions={actions} />}
-              >
-                <ClientName id={target.clientId} name={target.name} />
-                <TargetMeta
-                  target={target}
-                  label={kindLabel(i18n, target.kind, data.reminderDays)}
-                  endsLabel={s.endsOn}
-                  now={now}
-                />
-              </Row>
-            ))}
+            {data.due.map((block) =>
+              block.family ? (
+                <FamilyBlock
+                  key={`parent-${block.family.parent.id}`}
+                  family={block.family}
+                  actions={actions}
+                  testId="due-family"
+                >
+                  {block.items.map((target) => (
+                    <FamilyChild key={target.clientId} target={target}>
+                      <TargetMeta
+                        target={target}
+                        label={kindLabel(i18n, target.kind, data.reminderDays)}
+                        endsLabel={s.endsOn}
+                        now={now}
+                      />
+                    </FamilyChild>
+                  ))}
+                </FamilyBlock>
+              ) : (
+                block.items.map((target) => (
+                  <Row
+                    key={target.clientId}
+                    testId="due-row"
+                    actions={<OpenButton target={target} actions={actions} />}
+                  >
+                    <ClientName id={target.clientId} name={target.name} />
+                    <TargetMeta
+                      target={target}
+                      label={kindLabel(i18n, target.kind, data.reminderDays)}
+                      endsLabel={s.endsOn}
+                      now={now}
+                    />
+                  </Row>
+                ))
+              ),
+            )}
           </List>
         )}
       </section>
@@ -222,15 +258,40 @@ export async function TodayTab({
         {data.opened.length === 0 ? (
           <p className="text-sm text-muted-foreground">{s.openedEmpty}</p>
         ) : (
-          <EventList
-            events={data.opened}
-            now={now}
-            actions={actions}
-            testId="opened-list"
-          />
+          <OpenedList blocks={data.opened} now={now} actions={actions} />
         )}
       </section>
     </>
+  );
+}
+
+async function EventRow({
+  event,
+  now,
+  actions,
+}: {
+  event: NamedReminderEvent;
+  now: Date;
+  actions: ReminderActions;
+}) {
+  const { r } = await reminderTexts();
+  return (
+    <Row
+      testId="event-row"
+      actions={
+        event.status === "chat_opened" ? (
+          <MarkSentButton
+            input={{ eventId: event.id }}
+            labels={markLabels(r)}
+            mark={actions.mark}
+          />
+        ) : undefined
+      }
+    >
+      <ClientName id={event.clientId} name={event.name} />
+      <span className="text-muted-foreground">{r.kindShort[event.kind]}</span>
+      <EventStatus event={event} now={now} />
+    </Row>
   );
 }
 
@@ -245,31 +306,205 @@ async function EventList({
   actions: ReminderActions;
   testId: string;
 }) {
-  const { r } = await reminderTexts();
   return (
     <List testId={testId}>
       {events.map((event) => (
-        <Row
-          key={event.id}
-          testId="event-row"
-          actions={
-            event.status === "chat_opened" ? (
-              <MarkSentButton
-                eventId={event.id}
-                labels={markLabels(r)}
-                mark={actions.mark}
-              />
-            ) : undefined
-          }
-        >
-          <ClientName id={event.clientId} name={event.name} />
-          <span className="text-muted-foreground">
-            {r.kindShort[event.kind]}
-          </span>
-          <EventStatus event={event} now={now} />
-        </Row>
+        <EventRow key={event.id} event={event} now={now} actions={actions} />
       ))}
     </List>
+  );
+}
+
+const hasOpenChat = (events: readonly ReminderEvent[]) =>
+  events.some((event) => event.status === "chat_opened");
+
+/** "Sent" for the children of one parent whose chats are open and not marked yet. */
+async function MarkFamilyButton({
+  parentId,
+  events,
+  actions,
+}: {
+  parentId: string;
+  events: readonly ReminderEvent[];
+  actions: ReminderActions;
+}) {
+  const { r, s } = await reminderTexts();
+  const open = events.filter((event) => event.status === "chat_opened");
+  if (open.length === 0) return null;
+  const someMarked = open.length < events.length;
+  return (
+    <MarkSentButton
+      input={{
+        parentId,
+        items: open.map((event) => ({
+          paymentId: event.paymentId,
+          kind: event.kind,
+        })),
+      }}
+      labels={{
+        ...markLabels(r),
+        markSent: someMarked
+          ? fmt(s.markFamilyRest, { count: open.length })
+          : s.markFamily,
+      }}
+      mark={actions.markFamily}
+    />
+  );
+}
+
+/** Chats opened today: one row per event, or one block per parent with several children. */
+async function OpenedList({
+  blocks,
+  now,
+  actions,
+}: {
+  blocks: OpenedBlock[];
+  now: Date;
+  actions: ReminderActions;
+}) {
+  const { r, s } = await reminderTexts();
+  return (
+    <List testId="opened-list">
+      {blocks.map((block) => {
+        const { parent } = block;
+        if (!parent) {
+          return block.events.map((event) => (
+            <EventRow
+              key={event.id}
+              event={event}
+              now={now}
+              actions={actions}
+            />
+          ));
+        }
+        return (
+          <li
+            key={`parent-${parent.id}`}
+            className="flex flex-col gap-3 px-4 py-3"
+            data-testid="opened-family"
+          >
+            <FamilyTitle
+              text={fmt(s.family, {
+                parent: parent.name,
+                children: block.events
+                  .map((event) => event.firstName)
+                  .join(", "),
+              })}
+            />
+            <ul className="flex flex-col divide-y rounded-lg border">
+              {block.events.map((event) => (
+                <li
+                  key={event.id}
+                  className="flex flex-col gap-0.5 px-3 py-2 text-sm"
+                  data-testid="family-child"
+                >
+                  <ClientName id={event.clientId} name={event.name} />
+                  <span className="text-muted-foreground">
+                    {r.kindShort[event.kind]}
+                  </span>
+                  <EventStatus event={event} now={now} />
+                </li>
+              ))}
+            </ul>
+            {hasOpenChat(block.events) ? (
+              <div className="flex flex-col gap-2 md:w-[17rem] md:self-end">
+                <MarkFamilyButton
+                  parentId={parent.id}
+                  events={block.events}
+                  actions={actions}
+                />
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </List>
+  );
+}
+
+function FamilyTitle({ text, hint }: { text: string; hint?: string }) {
+  return (
+    <div className="flex min-w-0 items-start gap-2.5">
+      <Users aria-hidden className="mt-1 size-4 shrink-0" />
+      <div className="grid min-w-0 gap-0.5">
+        <p
+          className="text-base font-medium break-words"
+          data-testid="family-title"
+        >
+          {text}
+        </p>
+        {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/** One child inside a family block: the name opens the card, the details come as children. */
+function FamilyChild({
+  target,
+  children,
+}: {
+  target: ReminderTarget;
+  children: ReactNode;
+}) {
+  return (
+    <li
+      className="flex flex-col gap-0.5 px-3 py-2 text-sm"
+      data-testid="family-child"
+    >
+      <ClientName id={target.clientId} name={target.name} />
+      {children}
+    </li>
+  );
+}
+
+/**
+ * A parent with several children to remind: "Айгуль (родитель): Арман, Дана", the children, and
+ * one message about all of them in the language the sender picks (D-17, D-18). Opening it records
+ * "chat opened" for every child; `after` holds what comes under the message ("Sent").
+ */
+async function FamilyBlock({
+  family,
+  actions,
+  testId,
+  outline,
+  after,
+  children,
+}: {
+  family: ReminderFamily;
+  actions: ReminderActions;
+  testId: string;
+  /** The chat was opened before: WhatsApp is not the main action any more. */
+  outline?: boolean;
+  after?: ReactNode;
+  children: ReactNode;
+}) {
+  const { r, s } = await reminderTexts();
+  return (
+    <li className="flex flex-col gap-3 px-4 py-3" data-testid={testId}>
+      <FamilyTitle
+        text={fmt(s.family, {
+          parent: family.parent.name,
+          children: family.firstNames.join(", "),
+        })}
+        hint={s.familyHint}
+      />
+      <ul className="flex flex-col divide-y rounded-lg border">{children}</ul>
+      {family.message ? (
+        <ReminderComposer
+          message={family.message}
+          target={family.target}
+          labels={sendLanguageLabels(r)}
+          whatsappLabels={whatsappLabels(r)}
+          hint={s.familyOpenHint}
+          open={actions.open}
+          buttonVariant={outline ? "outline" : "default"}
+        />
+      ) : null}
+      {after ? (
+        <div className="flex flex-col gap-2 sm:w-[17rem]">{after}</div>
+      ) : null}
+    </li>
   );
 }
 
@@ -299,41 +534,99 @@ export async function OverdueTab({
   return (
     <>
       <List testId="overdue-list">
-        {data.overdue.map((target) => (
-          <Row
-            key={target.clientId}
-            testId="overdue-row"
-            actions={
-              <>
-                <OpenButton
-                  target={target}
-                  actions={actions}
-                  variant={target.event ? "outline" : "default"}
-                />
-                {target.event?.status === "chat_opened" ? (
-                  <MarkSentButton
-                    eventId={target.event.id}
-                    labels={markLabels(r)}
-                    mark={actions.mark}
-                  />
+        {data.overdue.map((block) =>
+          block.family ? (
+            <OverdueFamily
+              key={`parent-${block.family.parent.id}`}
+              family={block.family}
+              items={block.items}
+              now={now}
+              actions={actions}
+            />
+          ) : (
+            block.items.map((target) => (
+              <Row
+                key={target.clientId}
+                testId="overdue-row"
+                actions={
+                  <>
+                    <OpenButton
+                      target={target}
+                      actions={actions}
+                      variant={target.event ? "outline" : "default"}
+                    />
+                    {target.event?.status === "chat_opened" ? (
+                      <MarkSentButton
+                        input={{ eventId: target.event.id }}
+                        labels={markLabels(r)}
+                        mark={actions.mark}
+                      />
+                    ) : null}
+                  </>
+                }
+              >
+                <ClientName id={target.clientId} name={target.name} />
+                <TargetMeta target={target} endsLabel={s.endedOn} now={now} />
+                {target.event ? (
+                  <EventStatus event={target.event} now={now} />
                 ) : null}
-              </>
-            }
-          >
-            <ClientName id={target.clientId} name={target.name} />
-            <TargetMeta target={target} endsLabel={s.endedOn} now={now} />
-            {target.event ? (
-              <EventStatus event={target.event} now={now} />
-            ) : null}
-          </Row>
-        ))}
+              </Row>
+            ))
+          ),
+        )}
       </List>
       {cut ? (
         <p className="text-sm text-muted-foreground">
-          {fmt(s.cut, { shown: data.overdue.length })}
+          {fmt(s.cut, { shown: data.rows })}
         </p>
       ) : null}
     </>
+  );
+}
+
+/** A parent's overdue children: one message, each child's event, "Sent" for the opened ones. */
+async function OverdueFamily({
+  family,
+  items,
+  now,
+  actions,
+}: {
+  family: ReminderFamily;
+  items: ReminderBlock<OverdueTarget>["items"];
+  now: Date;
+  actions: ReminderActions;
+}) {
+  const { s } = await reminderTexts();
+  const events = items.flatMap((target) =>
+    target.event ? [target.event] : [],
+  );
+  return (
+    <FamilyBlock
+      family={family}
+      actions={actions}
+      testId="overdue-family"
+      outline={events.length === items.length}
+      after={
+        hasOpenChat(events) ? (
+          <MarkFamilyButton
+            parentId={family.parent.id}
+            events={events}
+            actions={actions}
+          />
+        ) : undefined
+      }
+    >
+      {items.map((target) => (
+        <FamilyChild key={target.clientId} target={target}>
+          <TargetMeta target={target} endsLabel={s.endedOn} now={now} />
+          {target.event ? (
+            <EventStatus event={target.event} now={now} />
+          ) : (
+            <span className="text-muted-foreground">{s.notOpened}</span>
+          )}
+        </FamilyChild>
+      ))}
+    </FamilyBlock>
   );
 }
 

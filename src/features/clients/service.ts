@@ -41,6 +41,8 @@ export type ClientError =
   | "not_found"
   | "group_not_found"
   | "parent_not_found"
+  /** STUB(D-23): the child would be in work with an archived parent. */
+  | "parent_archived"
   | "confirmation_mismatch"
   | "invalid"
   | "unavailable";
@@ -402,6 +404,8 @@ function clientError(error: { code?: string; message?: string }): ClientError {
   }
   if (error.code === "22023" && error.message === "confirmation_mismatch")
     return "confirmation_mismatch";
+  if (error.code === "23514" && error.message === "parent_archived")
+    return "parent_archived";
   // Check constraints and invalid input: the server-side Zod check should have caught these.
   if (
     error.code === "23514" ||

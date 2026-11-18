@@ -6,15 +6,21 @@ import { createServerDb } from "@/db/server";
 import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import type {
+  MarkedFamily,
   MarkedReminder,
   OpenedReminder,
   ReminderResult,
 } from "@/features/reminders/result";
 import {
+  markFamilySentSchema,
   markReminderSentSchema,
   openReminderSchema,
 } from "@/features/reminders/schema";
-import { markReminderSent, openReminder } from "@/features/reminders/service";
+import {
+  markFamilyRemindersSent,
+  markReminderSent,
+  openReminder,
+} from "@/features/reminders/service";
 
 function refreshAfterReminder() {
   // "Remind today" and its counter, the Reminders tabs and the reminder history on the card.
@@ -44,6 +50,22 @@ export async function markReminderSentAction(
   const parsed = markReminderSentSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const result = await markReminderSent(
+    await createServerDb(),
+    actor,
+    parsed.data,
+  );
+  if (result.ok) refreshAfterReminder();
+  return result;
+}
+
+/** "Sent" for every child of one family message still to mark, in one transaction. */
+export async function markFamilySentAction(
+  raw: unknown,
+): Promise<ReminderResult<MarkedFamily>> {
+  const actor = await requireStaff(STAFF_ROLES);
+  const parsed = markFamilySentSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const result = await markFamilyRemindersSent(
     await createServerDb(),
     actor,
     parsed.data,

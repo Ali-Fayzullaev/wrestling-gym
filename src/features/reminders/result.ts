@@ -29,6 +29,9 @@ export type MarkedReminder = {
   changed: boolean;
 };
 
+/** What mark_family_reminders_sent() did: how many children it marked now (0 on a repeat). */
+export type MarkedFamily = { changed: number };
+
 /** Which form fields failed, for messages next to them. */
 export type SettingsFieldErrors = {
   firstDays?: true;

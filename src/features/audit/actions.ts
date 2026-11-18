@@ -1,6 +1,6 @@
 /**
  * Every action the audit log may hold: the same list as the audit_log_action_known check in the
- * database (supabase/migrations/*_audit_settings_staff.sql). A new action needs both.
+ * database (supabase/migrations/*_families_followup.sql). A new action needs both.
  */
 export const AUDIT_ACTIONS = [
   "staff.login",
@@ -19,6 +19,9 @@ export const AUDIT_ACTIONS = [
   "client.import",
   "parent.create",
   "parent.update",
+  "parent.archive",
+  "parent.restore",
+  "parent.delete",
   "group.create",
   "group.update",
   "group.archive",
@@ -51,6 +54,9 @@ export const AUDIT_ACTION_GROUPS = {
     "client.import",
     "parent.create",
     "parent.update",
+    "parent.archive",
+    "parent.restore",
+    "parent.delete",
   ],
   groups: ["group.create", "group.update", "group.archive"],
   settings: ["settings.update", "template.update"],
