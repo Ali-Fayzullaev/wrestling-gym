@@ -50,6 +50,8 @@ export type ImportReport = {
   created: number;
   duplicates: number;
   groupsCreated: number;
+  /** Parents the import created for children (D-18); found ones are reused. */
+  parentsCreated: number;
   headers: string[];
   skipped: SkippedRow[];
 };

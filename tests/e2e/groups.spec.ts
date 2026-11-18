@@ -272,7 +272,6 @@ test.describe("transfer", () => {
       first_name: firstName,
       // Fictional, outside the seed range; duplicates are allowed by design.
       phone: `+770000097${index}0`,
-      phone_owner: "self",
       group_id: from,
       started_on: "2026-11-01",
       created_by: OWNER_ID,

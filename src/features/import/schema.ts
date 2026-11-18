@@ -13,6 +13,7 @@ export const mappingSchema = z
     group: columnIndex,
     endsOn: columnIndex,
     locale: columnIndex,
+    parent: columnIndex,
   })
   .refine((mapping) => {
     const used = Object.values(mapping).filter((index) => index !== null);

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type FamilyChild,
+  familyLine,
+  familyValues,
   isDraftTemplate,
   pickTemplate,
   type ReminderContact,
@@ -20,12 +23,12 @@ const VALUES: TemplateValues = {
   сумма: `15${NBSP}000`,
   группа: "Дети 6–9 лет",
   название_зала: "Зал греко-римской борьбы",
+  дети: null,
 };
 
 const ADULT: ReminderContact = {
   firstName: "Азамат",
   messageLocale: "ru",
-  phoneOwner: "self",
   parentName: null,
   groupName: "Взрослые",
   price: 20000,
@@ -102,21 +105,13 @@ describe("reminderValues", () => {
       сумма: `20${NBSP}000`,
       группа: "Взрослые",
       название_зала: "Зал",
+      дети: null,
     });
   });
 
-  it("greets the parent of a child when the parent's name is known", () => {
-    const child = {
-      ...ADULT,
-      phoneOwner: "parent" as const,
-      parentName: "Динара",
-    };
+  it("greets the parent of a child: the message goes to the parent", () => {
+    const child = { ...ADULT, parentName: "Динара" };
     expect(reminderValues(child, "Зал", TODAY, "ru").имя).toBe("Динара");
-  });
-
-  it("falls back to the child's name without a parent's name", () => {
-    const child = { ...ADULT, phoneOwner: "parent" as const, parentName: null };
-    expect(reminderValues(child, "Зал", TODAY, "ru").имя).toBe("Азамат");
   });
 
   it("has no amount or group without a group", () => {
@@ -177,6 +172,69 @@ describe("isDraftTemplate", () => {
   it("marks an unedited Kazakh or Uzbek text only", () => {
     expect(TEMPLATES.filter(isDraftTemplate).map((t) => t.id)).toEqual([
       "kk-7",
+    ]);
+  });
+
+  it("marks the unedited several-children texts in every language (D-18)", () => {
+    const family: ReminderTemplate[] = [
+      { id: "ru-f", kind: "family", locale: "ru", body: "ru", edited: false },
+      { id: "kk-f", kind: "family", locale: "kk", body: "kk", edited: true },
+    ];
+    expect(family.filter(isDraftTemplate).map((t) => t.id)).toEqual(["ru-f"]);
+  });
+});
+
+describe("a message about several children (D-18)", () => {
+  const ARMAN: FamilyChild = {
+    firstName: "Арман",
+    endsOn: "2026-12-16",
+    price: 15000,
+  };
+  const DANA: FamilyChild = {
+    firstName: "Дана",
+    endsOn: "2026-11-20",
+    price: null,
+  };
+
+  it("writes one line per child: name, end date and price", () => {
+    expect(familyLine(ARMAN, TODAY, "ru")).toBe(
+      `Арман: до 16${NBSP}декабря, 15${NBSP}000 ₸`,
+    );
+  });
+
+  it("leaves out a missing price or date", () => {
+    expect(familyLine(DANA, TODAY, "ru")).toBe(`Дана: до 20${NBSP}ноября`);
+    expect(
+      familyLine({ firstName: "Ия", endsOn: null, price: null }, TODAY, "ru"),
+    ).toBe("Ия");
+  });
+
+  it("writes the lines in the message's language", () => {
+    expect(familyLine(ARMAN, TODAY, "kk")).toBe(
+      `Арман: мерзімі 16${NBSP}желтоқсан, 15${NBSP}000 ₸`,
+    );
+    expect(familyLine(ARMAN, TODAY, "uz")).toMatch(/^Арман: муддати 16/);
+  });
+
+  it("greets the parent and lists every child on its own line", () => {
+    const values = familyValues("Айгуль", [ARMAN, DANA], "Зал", TODAY, "ru");
+    expect(values.имя).toBe("Айгуль");
+    expect(
+      renderTemplate(
+        "Здравствуйте, {имя}! {название_зала}:\n{дети}\nЖдём!",
+        values,
+      ),
+    ).toBe(
+      `Здравствуйте, Айгуль! Зал:\nАрман: до 16${NBSP}декабря, 15${NBSP}000 ₸\nДана: до 20${NBSP}ноября\nЖдём!`,
+    );
+  });
+
+  it("has no single date, amount or group for several children", () => {
+    const values = familyValues("Айгуль", [ARMAN], "Зал", TODAY, "ru");
+    expect([values.дата_окончания, values.сумма, values.группа]).toEqual([
+      null,
+      null,
+      null,
     ]);
   });
 });

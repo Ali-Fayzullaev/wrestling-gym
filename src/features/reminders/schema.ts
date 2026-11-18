@@ -2,17 +2,37 @@ import { z } from "zod";
 
 import { LOCALES } from "@/lib/locale";
 
-import { REMINDER_KINDS } from "./kinds";
+import { REMINDER_KINDS, TEMPLATE_KINDS } from "./kinds";
 import { BODY_MAX, DAYS_MAX, DAYS_MIN } from "./limits";
 
 const id = z.uuid();
 
-export const openReminderSchema = z.object({
+// The language chosen for this message (D-17); absent means the one on the card.
+const sendLocale = z.enum(LOCALES).optional();
+const singleReminder = z.object({
   paymentId: id,
   kind: z.enum(REMINDER_KINDS),
-  // The language chosen for this message (D-17); absent means the client's.
-  locale: z.enum(LOCALES).optional(),
 });
+
+/** Children one family message may name; record_family_reminder_opened() agrees. */
+export const FAMILY_ITEMS_MAX = 20;
+
+export const openReminderSchema = z.union([
+  singleReminder.extend({ locale: sendLocale }).strict(),
+  z
+    .object({
+      parentId: id,
+      items: z.array(singleReminder).min(2).max(FAMILY_ITEMS_MAX),
+      locale: sendLocale,
+    })
+    .strict()
+    .refine(
+      (value) =>
+        new Set(value.items.map((item) => item.paymentId)).size ===
+        value.items.length,
+      { path: ["items"] },
+    ),
+]);
 
 export const markReminderSentSchema = z.object({ eventId: id });
 export type MarkReminderSentInput = z.infer<typeof markReminderSentSchema>;
@@ -32,10 +52,10 @@ export const reminderSettingsSchema = z
   .object({
     firstDays: days,
     secondDays: z.preprocess(emptyToNull, days.nullable()),
-    // One text per kind and language (D-13).
+    // One text per kind and language (D-13), the several-children text included (D-18).
     templates: z
       .array(z.object({ id, body }))
-      .max(REMINDER_KINDS.length * LOCALES.length),
+      .max(TEMPLATE_KINDS.length * LOCALES.length),
   })
   .refine(
     (value) => value.secondDays === null || value.secondDays < value.firstDays,

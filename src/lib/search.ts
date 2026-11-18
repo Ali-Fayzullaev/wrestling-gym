@@ -41,7 +41,7 @@ export type SearchQuery = {
 export type Searchable = {
   /** normalizeSearch("Фамилия Имя") */
   text: string;
-  /** digitsOf(phone) */
+  /** digitsOf() of each phone, separated by spaces so a match never spans two numbers. */
   digits: string;
 };
 
@@ -55,8 +55,19 @@ export function isEmptyQuery(query: SearchQuery): boolean {
   return query.words.length === 0 && query.digits.length === 0;
 }
 
-export function toSearchable(name: string, phone: string): Searchable {
-  return { text: normalizeSearch(name), digits: digitsOf(phone) };
+/** `phones`: the client's own and, for a child, the parent's; null ones are skipped. */
+export function toSearchable(
+  name: string,
+  phones: string | readonly (string | null)[],
+): Searchable {
+  const list = typeof phones === "string" ? [phones] : phones;
+  return {
+    text: normalizeSearch(name),
+    digits: list
+      .filter((phone): phone is string => phone !== null)
+      .map(digitsOf)
+      .join(" "),
+  };
 }
 
 /**

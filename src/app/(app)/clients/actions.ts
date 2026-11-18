@@ -24,6 +24,12 @@ import {
   setClientArchived,
   updateClient,
 } from "@/features/clients/service";
+import { parentSearchSchema } from "@/features/parents/schema";
+import {
+  type ParentOption,
+  type ParentResult,
+  searchParents,
+} from "@/features/parents/service";
 import { normalizePhone } from "@/lib/phone";
 
 const CLIENT_FIELDS = new Set<string>([
@@ -31,11 +37,15 @@ const CLIENT_FIELDS = new Set<string>([
   "firstName",
   "birthDate",
   "phone",
-  "phoneOwner",
-  "parentName",
+  "kind",
+  "parentId",
+  "newParentName",
+  "newParentPhone",
+  "newParentLocale",
   "groupId",
   "startedOn",
   "note",
+  "messageLocale",
   "consents",
 ]);
 
@@ -51,14 +61,19 @@ function invalidFields(issues: { path: PropertyKey[] }[]): ClientField[] {
 }
 
 function refreshClients() {
-  // "layout" covers /clients and every screen below it; group screens show clients and counts.
+  // "layout" covers /clients and every screen below it; group and parent screens show clients.
   revalidatePath("/clients", "layout");
   revalidatePath("/groups", "layout");
+  revalidatePath("/parents", "layout");
 }
 
 function withFields<T>(result: ActionResult<T>): ActionResult<T> {
-  if (result.ok || result.error !== "group_not_found") return result;
-  return { ...result, fields: ["groupId"] };
+  if (result.ok) return result;
+  if (result.error === "group_not_found")
+    return { ...result, fields: ["groupId"] };
+  if (result.error === "parent_not_found")
+    return { ...result, fields: ["parentId"] };
+  return result;
 }
 
 // Order in every action: session and role, then Zod, then the service, then revalidation.
@@ -121,6 +136,16 @@ export async function checkPhoneAction(
     phone,
     parsed.data.excludeId,
   );
+}
+
+/** Parents for the picker on the client form, by name or phone. */
+export async function searchParentsAction(
+  raw: unknown,
+): Promise<ParentResult<ParentOption[]>> {
+  const actor = await requireStaff(STAFF_ROLES);
+  const parsed = parentSearchSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  return searchParents(await createServerDb(), actor, parsed.data.query);
 }
 
 export async function setClientArchivedAction(

@@ -44,14 +44,16 @@ describe("criterion 5: the Today screen costs at most two database requests", ()
     await authorizeStaff(db, ["owner", "admin"]);
     const screen = await getTodayScreen(db, new Date());
     expect(counter.rest).toBeLessThanOrEqual(2);
-    expect(screen.remind).toHaveLength(screen.counts.remindToday);
+    expect(screen.remind.flatMap((group) => group.rows)).toHaveLength(
+      screen.counts.remindToday,
+    );
     expect(screen.paid).toHaveLength(screen.counts.paidToday);
   });
 
   it("maps rows for the screen: full name, group, price, end date", async () => {
     const { db } = await signedIn(SEED_EMAILS.owner);
     const screen = await getTodayScreen(db, new Date());
-    const row = screen.remind[0];
+    const row = screen.remind[0]?.rows[0];
     expect(row).toBeDefined();
     expect(row?.name).toMatch(/^\S+ \S+/);
     expect(row?.endsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);

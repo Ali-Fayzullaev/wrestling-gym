@@ -73,6 +73,18 @@ function RowItem({ row, today }: { row: PreviewRow; today: Date }) {
               })
             : t.row.noDate}
         </span>
+        {row.parentStatus === "none" ? null : (
+          <>
+            {" · "}
+            <span data-testid="import-row-parent">
+              {row.parentName} (
+              {row.parentStatus === "found"
+                ? t.row.parentFound
+                : t.row.parentNew}
+              )
+            </span>
+          </>
+        )}
         {row.messageLocale === DEFAULT_LOCALE ? null : (
           <>
             {" · "}

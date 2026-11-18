@@ -50,7 +50,6 @@ async function clientEndingTomorrow(supabase: Supabase, lastName: string) {
     last_name: lastName,
     first_name: "Сегодняшний",
     phone: `+7700${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`,
-    phone_owner: "self",
     group_id: SEED_GROUP,
     started_on: addDays(today, -60),
     created_by: SEED_OWNER,

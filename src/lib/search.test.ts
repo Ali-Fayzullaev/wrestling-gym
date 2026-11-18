@@ -75,3 +75,22 @@ describe("empty query", () => {
     expect(find("")).toBe(true);
   });
 });
+
+describe("search over several phones (a child and the parent)", () => {
+  const child = toSearchable("Касымов Арман Айгуль", [null, "+77012223344"]);
+  const both = toSearchable("Касымов Арман", ["+77019990011", "+77012223344"]);
+
+  it("finds a child without a phone by the parent's phone", () => {
+    expect(matchesQuery(child, parseQuery("2223344"))).toBe(true);
+  });
+
+  it("finds by either phone", () => {
+    expect(matchesQuery(both, parseQuery("9990011"))).toBe(true);
+    expect(matchesQuery(both, parseQuery("2223344"))).toBe(true);
+  });
+
+  it("never matches digits spanning two phones", () => {
+    // The end of the first number and the start of the second: "0011" + "7701".
+    expect(matchesQuery(both, parseQuery("00117701"))).toBe(false);
+  });
+});

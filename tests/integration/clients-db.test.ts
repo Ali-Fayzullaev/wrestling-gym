@@ -73,10 +73,8 @@ async function archivedGroup(tx: Tx): Promise<string> {
 function createClient(
   tx: Tx,
   overrides: Partial<{
-    phone: string;
+    phone: string | null;
     groupId: string | null;
-    phoneOwner: string;
-    parentName: string | null;
     consents: string[];
   }> = {},
 ) {
@@ -84,10 +82,8 @@ function createClient(
     select public.create_client(
       p_last_name => '  Қасымов ',
       p_first_name => 'Алихан',
-      p_phone => ${overrides.phone ?? testPhone()},
-      p_phone_owner => ${overrides.phoneOwner ?? "self"},
+      p_phone => ${overrides.phone === undefined ? testPhone() : overrides.phone},
       p_started_on => ${TODAY}::date,
-      p_parent_name => ${overrides.parentName ?? null},
       p_group_id => ${overrides.groupId === undefined ? SEED_GROUP : overrides.groupId}::uuid,
       p_consents => ${overrides.consents ?? []}::text[]
     ) as id
@@ -127,9 +123,9 @@ describe("criterion 4: a wrong phone is refused by the database", () => {
     },
   );
 
-  it("a parent's phone needs the parent's name", async () => {
+  it("step 21: an adult without a phone (no parent) is refused", async () => {
     await expect(
-      asActor(sql, admin, (tx) => createClient(tx, { phoneOwner: "parent" })),
+      asActor(sql, admin, (tx) => createClient(tx, { phone: null })),
     ).rejects.toMatchObject(CHECK_VIOLATION);
   });
 });
@@ -216,7 +212,7 @@ describe("criterion 5: only the owner deletes a client, the audit row has no per
         const [row] = await deleteClient(tx, id, "Платилов", "other");
         expect(row?.mode).toBe("anonymized");
         const [client] = await tx`
-          select last_name, first_name, phone, note, birth_date, parent_name, group_id,
+          select last_name, first_name, phone, note, birth_date, parent_id, group_id,
                  archived_at is not null as archived, deleted_at is not null as deleted
           from public.clients where id = ${id}
         `;
@@ -226,7 +222,7 @@ describe("criterion 5: only the owner deletes a client, the audit row has no per
           phone: "+77000000000",
           note: "",
           birth_date: null,
-          parent_name: null,
+          parent_id: null,
           group_id: null,
           archived: true,
           deleted: true,
@@ -321,6 +317,7 @@ describe("create_client and update_client", () => {
           actor_id: SEED_STAFF.admin,
           details: {
             group_id: SEED_GROUP,
+            parent_id: null,
             consents: ["data_processing", "messaging"],
           },
         },
@@ -351,7 +348,7 @@ describe("create_client and update_client", () => {
         const update = (sp: Tx, groupId: string) => sp`
           select public.update_client(
             p_client_id => ${id}, p_last_name => 'Новый', p_first_name => 'Клиент',
-            p_phone => '+77009990001', p_phone_owner => 'self', p_started_on => '2026-01-10',
+            p_phone => '+77009990001', p_started_on => '2026-01-10',
             p_group_id => ${groupId}::uuid
           )
         `;
@@ -371,6 +368,8 @@ describe("create_client and update_client", () => {
           consents: [],
           from_group_id: kept,
           to_group_id: SEED_GROUP,
+          from_parent_id: null,
+          to_parent_id: null,
         });
         expect(JSON.stringify(audit)).not.toContain("Новый");
       },
@@ -387,7 +386,7 @@ describe("create_client and update_client", () => {
           select public.update_client(
             p_client_id => ${id}, p_last_name => 'Қасымов', p_first_name => 'Алихан',
             p_phone => (select phone from public.clients where id = ${id}),
-            p_phone_owner => 'self', p_started_on => ${TODAY}::date,
+            p_started_on => ${TODAY}::date,
             p_group_id => ${SEED_GROUP}::uuid, p_consents => ${["messaging"]}::text[]
           )
         `;

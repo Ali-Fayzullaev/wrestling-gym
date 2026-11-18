@@ -24,9 +24,9 @@ const clientsText = {
 const c = clientsText;
 const SEED_GROUP = "10000000-0000-4000-8000-000000000001";
 const SEED_GROUP_NAME = "Дети 6–9 лет, утро";
-/** Seed client 1 (supabase/seed.sql): phone +77000000001. */
-const SEED_CLIENT = "20000000-0000-4000-8000-000000000001";
-const SEED_PHONE = "+77000000001";
+/** Seed client 4 (supabase/seed.sql): an adult with phone +77000000004 (children have none). */
+const SEED_CLIENT = "20000000-0000-4000-8000-000000000004";
+const SEED_PHONE = "+77000000004";
 // Client screens: ids only; the fixed paths carry no data (the owner's list prefetches the import).
 const UUID_PATH = /^\/clients(\/[0-9a-f-]{36}(\/edit)?|\/new|\/import)?$/;
 
@@ -44,7 +44,6 @@ async function seedClient(
     last_name: lastName,
     first_name: "Тестов",
     phone,
-    phone_owner: "self",
     group_id: SEED_GROUP,
     started_on: "2026-11-01",
     created_by: "00000000-0000-4000-8000-000000000001",
@@ -119,7 +118,8 @@ test.describe("list", () => {
     for (const text of found) expect(text).toContain("Касымов");
 
     await search(page).fill("");
-    await search(page).pressSequentially("+7 700 000 00 42");
+    // Seed client 46 is an adult with a phone of their own.
+    await search(page).pressSequentially("+7 700 000 00 46");
     await expect(rows(page)).toHaveCount(1);
 
     await page.getByRole("button", { name: c.list.clearSearch }).click();
@@ -236,7 +236,7 @@ test.describe("form", () => {
       await page.getByLabel(c.form.firstName, { exact: true }).fill("Брат");
       await page
         .getByLabel(c.form.phone, { exact: true })
-        .fill("8 700 000 00 01");
+        .fill("8 700 000 00 04");
       await page.getByLabel(c.form.firstName, { exact: true }).focus();
       const warning = page.getByTestId("phone-duplicates");
       await expect(warning).toContainText(c.form.duplicates);
@@ -244,11 +244,7 @@ test.describe("form", () => {
         `${seed.last_name} ${seed.first_name}`,
       );
 
-      await page.getByLabel(c.form.phoneOwnerParent).check();
-      await page.getByRole("button", { name: c.form.save }).click();
-      // The parent's name is required for a parent's phone.
-      await expect(page.getByText(c.form.errors.parentName)).toBeVisible();
-      await page.getByLabel(c.form.parentName).fill("Гульнара");
+      // A warning, not a refusal: an adult with a number already on file is still saved.
       // Next keeps the list screen (with its own "Группа" filter) hidden in the DOM.
       await page
         .locator("form")
@@ -262,7 +258,7 @@ test.describe("form", () => {
       await expect(
         page.getByRole("heading", { level: 1, name: `${lastName} Брат` }),
       ).toBeVisible();
-      await expect(page.getByText("+7 700 000 00 01")).toBeVisible();
+      await expect(page.getByText("+7 700 000 00 04")).toBeVisible();
       await expect(
         page.getByRole("main").getByRole("link", { name: SEED_GROUP_NAME }),
       ).toBeVisible();
@@ -367,8 +363,7 @@ test("criterion 11: no phone or name ever appears in a URL", async ({
   const forbidden = people.flatMap((p) => [
     p.last_name,
     p.first_name,
-    p.phone,
-    p.phone.slice(1),
+    ...(p.phone ? [p.phone, p.phone.slice(1)] : []),
   ]);
   forbidden.push(...forbidden.map((value) => encodeURIComponent(value)));
 

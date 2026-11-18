@@ -59,14 +59,14 @@ isOneToOne: false
                   ]
                 },"clients": {
                   Row: {
-                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"deleted_at": string | null,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"message_locale": string,"note": string,"parent_name": string | null,"phone": string,"phone_owner": string,"search_text": string | null,"started_on": string,"updated_at": string
+                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"deleted_at": string | null,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"message_locale": string,"note": string,"parent_id": string | null,"phone": string | null,"search_text": string | null,"started_on": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"message_locale"?: string,"note"?: string,"parent_name"?: string | null,"phone": string,"phone_owner": string,"search_text"?: never,"started_on": string,"updated_at"?: string
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"message_locale"?: string,"note"?: string,"parent_id"?: string | null,"phone"?: string | null,"search_text"?: never,"started_on": string,"updated_at"?: string
                   }
                   Update: {
-                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"message_locale"?: string,"note"?: string,"parent_name"?: string | null,"phone"?: string,"phone_owner"?: string,"search_text"?: never,"started_on"?: string,"updated_at"?: string
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"message_locale"?: string,"note"?: string,"parent_id"?: string | null,"phone"?: string | null,"search_text"?: never,"started_on"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -80,6 +80,12 @@ isOneToOne: false
       columns: ["group_id"]
 isOneToOne: false
       referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "clients_parent_id_fkey"
+      columns: ["parent_id"]
+isOneToOne: false
+      referencedRelation: "parents"
       referencedColumns: ["id"]
     }
                   ]
@@ -144,6 +150,26 @@ isOneToOne: false
                     {
       foreignKeyName: "message_templates_updated_by_fkey"
       columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "staff"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"parents": {
+                  Row: {
+                    "archived_at": string | null,"created_at": string,"created_by": string,"id": string,"message_locale": string,"name": string,"note": string,"phone": string,"search_text": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string,"id"?: string,"message_locale"?: string,"name": string,"note"?: string,"phone": string,"search_text"?: never,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string,"id"?: string,"message_locale"?: string,"name"?: string,"note"?: string,"phone"?: string,"search_text"?: never,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "parents_created_by_fkey"
+      columns: ["created_by"]
 isOneToOne: false
       referencedRelation: "staff"
       referencedColumns: ["id"]
@@ -327,7 +353,7 @@ isOneToOne: false
 { Args: { "p_staff_id": string }; Returns: undefined
                            },
 "create_client":
-{ Args: { "p_birth_date"?: string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: string
+{ Args: { "p_birth_date"?: string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: string
                            },
 "create_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_name": string,"p_schedule": Json }; Returns: string
@@ -402,6 +428,9 @@ isOneToOne: false
               "client_id": string
             }[]
                            },
+"parent_screen":
+{ Args: { "p_parent_id": string,"p_today"?: string }; Returns: Json
+                           },
 "payment_json":
 { Args: { "p": Omit<Database["public"]['Tables']["payments"]['Row'], Database["public"]['Tables']["payments"]['ComputedFields']>,"p_created": boolean }; Returns: Json
                            },
@@ -416,6 +445,9 @@ isOneToOne: false
 "phone_duplicates":
 { Args: { "p_exclude_id"?: string,"p_phone": string }; Returns: Json
                            },
+"record_family_reminder_opened":
+{ Args: { "p_items": Json,"p_locale"?: string,"p_parent_id": string }; Returns: Json
+                           },
 "record_payment":
 { Args: { "p_amount": number,"p_client_id": string,"p_idempotency_key": string,"p_method": string,"p_months"?: number,"p_period_end"?: string }; Returns: Json
                            },
@@ -423,7 +455,7 @@ isOneToOne: false
 { Args: { "p_kind": string,"p_locale"?: string,"p_payment_id": string }; Returns: Json
                            },
 "reminder_contact_json":
-{ Args: { "p_client": Omit<Database["public"]['Tables']["clients"]['Row'], Database["public"]['Tables']["clients"]['ComputedFields']>,"p_ends_on": string,"p_group_name": string,"p_kind": string,"p_payment_id": string,"p_price": number }; Returns: Json
+{ Args: { "p_client": Omit<Database["public"]['Tables']["clients"]['Row'], Database["public"]['Tables']["clients"]['ComputedFields']>,"p_ends_on": string,"p_group_name": string,"p_kind": string,"p_parent": Omit<Database["public"]['Tables']["parents"]['Row'], Database["public"]['Tables']["parents"]['ComputedFields']>,"p_payment_id": string,"p_price": number }; Returns: Json
                            },
 "reminder_context":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -459,8 +491,14 @@ isOneToOne: false
 "require_staff_role":
 { Args: { "p_roles": (string)[] }; Returns: undefined
                            },
+"resolve_client_parent":
+{ Args: { "p_new_parent": Json,"p_parent_id": string }; Returns: string
+                           },
 "reverse_payment":
 { Args: { "p_idempotency_key": string,"p_payment_id": string,"p_reason": string }; Returns: Json
+                           },
+"search_parents":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: Json
                            },
 "set_client_archived":
 { Args: { "p_archived": boolean,"p_client_id": string }; Returns: boolean
@@ -474,14 +512,20 @@ isOneToOne: false
 "today_screen":
 { Args: { "p_today"?: string }; Returns: Json
                            },
+"transfer_legacy_parents":
+{ Args: { "p_links": Json }; Returns: Json
+                           },
 "update_client":
-{ Args: { "p_birth_date"?: string,"p_client_id": string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_note"?: string,"p_parent_name"?: string,"p_phone": string,"p_phone_owner": string,"p_started_on": string }; Returns: undefined
+{ Args: { "p_birth_date"?: string,"p_client_id": string,"p_consents"?: (string)[],"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: undefined
                            },
 "update_group":
 { Args: { "p_capacity"?: number,"p_coach_id": string,"p_default_price": number,"p_group_id": string,"p_name": string,"p_schedule": Json }; Returns: undefined
                            },
 "update_gym_settings":
 { Args: { "p_gym_name": string,"p_gym_whatsapp": string }; Returns: Json
+                           },
+"update_parent":
+{ Args: { "p_message_locale": string,"p_name": string,"p_note"?: string,"p_parent_id": string,"p_phone": string }; Returns: undefined
                            },
 "update_reminder_settings":
 { Args: { "p_reminder_days": (number)[],"p_templates": Json }; Returns: Json

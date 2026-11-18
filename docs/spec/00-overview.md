@@ -81,7 +81,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 18 | [18-payment-period.md](18-payment-period.md) | Продление от старой даты, дата «до» при оплате | 07, D-03, D-16 | done |
 | 19 | [19-message-languages.md](19-message-languages.md) | Напоминания в WhatsApp на трёх языках | 09, 16, D-13 | done |
 | 20 | [20-send-language.md](20-send-language.md) | Выбор языка при отправке напоминания | 19, D-17 | done |
-| 21 | [21-families.md](21-families.md) | Родитель и несколько детей, одно сообщение на семью | 20, D-18, D-19 | todo |
+| 21 | [21-families.md](21-families.md) | Родитель и несколько детей, одно сообщение на семью | 20, D-18, D-19 | done |
 
 Статусы: `todo` → `in-progress` → `done` (или `blocked: <причина>`).
 

@@ -22,6 +22,7 @@ export const COLUMN_KEYS = [
   "group",
   "endsOn",
   "locale",
+  "parent",
 ] as const;
 export type ColumnKey = (typeof COLUMN_KEYS)[number];
 

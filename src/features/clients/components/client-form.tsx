@@ -20,25 +20,30 @@ import { formatDate } from "@/lib/format";
 import { HTML_LANG, type Locale, LOCALE_NAMES, LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
+import type { ParentOption } from "@/features/parents/service";
+
 import {
+  CLIENT_KINDS,
   clientFormFields as fields,
+  type ClientKind,
   CONSENT_KINDS,
   type ConsentKind,
   NAME_MAX,
   NOTE_MAX,
-  type PhoneOwner,
 } from "../form-fields";
 import type { ActionResult } from "../result";
 import type { ClientField, PhoneCheckInput } from "../schema";
 import type { ActiveGroup, PhoneDuplicate } from "../service";
+import { ParentPicker, type SearchParents } from "./parent-picker";
 
 export type ClientFormValues = {
   lastName: string;
   firstName: string;
   birthDate: string | null;
   phone: string;
-  phoneOwner: PhoneOwner;
-  parentName: string | null;
+  kind: ClientKind;
+  /** A child's parent when it is already known. */
+  parent: ParentOption | null;
   groupId: string | null;
   startedOn: string;
   note: string;
@@ -48,7 +53,9 @@ export type ClientFormValues = {
 type Failure = Extract<ActionResult<unknown>, { ok: false }>;
 
 /**
- * New client and edit client. Submitted by hand, not through <form action>: React would reset the
+ * New client and edit client. First the kind: an adult has their own phone and language; a child
+ * has a parent (found or entered here), whose phone and language the reminders use (D-18), and
+ * maybe a phone of their own. Submitted by hand, not through <form action>: React would reset the
  * fields after the action, and a failed save must keep what was typed. Leaving the phone field
  * checks the number and lists other clients with it (a warning; saving is still allowed).
  */
@@ -62,6 +69,7 @@ export function ClientForm({
   today,
   submit,
   checkPhone,
+  searchParents,
 }: {
   mode: "create" | "edit";
   /** The edited client: excluded from duplicates, and where Cancel returns. */
@@ -76,6 +84,7 @@ export function ClientForm({
   checkPhone: (
     input: PhoneCheckInput,
   ) => Promise<ActionResult<PhoneDuplicate[]>>;
+  searchParents: SearchParents;
 }) {
   const clientErrorText = useText("clients").errors;
   const f = useText("clientForm");
@@ -84,7 +93,8 @@ export function ClientForm({
   const id = useId();
   const [failure, setFailure] = useState<Failure | null>(null);
   const [pending, startTransition] = useTransition();
-  const [phoneOwner, setPhoneOwner] = useState<PhoneOwner>(initial.phoneOwner);
+  const [kind, setKind] = useState<ClientKind>(initial.kind);
+  const child = kind === "child";
   const [phoneWrong, setPhoneWrong] = useState(false);
   const [duplicates, setDuplicates] = useState<PhoneDuplicate[]>([]);
   // The last number looked up, so leaving the field again does not ask twice.
@@ -160,6 +170,28 @@ export function ClientForm({
         </p>
       ) : null}
 
+      <fieldset className="grid gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">{f.kind}</legend>
+        <div className="flex flex-wrap gap-x-6 gap-y-1">
+          {CLIENT_KINDS.map((option) => (
+            <label
+              key={option}
+              className="flex min-h-11 items-center gap-2.5 text-sm"
+            >
+              <input
+                type="radio"
+                name={fields.kind}
+                value={option}
+                checked={kind === option}
+                onChange={() => setKind(option)}
+                className="size-5 shrink-0 accent-primary"
+              />
+              {option === "adult" ? f.kindAdult : f.kindChild}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id={id} field="lastName" label={f.lastName} invalid={invalid}>
           <input
@@ -185,11 +217,19 @@ export function ClientForm({
         </Field>
       </div>
 
+      {child ? (
+        <ParentPicker
+          initial={initial.parent}
+          invalid={invalid}
+          search={searchParents}
+        />
+      ) : null}
+
       <Field
         id={id}
         field="phone"
-        label={f.phone}
-        hint={f.phoneHint}
+        label={child ? f.childPhone : f.phone}
+        hint={child ? f.childPhoneHint : f.phoneHint}
         invalid={invalid}
       >
         <input
@@ -199,7 +239,7 @@ export function ClientForm({
           inputMode="tel"
           autoComplete="off"
           defaultValue={initial.phone}
-          required
+          required={!child}
           onBlur={(event) => onPhoneBlur(event.target.value)}
           onChange={() => setPhoneWrong(false)}
           className={`${inputClassName} tabular-nums`}
@@ -234,69 +274,36 @@ export function ClientForm({
         </div>
       ) : null}
 
-      <fieldset className="grid gap-1.5">
-        <legend className="mb-1.5 text-sm font-medium">{f.phoneOwner}</legend>
-        <div className="flex flex-wrap gap-x-6 gap-y-1">
-          {(["self", "parent"] as const).map((owner) => (
-            <label
-              key={owner}
-              className="flex min-h-11 items-center gap-2.5 text-sm"
-            >
-              <input
-                type="radio"
-                name={fields.phoneOwner}
-                value={owner}
-                checked={phoneOwner === owner}
-                onChange={() => setPhoneOwner(owner)}
-                className="size-5 shrink-0 accent-primary"
-              />
-              {owner === "self" ? f.phoneOwnerSelf : f.phoneOwnerParent}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      {phoneOwner === "parent" ? (
+      {child ? (
+        // A child's reminders go in the parent's language; the client's own stays as it was.
+        <input
+          type="hidden"
+          name={fields.messageLocale}
+          value={initial.messageLocale}
+        />
+      ) : (
         <Field
           id={id}
-          field="parentName"
-          label={f.parentName}
-          hint={f.parentNameHint}
+          field="messageLocale"
+          label={f.messageLocale}
+          hint={f.messageLocaleHint}
           invalid={invalid}
         >
-          <input
-            {...control("parentName", true)}
-            name={fields.parentName}
-            defaultValue={initial.parentName ?? ""}
-            maxLength={NAME_MAX}
-            autoComplete="off"
-            required
-            className={inputClassName}
-          />
+          <select
+            {...control("messageLocale", true)}
+            name={fields.messageLocale}
+            defaultValue={initial.messageLocale}
+            className={`${inputClassName} sm:max-w-[calc(50%-0.625rem)]`}
+          >
+            {LOCALES.map((option) => (
+              // Each language named in itself, as the client would recognise it.
+              <option key={option} value={option} lang={HTML_LANG[option]}>
+                {LOCALE_NAMES[option]}
+              </option>
+            ))}
+          </select>
         </Field>
-      ) : null}
-
-      <Field
-        id={id}
-        field="messageLocale"
-        label={f.messageLocale}
-        hint={f.messageLocaleHint}
-        invalid={invalid}
-      >
-        <select
-          {...control("messageLocale", true)}
-          name={fields.messageLocale}
-          defaultValue={initial.messageLocale}
-          className={`${inputClassName} sm:max-w-[calc(50%-0.625rem)]`}
-        >
-          {LOCALES.map((option) => (
-            // Each language named in itself, as the client would recognise it.
-            <option key={option} value={option} lang={HTML_LANG[option]}>
-              {LOCALE_NAMES[option]}
-            </option>
-          ))}
-        </select>
-      </Field>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id={id} field="groupId" label={f.group} invalid={invalid}>

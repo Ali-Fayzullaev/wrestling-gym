@@ -10,14 +10,16 @@ import {
   REMINDER_KINDS,
   type ReminderKind,
   type ReminderStatus,
+  TEMPLATE_KINDS,
 } from "./kinds";
-import type {
-  MarkedReminder,
-  OpenedReminder,
-  OpenReminderInput,
-  ReminderError,
-  ReminderResult,
-  SettingsResult,
+import {
+  isFamilyTarget,
+  type MarkedReminder,
+  type OpenedReminder,
+  type OpenReminderInput,
+  type ReminderError,
+  type ReminderResult,
+  type SettingsResult,
 } from "./result";
 import {
   type HistoryFilter,
@@ -26,6 +28,8 @@ import {
   type ReminderSettingsInput,
 } from "./schema";
 import {
+  familyValues,
+  type FamilyChild,
   isDraftTemplate,
   pickTemplate,
   type ReminderContact,
@@ -46,7 +50,7 @@ const contextShape = z.object({
   templates: z.array(
     z.object({
       id: z.string(),
-      kind: kindShape,
+      kind: z.enum(TEMPLATE_KINDS),
       locale: localeShape,
       body: z.string(),
       edited: z.boolean(),
@@ -58,8 +62,9 @@ const contactShape = z.object({
   id: z.string(),
   last_name: z.string(),
   first_name: z.string(),
+  // Whoever gets the message: the parent for a child (D-18), in their language.
   phone: z.string(),
-  phone_owner: z.enum(["self", "parent"]),
+  parent_id: z.string().nullable(),
   parent_name: z.string().nullable(),
   message_locale: localeShape,
   group_name: z.string().nullable(),
@@ -220,18 +225,69 @@ export function buildReminderMessage(
   context: ReminderContext,
   today: Date,
 ): ReminderMessage | null {
+  return messageInEveryLocale(contact.phone, contact.messageLocale, (locale) =>
+    buildReminderText(contact, kind, context, today, locale),
+  );
+}
+
+function messageInEveryLocale(
+  phone: string,
+  defaultLocale: Locale,
+  textIn: (locale: Locale) => ReminderText | null,
+): ReminderMessage | null {
   const variant = (locale: Locale): ReminderVariant | null => {
-    const reminder = buildReminderText(contact, kind, context, today, locale);
-    return (
-      reminder && {
-        ...reminder,
-        href: buildWaLink(contact.phone, reminder.text),
-      }
-    );
+    const reminder = textIn(locale);
+    return reminder && { ...reminder, href: buildWaLink(phone, reminder.text) };
   };
   const [ru, kk, uz] = [variant("ru"), variant("kk"), variant("uz")];
   if (!ru || !kk || !uz) return null;
-  return { defaultLocale: contact.messageLocale, variants: { ru, kk, uz } };
+  return { defaultLocale, variants: { ru, kk, uz } };
+}
+
+/** A parent with several children to remind on the same day (D-18). */
+export type FamilyContact = {
+  parentName: string;
+  /** The parent's phone: the message goes there. */
+  phone: string;
+  /** The parent's language. */
+  messageLocale: Locale;
+  children: FamilyChild[];
+};
+
+/** The "several children" text in `locale` (or Russian), one line per child. */
+export function buildFamilyText(
+  family: FamilyContact,
+  context: ReminderContext,
+  today: Date,
+  locale: Locale = family.messageLocale,
+): ReminderText | null {
+  const template = pickTemplate(context.templates, "family", locale);
+  if (!template) return null;
+  return {
+    text: renderTemplate(
+      template.body,
+      familyValues(
+        family.parentName,
+        family.children,
+        context.gymName,
+        today,
+        template.locale,
+      ),
+    ),
+    locale: template.locale,
+    draft: isDraftTemplate(template),
+  };
+}
+
+/** One message to the parent about all of `family.children`, in ru, kk and uz (D-17, D-18). */
+export function buildFamilyMessage(
+  family: FamilyContact,
+  context: ReminderContext,
+  today: Date,
+): ReminderMessage | null {
+  return messageInEveryLocale(family.phone, family.messageLocale, (locale) =>
+    buildFamilyText(family, context, today, locale),
+  );
 }
 
 /**
@@ -251,7 +307,6 @@ export function buildReminderLink(
 function toLinkContact(row: z.infer<typeof contactShape>): LinkContact {
   return {
     firstName: row.first_name,
-    phoneOwner: row.phone_owner,
     parentName: row.parent_name,
     messageLocale: row.message_locale,
     groupName: row.group_name,
@@ -400,6 +455,7 @@ export async function getReminderSettings(
 
 const MESSAGE_ERRORS: Record<string, ReminderError> = {
   payment_not_found: "not_found",
+  parent_not_found: "not_found",
   template_not_found: "not_found",
   reminder_not_found: "not_found",
 };
@@ -425,9 +481,29 @@ export function reminderError(error: {
 const isStaff = (actor: Actor) =>
   actor.role === "owner" || actor.role === "admin";
 
+const openedShape = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  opened_at: z.string(),
+  status: statusShape,
+  created: z.boolean(),
+});
+
+function toOpened(row: z.infer<typeof openedShape>): OpenedReminder {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    openedAt: row.opened_at,
+    status: row.status,
+    created: row.created,
+  };
+}
+
 /**
- * Records "chat opened" for this subscription and reminder kind. Repeating it (a second click, a
- * network retry, another tab) returns the first event: the database key allows only one.
+ * Records "chat opened" for this subscription and reminder kind, or, for one message to a parent,
+ * for every child in it (in one transaction). Repeating it (a second click, a network retry,
+ * another tab) returns the first events: the database key allows only one per subscription and
+ * kind. A family message answers with its first child's event.
  */
 export async function openReminder(
   db: Db,
@@ -435,32 +511,30 @@ export async function openReminder(
   input: OpenReminderInput,
 ): Promise<ReminderResult<OpenedReminder>> {
   if (!isStaff(actor)) return { ok: false, error: "forbidden" };
+  if (isFamilyTarget(input)) {
+    const { data, error } = await db.rpc("record_family_reminder_opened", {
+      p_parent_id: input.parentId,
+      p_items: input.items.map((item) => ({
+        payment_id: item.paymentId,
+        kind: item.kind,
+      })),
+      // Absent: the parent's language from the card.
+      p_locale: input.locale,
+    });
+    if (error) return { ok: false, error: reminderError(error) };
+    const [first] = z.array(openedShape).min(1).parse(data);
+    return first
+      ? { ok: true, data: toOpened(first) }
+      : { ok: false, error: "unavailable" };
+  }
   const { data, error } = await db.rpc("record_reminder_opened", {
     p_payment_id: input.paymentId,
     p_kind: input.kind,
-    // Absent: the client's language from the card.
+    // Absent: the language on the card (the parent's for a child).
     p_locale: input.locale,
   });
   if (error) return { ok: false, error: reminderError(error) };
-  const row = z
-    .object({
-      id: z.string(),
-      client_id: z.string(),
-      opened_at: z.string(),
-      status: statusShape,
-      created: z.boolean(),
-    })
-    .parse(data);
-  return {
-    ok: true,
-    data: {
-      id: row.id,
-      clientId: row.client_id,
-      openedAt: row.opened_at,
-      status: row.status,
-      created: row.created,
-    },
-  };
+  return { ok: true, data: toOpened(openedShape.parse(data)) };
 }
 
 /** The manual "marked as sent" for an opened chat. A second mark changes nothing. */

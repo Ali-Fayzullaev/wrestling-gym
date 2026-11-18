@@ -21,6 +21,12 @@ export type RowError =
 /** new: will be created; duplicate: already on file or earlier in this file; error: skipped. */
 export type RowStatus = "new" | "duplicate" | "error";
 
+/**
+ * A row with a parent (D-18): "found" when a current parent with this phone and name is on file,
+ * "new" when the import creates one (rows of one parent share it); "none" for an adult.
+ */
+export type ParentStatus = "none" | "new" | "found";
+
 export type PreviewRow = {
   line: number;
   lastName: string;
@@ -34,6 +40,9 @@ export type PreviewRow = {
   endsOn: string | null;
   /** Language of the client's reminders; Russian when the file says nothing. */
   messageLocale: Locale;
+  /** The parent's name as written, "" for an adult. The phone is then the parent's. */
+  parentName: string;
+  parentStatus: ParentStatus;
   status: RowStatus;
   errors: RowError[];
   /** Line of the earlier row in this file with the same person; null when already on file. */
@@ -46,11 +55,17 @@ export type ExistingClient = {
   firstName: string;
 };
 export type GroupRef = { id: string; name: string };
+export type ExistingParent = { phone: string; name: string };
 
 /** Same as clients.last_name / first_name in the database: 1..100 characters. */
 const NAME_MAX = 100;
 
 const collapse = (text: string) => text.replace(/\s+/g, " ").trim();
+
+/** One parent per phone and name, case and spaces aside (import_clients() agrees). */
+export function parentKey(phone: string, name: string): string {
+  return [phone, collapse(name).toLowerCase()].join("|");
+}
 
 /** Duplicate key: phone + last name + first name, case-insensitive (import_clients() agrees). */
 export function duplicateKey(
@@ -69,8 +84,15 @@ function cellAt(cells: readonly Cell[], index: number | null): Cell {
 export function buildPreview(
   table: Table,
   mapping: ColumnMapping,
-  context: { existing: readonly ExistingClient[]; groups: readonly GroupRef[] },
+  context: {
+    existing: readonly ExistingClient[];
+    groups: readonly GroupRef[];
+    parents?: readonly ExistingParent[];
+  },
 ): PreviewRow[] {
+  const parentsOnFile = new Set(
+    (context.parents ?? []).map((p) => parentKey(p.phone, p.name)),
+  );
   const onFile = new Set(
     context.existing.map((c) => duplicateKey(c.phone, c.lastName, c.firstName)),
   );
@@ -89,11 +111,16 @@ export function buildPreview(
     const date = parseEndDate(cellAt(cells, mapping.endsOn));
     const phone = normalizePhone(rawPhone);
     const messageLocale = parseMessageLocale(text(mapping.locale));
+    const parentName = text(mapping.parent);
 
     const errors: RowError[] = [];
     if (lastName === "") errors.push("last_name_missing");
     if (firstName === "") errors.push("first_name_missing");
-    if (lastName.length > NAME_MAX || firstName.length > NAME_MAX)
+    if (
+      lastName.length > NAME_MAX ||
+      firstName.length > NAME_MAX ||
+      parentName.length > NAME_MAX
+    )
       errors.push("name_too_long");
     if (rawPhone === "") errors.push("phone_missing");
     else if (phone === null) errors.push("phone_invalid");
@@ -112,11 +139,20 @@ export function buildPreview(
           : (groupsByName.get(groupKey(groupName)) ?? null),
       endsOn: date.ok ? date.value : null,
       messageLocale: messageLocale.ok ? messageLocale.value : DEFAULT_LOCALE,
+      parentName,
+      parentStatus:
+        parentName === "" || phone === null
+          ? "none"
+          : parentsOnFile.has(parentKey(phone, parentName))
+            ? "found"
+            : "new",
       status: "new",
       errors,
       duplicateOf: null,
     };
-    if (errors.length > 0 || phone === null) return { ...row, status: "error" };
+    // A skipped row creates no parent either.
+    if (errors.length > 0 || phone === null)
+      return { ...row, status: "error", parentStatus: "none" };
 
     const key = duplicateKey(phone, lastName, firstName);
     const earlier = seen.get(key);

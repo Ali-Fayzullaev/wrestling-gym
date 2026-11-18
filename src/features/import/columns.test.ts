@@ -67,6 +67,7 @@ describe("matchHeaders", () => {
       "Топ",
       "Оплачено до",
       "Тілі",
+      "Ата-анасы",
     ]);
     expect(mapping).toEqual({
       lastName: 1,
@@ -75,9 +76,17 @@ describe("matchHeaders", () => {
       group: 5,
       endsOn: 6,
       locale: 7,
+      parent: 8,
     });
     expect(missingColumns(mapping)).toEqual([]);
   });
+
+  it.each(["Родитель", "Имя родителя", "Мама", "Ота-онаси", "Parent name"])(
+    "reads %j as the parent column (D-18)",
+    (header) => {
+      expect(matchHeaders(["Фамилия", header]).parent).toBe(1);
+    },
+  );
 
   it("reports required fields without a column; group and date are optional", () => {
     const mapping = matchHeaders(["ФИО", "Телефон"]);

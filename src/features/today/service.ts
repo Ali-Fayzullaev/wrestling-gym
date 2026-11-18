@@ -2,7 +2,9 @@ import { z } from "zod";
 
 import type { Db } from "@/db/client";
 import { REMINDER_KINDS, type ReminderKind } from "@/features/reminders/kinds";
+import type { ReminderTargetInput } from "@/features/reminders/result";
 import {
+  buildFamilyMessage,
   buildReminderMessage,
   parseReminderContext,
   type ReminderContext,
@@ -23,12 +25,13 @@ const rowShape = z.object({
   ends_on: z.string().nullable(),
 });
 
-// What a "remind" row's wa.me link is built from.
+// What a "remind" row's wa.me link is built from: whoever gets the message (the parent for a
+// child, D-18) and, for a child, the parent's id, so one parent's children share one message.
 const reminderShape = z.object({
   payment_id: z.string(),
   kind: z.enum(REMINDER_KINDS),
   phone: z.string(),
-  phone_owner: z.enum(["self", "parent"]),
+  parent_id: z.string().nullable(),
   parent_name: z.string().nullable(),
   message_locale: z.enum(LOCALES),
 });
@@ -63,20 +66,132 @@ export type TodayRow = {
   endsOn: string | null;
 };
 
-/** The reminder due for a "remind" row: what the WhatsApp button opens and records. */
-export type TodayReminder = {
-  paymentId: string;
-  kind: ReminderKind;
-  /** The text and wa.me link in each language; null when the template of this kind is missing. */
+/**
+ * One message to send today: one client, or one parent with every child of theirs due today
+ * (D-18). The WhatsApp button opens `message` and records "chat opened" for `target`.
+ */
+export type TodayRemindGroup = {
+  /** The parent of the children in it; null for a client reminded on their own phone. */
+  parent: { id: string; name: string } | null;
+  /** First names of the clients in the message, as the family line on the screen lists them. */
+  firstNames: string[];
+  /** The clients the message is about, soonest end first. */
+  rows: TodayRow[];
+  target: ReminderTargetInput;
+  /** The text and wa.me link in each language; null when the template is missing. */
   message: ReminderMessage | null;
 };
 
-export type TodayRemindRow = TodayRow & { reminder: TodayReminder };
+/** A "remind" row as today_screen() returns it, flattened. */
+export type DueRow = TodayRow & {
+  paymentId: string;
+  kind: ReminderKind;
+  firstName: string;
+  phone: string;
+  parentId: string | null;
+  parentName: string | null;
+  messageLocale: z.infer<typeof reminderShape>["message_locale"];
+};
+
+/**
+ * Puts the children of one parent into one group, in the order of the first of them (the rows
+ * come soonest end first); everybody else is a group of one.
+ */
+export function groupDueRows(rows: readonly DueRow[]): DueRow[][] {
+  const groups: DueRow[][] = [];
+  const byParent = new Map<string, DueRow[]>();
+  for (const row of rows) {
+    if (row.parentId === null) {
+      groups.push([row]);
+      continue;
+    }
+    const group = byParent.get(row.parentId);
+    if (group) {
+      group.push(row);
+      continue;
+    }
+    const created = [row];
+    byParent.set(row.parentId, created);
+    groups.push(created);
+  }
+  return groups;
+}
+
+function toRemindGroup(
+  rows: readonly DueRow[],
+  context: ReminderContext,
+  now: Date,
+): TodayRemindGroup | null {
+  const [first] = rows;
+  if (!first) return null;
+  const parent =
+    first.parentId !== null && first.parentName !== null
+      ? { id: first.parentId, name: first.parentName }
+      : null;
+  if (parent && rows.length > 1) {
+    return {
+      parent,
+      firstNames: rows.map((row) => row.firstName),
+      rows: rows.map(toPlainRow),
+      target: {
+        parentId: parent.id,
+        items: rows.map((row) => ({
+          paymentId: row.paymentId,
+          kind: row.kind,
+        })),
+      },
+      message: buildFamilyMessage(
+        {
+          parentName: parent.name,
+          phone: first.phone,
+          messageLocale: first.messageLocale,
+          children: rows.map((row) => ({
+            firstName: row.firstName,
+            endsOn: row.endsOn,
+            price: row.price,
+          })),
+        },
+        context,
+        now,
+      ),
+    };
+  }
+  return {
+    parent,
+    firstNames: [first.firstName],
+    rows: [toPlainRow(first)],
+    target: { paymentId: first.paymentId, kind: first.kind },
+    message: buildReminderMessage(
+      {
+        firstName: first.firstName,
+        parentName: first.parentName,
+        messageLocale: first.messageLocale,
+        groupName: first.groupName,
+        price: first.price,
+        endsOn: first.endsOn,
+        phone: first.phone,
+      },
+      first.kind,
+      context,
+      now,
+    ),
+  };
+}
+
+function toPlainRow(row: DueRow): TodayRow {
+  return {
+    id: row.id,
+    name: row.name,
+    groupName: row.groupName,
+    price: row.price,
+    endsOn: row.endsOn,
+  };
+}
 
 export type TodayScreen = {
   counts: TodayCounts;
-  /** Reminders due today and not opened yet, soonest end first. */
-  remind: TodayRemindRow[];
+  /** Messages to send today (one per client, or per parent), soonest end first. */
+  remind: TodayRemindGroup[];
   /** Clients with a payment recorded today (not reversed), by name. */
   paid: TodayRow[];
 };
@@ -91,29 +206,17 @@ function toRow(row: z.infer<typeof rowShape>): TodayRow {
   };
 }
 
-function toRemindRow(
-  row: z.infer<typeof screenShape>["remind"][number],
-  context: ReminderContext,
-  now: Date,
-): TodayRemindRow {
+function toDueRow(row: z.infer<typeof screenShape>["remind"][number]): DueRow {
   const { reminder } = row;
-  const contact = {
-    firstName: row.first_name,
-    phoneOwner: reminder.phone_owner,
-    parentName: reminder.parent_name,
-    messageLocale: reminder.message_locale,
-    groupName: row.group_name,
-    price: row.price,
-    endsOn: row.ends_on,
-    phone: reminder.phone,
-  };
   return {
     ...toRow(row),
-    reminder: {
-      paymentId: reminder.payment_id,
-      kind: reminder.kind,
-      message: buildReminderMessage(contact, reminder.kind, context, now),
-    },
+    firstName: row.first_name,
+    paymentId: reminder.payment_id,
+    kind: reminder.kind,
+    phone: reminder.phone,
+    parentId: reminder.parent_id,
+    parentName: reminder.parent_name,
+    messageLocale: reminder.message_locale,
   };
 }
 
@@ -132,7 +235,9 @@ export async function getTodayScreen(db: Db, now: Date): Promise<TodayScreen> {
       expiringWeek: screen.counts.expiring_week,
       paidToday: screen.counts.paid_today,
     },
-    remind: screen.remind.map((row) => toRemindRow(row, context, now)),
+    remind: groupDueRows(screen.remind.map(toDueRow))
+      .map((rows) => toRemindGroup(rows, context, now))
+      .filter((group): group is TodayRemindGroup => group !== null),
     paid: screen.paid.map(toRow),
   };
 }

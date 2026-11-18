@@ -43,7 +43,6 @@ async function newClient(supabase: Supabase, lastName: string) {
     last_name: lastName,
     first_name: "Тест",
     phone,
-    phone_owner: "self",
     group_id: SEED_GROUP,
     started_on: "2026-11-01",
     created_by: SEED_OWNER,

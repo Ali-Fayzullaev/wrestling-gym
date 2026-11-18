@@ -64,6 +64,9 @@ export function ImportReport({
         {report.duplicates > 0 ? (
           <li>{fmt(t.duplicates, { count: report.duplicates })}</li>
         ) : null}
+        {report.parentsCreated > 0 ? (
+          <li>{fmt(t.parents, { count: report.parentsCreated })}</li>
+        ) : null}
         {report.groupsCreated > 0 ? (
           <li>{fmt(t.groups, { count: report.groupsCreated })}</li>
         ) : null}

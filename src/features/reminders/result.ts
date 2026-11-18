@@ -41,12 +41,28 @@ export type SettingsResult =
   | { ok: true; daysChanged: boolean; templatesChanged: number }
   | { ok: false; error: ReminderError; fields?: SettingsFieldErrors };
 
+/** One child's reminder: which subscription and which reminder. */
+export type SingleReminderTarget = { paymentId: string; kind: ReminderKind };
+
 /**
- * Arguments of the "chat opened" action: which subscription, which reminder and the language it
- * went out in (D-17; absent means the client's language from the card).
+ * One message to a parent about several children (D-18): "chat opened" is recorded for each of
+ * them.
  */
-export type OpenReminderInput = {
-  paymentId: string;
-  kind: ReminderKind;
-  locale?: Locale;
+export type FamilyReminderTarget = {
+  parentId: string;
+  items: SingleReminderTarget[];
 };
+
+export type ReminderTargetInput = SingleReminderTarget | FamilyReminderTarget;
+
+/**
+ * Arguments of the "chat opened" action: what the message was about and the language it went out
+ * in (D-17; absent means the language on the card: the parent's for a child).
+ */
+export type OpenReminderInput = ReminderTargetInput & { locale?: Locale };
+
+export function isFamilyTarget(
+  target: ReminderTargetInput,
+): target is FamilyReminderTarget {
+  return "parentId" in target;
+}

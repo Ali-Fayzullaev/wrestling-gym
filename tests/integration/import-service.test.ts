@@ -215,6 +215,7 @@ describe("previewImport and commitImport", () => {
       group: null,
       endsOn: null,
       locale: null,
+      parent: null,
     };
     const manual = await previewImport(ownerDb, owner, file, mapping);
     expect(manual.ok && manual.data.counts.new).toBe(1);
@@ -322,6 +323,7 @@ describe("previewImport and commitImport", () => {
       group: 3,
       endsOn: 4,
       locale: null,
+      parent: null,
     };
     const results = await Promise.all([
       commitImport(ownerDb, NOW, owner, file, mapping, {}),
@@ -404,6 +406,7 @@ const MAPPING = {
   group: 3,
   endsOn: 4,
   locale: null,
+  parent: null,
 };
 
 function previewMapping(preview: Awaited<ReturnType<typeof previewImport>>) {

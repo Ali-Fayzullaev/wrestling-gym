@@ -49,6 +49,8 @@ function row(
     lastName,
     firstName: "Имя",
     phone: `+7700000000${id}`,
+    parentName: null,
+    parentPhone: null,
     groupId: KIDS,
     archived: false,
     status: "active",
@@ -116,6 +118,28 @@ describe("visibleRows: filters", () => {
     expect(ids({ status: "expired" }, "кас")).toEqual(["1"]);
     expect(ids({ group: ADULTS }, "кас")).toEqual([]);
     expect(ids({}, "елкин")).toEqual(["4"]);
+  });
+});
+
+describe("visibleRows: a child and the parent (D-18)", () => {
+  const family = indexRows([
+    row("8", "Сериков", {
+      firstName: "Арман",
+      phone: null,
+      parentName: "Айгуль",
+      parentPhone: "+77010002233",
+    }),
+    row("9", "Омаров"),
+  ]);
+  const found = (query: string) =>
+    visibleRows(family, DEFAULT_FILTERS, groups, query).map((r) => r.id);
+
+  it("finds a child by the parent's name", () => {
+    expect(found("айгуль")).toEqual(["8"]);
+  });
+
+  it("finds a child without a phone by the parent's phone", () => {
+    expect(found("0002233")).toEqual(["8"]);
   });
 });
 

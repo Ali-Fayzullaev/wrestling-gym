@@ -28,6 +28,7 @@ function entry(overrides: Partial<AuditEntry>): AuditEntry {
     clientName: null,
     groupName: null,
     staffName: null,
+    parentName: null,
     ...overrides,
   };
 }
@@ -260,6 +261,27 @@ describe("describeAuditEntry", () => {
     );
     expect(result.details).toEqual(["клиентов в группе было: 3"]);
     expect(result.target?.href).toBe(`/groups/${GROUP}`);
+  });
+
+  it("parent entries name the changed fields and link to the parent (step 21)", () => {
+    const result = describeAuditEntry(
+      RU,
+      entry({
+        action: "parent.update",
+        entity: "parent",
+        entityId: OTHER,
+        parentName: "Айгуль",
+        details: { fields: ["parent_name", "phone"] },
+      }),
+      NOW,
+    );
+    expect(result.details).toEqual(["Изменено: имя родителя, телефон"]);
+    expect(result.target).toEqual({
+      label: "Родитель",
+      name: "Айгуль",
+      href: `/parents/${OTHER}`,
+      linkLabel: "Открыть карточку родителя",
+    });
   });
 
   it("staff: role change names the employee; own sign-in has no target", () => {

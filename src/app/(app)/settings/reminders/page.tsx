@@ -8,6 +8,7 @@ import { getReminderSettings } from "@/features/reminders/service";
 import type { ReminderContact } from "@/features/reminders/template";
 import { getI18n } from "@/i18n/server";
 import { Texts } from "@/i18n/texts";
+import { businessDate } from "@/lib/dates";
 
 import { BackLink } from "@/components/back-link";
 import { saveReminderSettingsAction } from "./actions";
@@ -21,11 +22,20 @@ export async function generateMetadata(): Promise<Metadata> {
 const SAMPLE_CONTACT: ReminderContact = {
   firstName: "Азамат",
   messageLocale: "ru",
-  phoneOwner: "self",
   parentName: null,
   groupName: "Взрослые",
   price: 20000,
   endsOn: null,
+};
+
+// The "several children" text is always shown on made-up data: a real family would put three
+// children's names on the owner's screen for no reason.
+const SAMPLE_FAMILY = {
+  parentName: "Айгуль",
+  children: [
+    { firstName: "Арман", endsOn: null, price: 15000 },
+    { firstName: "Дана", endsOn: null, price: 15000 },
+  ],
 };
 
 /**
@@ -54,6 +64,13 @@ export default async function ReminderSettingsPage() {
         gymName={context.gymName}
         preview={preview ?? SAMPLE_CONTACT}
         previewName={preview?.name ?? null}
+        familyPreview={{
+          ...SAMPLE_FAMILY,
+          children: SAMPLE_FAMILY.children.map((child) => ({
+            ...child,
+            endsOn: preview?.endsOn ?? businessDate(now),
+          })),
+        }}
         today={now}
         save={saveReminderSettingsAction}
       />

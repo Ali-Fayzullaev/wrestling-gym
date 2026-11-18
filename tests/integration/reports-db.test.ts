@@ -52,9 +52,9 @@ async function addClient(
   const id = randomUUID();
   await tx`
     insert into public.clients (
-      id, last_name, first_name, phone, phone_owner, group_id, started_on, archived_at, created_by
+      id, last_name, first_name, phone, group_id, started_on, archived_at, created_by
     ) values (
-      ${id}, ${options.lastName ?? "Отчётов"}, 'Клиент', ${testPhone()}, 'self',
+      ${id}, ${options.lastName ?? "Отчётов"}, 'Клиент', ${testPhone()},
       ${options.groupId === undefined ? SEED_GROUP : options.groupId}, '2024-12-01',
       ${options.archived ? new Date("2025-01-02T00:00:00Z") : null}, ${SEED_STAFF.owner}
     )

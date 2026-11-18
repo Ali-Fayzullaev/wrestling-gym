@@ -15,10 +15,12 @@ import {
   LOCALES,
 } from "@/lib/locale";
 
-import type { ReminderKind } from "../kinds";
+import type { TemplateKind } from "../kinds";
 import type { SettingsFieldErrors, SettingsResult } from "../result";
 import { BODY_MAX, DAYS_MAX, DAYS_MIN } from "../limits";
 import {
+  type FamilyChild,
+  familyValues,
   isDraftTemplate,
   type ReminderContact,
   type ReminderTemplate,
@@ -33,19 +35,21 @@ export type SaveReminderSettings = (input: {
   templates: { id: string; body: string }[];
 }) => Promise<SettingsResult>;
 
-const ORDER: Record<ReminderKind, number> = {
+const ORDER: Record<TemplateKind, number> = {
   before_7: 0,
   before_1: 1,
   overdue: 2,
+  family: 3,
 };
 
 function kindTitle(
   r: Messages["reminders"],
   locale: Locale,
-  kind: ReminderKind,
+  kind: TemplateKind,
   first: number,
   second: number | null,
 ) {
+  if (kind === "family") return r.kinds.family;
   if (kind === "overdue") return r.kinds.overdue;
   if (kind === "before_7") return plural(locale, r.kinds.first, first);
   return second === null
@@ -101,6 +105,7 @@ export function ReminderSettingsForm({
   gymName,
   preview,
   previewName,
+  familyPreview,
   today,
   save,
 }: {
@@ -108,6 +113,8 @@ export function ReminderSettingsForm({
   templates: ReminderTemplate[];
   gymName: string;
   preview: ReminderContact;
+  /** Made-up parent and children the "several children" text is shown on (D-18). */
+  familyPreview: { parentName: string; children: FamilyChild[] };
   /** The real client the preview uses; null when it is made-up data. */
   previewName: string | null;
   today: Date;
@@ -133,12 +140,22 @@ export function ReminderSettingsForm({
   const [pending, startTransition] = useTransition();
 
   const values = reminderValues(preview, gymName, today, language);
+  const family = familyValues(
+    familyPreview.parentName,
+    familyPreview.children,
+    gymName,
+    today,
+    language,
+  );
   const first = parseDays(firstDays) ?? sorted[0] ?? 0;
   const second = secondDays.trim() === "" ? null : parseDays(secondDays);
   const ordered = [...templates].sort((a, b) => ORDER[a.kind] - ORDER[b.kind]);
   const shown = ordered.filter((item) => item.locale === language);
+  // The "several children" texts are drafts in Russian too; they carry their own mark.
   const draftLocales = new Set(
-    templates.filter(isDraftTemplate).map((t) => t.locale),
+    templates
+      .filter((item) => item.kind !== "family" && isDraftTemplate(item))
+      .map((item) => item.locale),
   );
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -283,6 +300,22 @@ export function ReminderSettingsForm({
               <label htmlFor={fieldId} className="text-base font-semibold">
                 {kindTitle(r, locale, item.kind, first, second)}
               </label>
+              {item.kind === "family" ? (
+                <p className="text-sm text-muted-foreground">
+                  {t.familyHint}
+                  {isDraftTemplate(item) ? (
+                    <>
+                      {" "}
+                      <span
+                        className="rounded bg-status-expiring px-1.5 py-0.5 text-xs text-status-expiring-foreground"
+                        data-testid="template-family-draft"
+                      >
+                        {t.draft}
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
               <textarea
                 id={fieldId}
                 lang={HTML_LANG[item.locale]}
@@ -321,7 +354,10 @@ export function ReminderSettingsForm({
                   data-testid="template-preview"
                 >
                   <Preview
-                    text={renderTemplate(body, values)}
+                    text={renderTemplate(
+                      body,
+                      item.kind === "family" ? family : values,
+                    )}
                     unknown={unknown}
                   />
                 </p>

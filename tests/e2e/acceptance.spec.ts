@@ -60,7 +60,6 @@ async function newClient(
     last_name: lastName,
     first_name: "Приёмка",
     phone,
-    phone_owner: "self",
     group_id: SEED_GROUP,
     started_on: addDays(today, -60),
     created_by: SEED_OWNER,

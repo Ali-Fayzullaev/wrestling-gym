@@ -7,14 +7,19 @@ import {
 } from "./schema";
 
 const GROUP = "10000000-0000-4000-8000-000000000001";
+const PARENT = "30000000-0000-4000-8000-000000000001";
 
 const valid = {
   lastName: "  Қасымов ",
   firstName: "Алихан",
   birthDate: "",
   phone: "8 701 123 45 67",
-  phoneOwner: "self",
-  parentName: "",
+  kind: "adult",
+  parentMode: "existing",
+  parentId: "",
+  newParentName: "",
+  newParentPhone: "",
+  newParentLocale: "ru",
   groupId: GROUP,
   startedOn: "2026-11-01",
   note: "",
@@ -37,8 +42,7 @@ describe("clientInputSchema", () => {
       firstName: "Алихан",
       birthDate: null,
       phone: "+77011234567",
-      phoneOwner: "self",
-      parentName: null,
+      parent: null,
       groupId: GROUP,
       startedOn: "2026-11-01",
       note: "",
@@ -55,30 +59,89 @@ describe("clientInputSchema", () => {
   );
 
   it.each(["123", "+79161234567", "8 701 123 45", "телефон", ""])(
-    "refuses the phone %j",
+    "refuses the adult's phone %j",
     (phone) => {
       expect(issuesOf({ ...valid, phone })).toEqual(["phone"]);
     },
   );
 
-  it("requires the parent's name when the phone is a parent's", () => {
-    expect(issuesOf({ ...valid, phoneOwner: "parent" })).toEqual([
-      "parentName",
-    ]);
-    const parsed = clientInputSchema.parse({
-      ...valid,
-      phoneOwner: "parent",
-      parentName: "Гульнара",
-    });
-    expect(parsed.parentName).toBe("Гульнара");
-  });
-
-  it("drops a parent's name typed for an adult's own phone", () => {
+  it("drops a parent typed for an adult: an adult is reminded directly", () => {
     expect(
-      clientInputSchema.parse({ ...valid, parentName: "Гульнара" }).parentName,
+      clientInputSchema.parse({ ...valid, parentId: PARENT }).parent,
     ).toBeNull();
   });
+});
 
+describe("clientInputSchema: a child (D-18)", () => {
+  const child = { ...valid, kind: "child", phone: "" };
+
+  it("saves a child without a phone of their own with an existing parent", () => {
+    const parsed = clientInputSchema.parse({ ...child, parentId: PARENT });
+    expect(parsed.phone).toBeNull();
+    expect(parsed.parent).toEqual({ kind: "existing", id: PARENT });
+  });
+
+  it("keeps a child's own phone when there is one", () => {
+    const parsed = clientInputSchema.parse({
+      ...child,
+      phone: "8 702 000 11 22",
+      parentId: PARENT,
+    });
+    expect(parsed.phone).toBe("+77020001122");
+  });
+
+  it("still refuses a wrong child's phone", () => {
+    expect(issuesOf({ ...child, phone: "123", parentId: PARENT })).toEqual([
+      "phone",
+    ]);
+  });
+
+  it("requires a parent: chosen, or entered as new", () => {
+    expect(issuesOf(child)).toEqual(["parentId"]);
+    expect(issuesOf({ ...child, parentMode: "new" })).toEqual([
+      "newParentName",
+      "newParentPhone",
+    ]);
+  });
+
+  it("creates a new parent with a normalised phone and the chosen language", () => {
+    const parsed = clientInputSchema.parse({
+      ...child,
+      parentMode: "new",
+      parentId: PARENT,
+      newParentName: " Айгуль ",
+      newParentPhone: "8 701 222 33 44",
+      newParentLocale: "uz",
+    });
+    // The typed new parent wins over a stale chosen one.
+    expect(parsed.parent).toEqual({
+      kind: "new",
+      name: "Айгуль",
+      phone: "+77012223344",
+      messageLocale: "uz",
+    });
+  });
+
+  it.each([
+    [{ parentId: "Айгуль" }, "parentId"],
+    [
+      { parentMode: "new", newParentName: "Айгуль", newParentPhone: "123" },
+      "newParentPhone",
+    ],
+    [
+      {
+        parentMode: "new",
+        newParentName: "x".repeat(101),
+        newParentPhone: "87012223344",
+      },
+      "newParentName",
+    ],
+  ])("refuses %j", (override, field) => {
+    expect(issuesOf({ ...child, ...override })).toEqual([field]);
+  });
+});
+
+describe("clientInputSchema: other fields", () => {
   it("allows no group", () => {
     expect(
       clientInputSchema.parse({ ...valid, groupId: "" }).groupId,
@@ -92,7 +155,7 @@ describe("clientInputSchema", () => {
     [{ birthDate: "01.02.2015" }, "birthDate"],
     [{ startedOn: "" }, "startedOn"],
     [{ groupId: "Дети" }, "groupId"],
-    [{ phoneOwner: "neighbour" }, "phoneOwner"],
+    [{ kind: "neighbour" }, "kind"],
     [{ note: "x".repeat(2001) }, "note"],
     [{ consents: ["marketing"] }, "consents"],
   ])("refuses %j", (override, field) => {
@@ -124,5 +187,23 @@ describe("deleteClientSchema", () => {
       deleteClientSchema.safeParse({ ...base, reason: "Иванов попросил" })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("clientInputSchema: an adult without parent fields", () => {
+  it("needs none of the parent fields (the form sends them for a child only)", () => {
+    const adult = {
+      lastName: "Иванов",
+      firstName: "Пётр",
+      birthDate: "",
+      phone: "87011234567",
+      kind: "adult",
+      groupId: "",
+      startedOn: "2026-11-01",
+      note: "",
+      messageLocale: "ru",
+      consents: [],
+    };
+    expect(clientInputSchema.parse(adult).parent).toBeNull();
   });
 });

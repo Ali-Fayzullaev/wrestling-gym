@@ -35,6 +35,7 @@ const contextShape = z.object({
       first_name: z.string(),
     }),
   ),
+  parents: z.array(z.object({ phone: z.string(), name: z.string() })),
   groups: z.array(option),
   coaches: z.array(option),
   imported_at: z.string().nullable(),
@@ -43,6 +44,7 @@ const importShape = z.object({
   created: z.number(),
   duplicates: z.number(),
   groups_created: z.number(),
+  parents_created: z.number(),
 });
 
 /** SHA-256 of the file: recorded in the audit log, so a repeated file is recognised. */
@@ -124,6 +126,7 @@ async function prepare(
             firstName: c.first_name,
           })),
           groups: context.groups,
+          parents: context.parents,
         })
       : [];
   return {
@@ -171,6 +174,8 @@ type ImportRow = {
   new_group: string | null;
   ends_on: string | null;
   message_locale: string;
+  /** A child's parent (D-18); the phone is the parent's. Null for an adult. */
+  parent_name: string | null;
 };
 
 type NewGroup = { name: string; coach_id: string; price: number };
@@ -210,6 +215,7 @@ export function planImport(
       new_group: newGroup,
       ends_on: row.endsOn,
       message_locale: row.messageLocale,
+      parent_name: row.parentName === "" ? null : row.parentName,
     });
   }
   return { rows: planned, newGroups: [...newGroups.values()] };
@@ -264,6 +270,7 @@ export async function commitImport(
         created: 0,
         duplicates: preview.counts.duplicate,
         groupsCreated: 0,
+        parentsCreated: 0,
       },
     };
 
@@ -282,6 +289,7 @@ export async function commitImport(
       created: result.created,
       duplicates: preview.counts.duplicate + result.duplicates,
       groupsCreated: result.groups_created,
+      parentsCreated: result.parents_created,
     },
   };
 }
