@@ -1,6 +1,6 @@
 # 22. Семьи: экран «Напоминания», архив и удаление родителя
 
-Статус: in-progress
+Статус: done
 Зависит от: 21
 Ветка: `step/22-families-followup`
 Навыки: `backend-development`, `secure-coding`, `ui-ux-design`, `browser-verification`
@@ -88,7 +88,7 @@
 - [x] `/security-review`
 - [x] Браузер 390 и 1440 px
 - [x] `admin-guide.md`
-- [ ] PR, CI зелёный, отчёт
+- [x] PR, CI зелёный, отчёт
 
 ## Как проверено
 

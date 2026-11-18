@@ -82,7 +82,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 19 | [19-message-languages.md](19-message-languages.md) | Напоминания в WhatsApp на трёх языках | 09, 16, D-13 | done |
 | 20 | [20-send-language.md](20-send-language.md) | Выбор языка при отправке напоминания | 19, D-17 | done |
 | 21 | [21-families.md](21-families.md) | Родитель и несколько детей, одно сообщение на семью | 20, D-18, D-19 | done |
-| 22 | [22-families-followup.md](22-families-followup.md) | Семейный блок на «Напоминаниях», архив и удаление родителя | 21 | in-progress |
+| 22 | [22-families-followup.md](22-families-followup.md) | Семейный блок на «Напоминаниях», архив и удаление родителя | 21 | done |
 
 Статусы: `todo` → `in-progress` → `done` (или `blocked: <причина>`).
 
