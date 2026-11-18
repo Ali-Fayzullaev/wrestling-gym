@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   historyFilterSchema,
+  markFamilySentSchema,
   openReminderSchema,
   reminderDaysOf,
   reminderSettingsSchema,
@@ -181,5 +182,35 @@ describe("openReminderSchema: one message to a parent (D-18)", () => {
     ],
   ])("refuses %s", (_label, raw) => {
     expect(parse(raw).success).toBe(false);
+  });
+});
+
+describe("markFamilySentSchema (step 22)", () => {
+  const item = (paymentId: string, kind = "overdue") => ({ paymentId, kind });
+
+  it("accepts the children still to mark, one or more", () => {
+    expect(
+      markFamilySentSchema.safeParse({ parentId: ID, items: [item(ID2)] })
+        .success,
+    ).toBe(true);
+  });
+
+  it.each([
+    ["no children", { parentId: ID, items: [] }],
+    ["the same child twice", { parentId: ID, items: [item(ID2), item(ID2)] }],
+    ["the family kind", { parentId: ID, items: [item(ID2, "family")] }],
+    ["a parent id that is not a UUID", { parentId: "1", items: [item(ID2)] }],
+    ["an extra field", { parentId: ID, items: [item(ID2)], eventId: ID }],
+    [
+      "more than 20 children",
+      {
+        parentId: ID,
+        items: Array.from({ length: 21 }, (_, i) =>
+          item(`3f1c2a7e-0000-4000-8000-${String(i).padStart(12, "0")}`),
+        ),
+      },
+    ],
+  ])("refuses %s", (_, value) => {
+    expect(markFamilySentSchema.safeParse(value).success).toBe(false);
   });
 });

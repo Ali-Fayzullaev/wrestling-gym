@@ -24,7 +24,11 @@ import {
 import { getI18n } from "@/i18n/server";
 import { businessDate } from "@/lib/dates";
 
-import { markReminderSentAction, openReminderAction } from "./actions";
+import {
+  markFamilySentAction,
+  markReminderSentAction,
+  openReminderAction,
+} from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -44,7 +48,11 @@ function parseTab(value: string | string[] | undefined): Tab {
   return TABS.find((tab) => tab === value) ?? "today";
 }
 
-const actions = { open: openReminderAction, mark: markReminderSentAction };
+const actions = {
+  open: openReminderAction,
+  mark: markReminderSentAction,
+  markFamily: markFamilySentAction,
+};
 
 /** Two database requests: the role check and one tab of reminders_screen(). */
 export default async function RemindersPage({
@@ -110,7 +118,7 @@ async function OverdueContent({ db, now }: { db: Db; now: Date }) {
       data={data}
       now={now}
       actions={actions}
-      cut={data.overdue.length >= HISTORY_LIMIT}
+      cut={data.rows >= HISTORY_LIMIT}
     />
   );
 }

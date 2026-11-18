@@ -16,7 +16,11 @@ import {
   updateClient,
 } from "@/features/clients/service";
 import { groupInputSchema } from "@/features/groups/schema";
-import { updateParent } from "@/features/parents/service";
+import {
+  deleteParent,
+  setParentArchived,
+  updateParent,
+} from "@/features/parents/service";
 import {
   archiveGroup,
   createGroup,
@@ -74,6 +78,7 @@ const REASON = `причина-сторно-${RUN}`;
 const IMPORT_NAME = `Импортов${RUN}`;
 const PARENT_NAME = `Родитель${RUN}`;
 const NEW_PARENT_NAME = `Родительница${RUN}`;
+const SPARE_PARENT_NAME = `Лишний${RUN}`;
 const STAFF_NAME = `Приглашённый ${RUN}`;
 const GYM_NAME = `Зал ${RUN}`;
 const TEMPLATE_TAIL = ` ${RUN}-хвост`;
@@ -81,7 +86,7 @@ const INVITE_EMAIL = `invite-${randomUUID()}@example.test`;
 const TEMP_PASSWORD = `temp-${RUN}-${randomUUID()}`;
 const RESET_PASSWORD = `reset-${RUN}-${randomUUID()}`;
 const phone = () => `+7704${String(randomInt(1e7)).padStart(7, "0")}`;
-const PHONES = [phone(), phone(), phone(), phone()] as const;
+const PHONES = [phone(), phone(), phone(), phone(), phone()] as const;
 
 /** Values that must never reach audit_log.details. */
 const SECRETS = [
@@ -93,6 +98,7 @@ const SECRETS = [
   IMPORT_NAME,
   PARENT_NAME,
   NEW_PARENT_NAME,
+  SPARE_PARENT_NAME,
   STAFF_NAME,
   GYM_NAME,
   TEMPLATE_TAIL.trim(),
@@ -114,6 +120,7 @@ const state: {
   paymentId?: string;
   invitedId?: string;
   parentId?: string;
+  childId?: string;
 } = { clients: [] };
 
 function freshClient(): Db {
@@ -282,6 +289,7 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
       .single();
     if (error) throw new Error(`child read failed: ${error.code}`);
     state.parentId = defined(data.parent_id ?? undefined);
+    state.childId = id;
   },
   "parent.update": async () => {
     must(
@@ -290,6 +298,49 @@ const SCENARIOS: Record<AuditAction, () => Promise<void>> = {
         phone: PHONES[3],
         messageLocale: "uz",
         note: NOTE,
+      }),
+    );
+  },
+  "parent.archive": async () => {
+    // STUB(D-23): a parent goes to the archive after the children.
+    must(
+      await setClientArchived(db, actor, {
+        clientId: defined(state.childId),
+        archived: true,
+      }),
+    );
+    must(
+      await setParentArchived(db, actor, {
+        parentId: defined(state.parentId),
+        archived: true,
+      }),
+    );
+  },
+  "parent.restore": async () => {
+    must(
+      await setParentArchived(db, actor, {
+        parentId: defined(state.parentId),
+        archived: false,
+      }),
+    );
+  },
+  "parent.delete": async () => {
+    // A parent entered by mistake, without children; the typed name stays out of the audit.
+    const { data, error } = await service
+      .from("parents")
+      .insert({
+        name: SPARE_PARENT_NAME,
+        phone: PHONES[4],
+        created_by: ownerId,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(`parent insert failed: ${error.code}`);
+    must(
+      await deleteParent(db, actor, {
+        parentId: data.id,
+        reason: "created_by_mistake",
+        name: SPARE_PARENT_NAME,
       }),
     );
   },
@@ -509,6 +560,11 @@ describe("criterion 1: every mutating action writes an audit row without persona
     expect(updated?.details).toEqual({
       fields: ["parent_name", "message_locale", "note"],
     });
+  });
+
+  it("parent.delete records the reason only", () => {
+    const deleted = rows.find((row) => row.action === "parent.delete");
+    expect(deleted?.details).toEqual({ reason: "created_by_mistake" });
   });
 
   it("client.import records counts, not rows", () => {

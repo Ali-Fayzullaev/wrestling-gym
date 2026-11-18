@@ -4,12 +4,13 @@ import type { Db } from "@/db/client";
 import { REMINDER_KINDS, type ReminderKind } from "@/features/reminders/kinds";
 import type { ReminderTargetInput } from "@/features/reminders/result";
 import {
-  buildFamilyMessage,
   buildReminderMessage,
+  familyOf,
   parseReminderContext,
   type ReminderContext,
   type ReminderMessage,
 } from "@/features/reminders/service";
+import { groupDueRows } from "@/features/reminders/group";
 import { businessDate } from "@/lib/dates";
 import { LOCALES } from "@/lib/locale";
 
@@ -93,71 +94,28 @@ export type DueRow = TodayRow & {
   messageLocale: z.infer<typeof reminderShape>["message_locale"];
 };
 
-/**
- * Puts the children of one parent into one group, in the order of the first of them (the rows
- * come soonest end first); everybody else is a group of one.
- */
-export function groupDueRows(rows: readonly DueRow[]): DueRow[][] {
-  const groups: DueRow[][] = [];
-  const byParent = new Map<string, DueRow[]>();
-  for (const row of rows) {
-    if (row.parentId === null) {
-      groups.push([row]);
-      continue;
-    }
-    const group = byParent.get(row.parentId);
-    if (group) {
-      group.push(row);
-      continue;
-    }
-    const created = [row];
-    byParent.set(row.parentId, created);
-    groups.push(created);
-  }
-  return groups;
-}
-
 function toRemindGroup(
   rows: readonly DueRow[],
   context: ReminderContext,
   now: Date,
 ): TodayRemindGroup | null {
-  const [first] = rows;
-  if (!first) return null;
-  const parent =
-    first.parentId !== null && first.parentName !== null
-      ? { id: first.parentId, name: first.parentName }
-      : null;
-  if (parent && rows.length > 1) {
+  const family = familyOf(rows, context, now);
+  if (family) {
     return {
-      parent,
-      firstNames: rows.map((row) => row.firstName),
+      parent: family.parent,
+      firstNames: family.firstNames,
       rows: rows.map(toPlainRow),
-      target: {
-        parentId: parent.id,
-        items: rows.map((row) => ({
-          paymentId: row.paymentId,
-          kind: row.kind,
-        })),
-      },
-      message: buildFamilyMessage(
-        {
-          parentName: parent.name,
-          phone: first.phone,
-          messageLocale: first.messageLocale,
-          children: rows.map((row) => ({
-            firstName: row.firstName,
-            endsOn: row.endsOn,
-            price: row.price,
-          })),
-        },
-        context,
-        now,
-      ),
+      target: family.target,
+      message: family.message,
     };
   }
+  const [first] = rows;
+  if (!first) return null;
   return {
-    parent,
+    parent:
+      first.parentId !== null && first.parentName !== null
+        ? { id: first.parentId, name: first.parentName }
+        : null,
     firstNames: [first.firstName],
     rows: [toPlainRow(first)],
     target: { paymentId: first.paymentId, kind: first.kind },

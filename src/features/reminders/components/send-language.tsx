@@ -104,6 +104,7 @@ export function ReminderComposer({
   whatsappLabels,
   hint,
   open,
+  buttonVariant = "outline",
 }: {
   message: ReminderMessage;
   /** One child's reminder, or one message to a parent about several children (D-18). */
@@ -113,6 +114,8 @@ export function ReminderComposer({
   /** What the button does, shown under the text. */
   hint: string;
   open: OpenReminder;
+  /** The WhatsApp button: outline on the card, filled where sending is the main action. */
+  buttonVariant?: "default" | "outline";
 }) {
   // The language on the card first (the parent's for a child); another one is for this message
   // only, the card never changes.
@@ -136,7 +139,7 @@ export function ReminderComposer({
           target={{ ...target, locale }}
           labels={whatsappLabels}
           open={open}
-          variant="outline"
+          variant={buttonVariant}
         />
       </div>
     </div>

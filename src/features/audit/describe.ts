@@ -171,6 +171,10 @@ function detailLines(context: Context, entry: AuditEntry): (string | null)[] {
         reason ? fmt(t.reason, { reason }) : null,
       ];
     }
+    case "parent.delete": {
+      const reason = label(t.deleteReasons, text(details.reason));
+      return [reason ? fmt(t.reason, { reason }) : null];
+    }
     case "client.import":
       return importDetails(context, details);
     case "group.archive": {

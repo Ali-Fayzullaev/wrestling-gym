@@ -6,6 +6,7 @@ import { businessDate } from "@/lib/dates";
 import { LOCALES, type Locale } from "@/lib/locale";
 import { buildWaLink } from "@/lib/whatsapp";
 
+import { groupDueRows } from "./group";
 import {
   REMINDER_KINDS,
   type ReminderKind,
@@ -13,7 +14,9 @@ import {
   TEMPLATE_KINDS,
 } from "./kinds";
 import {
+  type FamilyReminderTarget,
   isFamilyTarget,
+  type MarkedFamily,
   type MarkedReminder,
   type OpenedReminder,
   type OpenReminderInput,
@@ -23,6 +26,7 @@ import {
 } from "./result";
 import {
   type HistoryFilter,
+  type MarkFamilySentInput,
   type MarkReminderSentInput,
   reminderDaysOf,
   type ReminderSettingsInput,
@@ -91,6 +95,12 @@ const namedEventShape = eventShape.extend({
   first_name: z.string(),
 });
 
+// A chat opened today also names the child's parent (step 22), to put siblings together.
+const openedEventShape = namedEventShape.extend({
+  parent_id: z.string().nullable(),
+  parent_name: z.string().nullable(),
+});
+
 export type { ReminderTemplate };
 
 export type ReminderContext = {
@@ -127,20 +137,51 @@ export type ReminderEvent = {
   markedSentByName: string | null;
 };
 
-export type NamedReminderEvent = ReminderEvent & { name: string };
+export type NamedReminderEvent = ReminderEvent & {
+  name: string;
+  firstName: string;
+};
+
+/** A parent with several children in one message, and that message (D-18). */
+export type ReminderFamily = {
+  parent: { id: string; name: string };
+  /** The children's first names, as the block's title lists them. */
+  firstNames: string[];
+  /** "Chat opened" for every child in it. */
+  target: FamilyReminderTarget;
+  /** The text and wa.me link in each language; null when the template is missing. */
+  message: ReminderMessage | null;
+};
+
+/**
+ * One message on a Reminders tab: a client on their own (one item, its own link), or a parent's
+ * children (`family` set) with one message about all of them.
+ */
+export type ReminderBlock<T> = { family: ReminderFamily | null; items: T[] };
+
+/**
+ * Chats opened today: one event, or several children of one parent together (`parent` set), so
+ * "Sent" can mark them at once.
+ */
+export type OpenedBlock = {
+  parent: { id: string; name: string } | null;
+  events: NamedReminderEvent[];
+};
 
 export type RemindersToday = {
   reminderDays: number[];
-  /** Due today and not opened yet: the same rows as "Remind today" on the Today screen. */
-  due: ReminderTarget[];
+  /** Due today and not opened yet: the same messages as "Remind today" on the Today screen. */
+  due: ReminderBlock<ReminderTarget>[];
   /** Chats opened today, newest first. */
-  opened: NamedReminderEvent[];
+  opened: OpenedBlock[];
 };
 
 export type OverdueTarget = ReminderTarget & { event: ReminderEvent | null };
 
 export type RemindersOverdue = {
-  overdue: OverdueTarget[];
+  overdue: ReminderBlock<OverdueTarget>[];
+  /** Clients on the tab, to tell when the list hit the row limit. */
+  rows: number;
 };
 
 export type ReminderHistory = {
@@ -290,6 +331,53 @@ export function buildFamilyMessage(
   );
 }
 
+/** What one child adds to a family message, and how the children are told apart. */
+export type FamilyMember = FamilyChild & {
+  paymentId: string;
+  kind: ReminderKind;
+  /** Whoever gets the message: the parent's phone for a child. */
+  phone: string;
+  parentId: string | null;
+  parentName: string | null;
+  messageLocale: Locale;
+};
+
+/**
+ * The family message for rows grouped by groupDueRows(): one message to the parent about all of
+ * them. Null for a client on their own or a single child, who get the usual reminder.
+ */
+export function familyOf(
+  rows: readonly FamilyMember[],
+  context: ReminderContext,
+  today: Date,
+): ReminderFamily | null {
+  const [first] = rows;
+  if (!first || rows.length < 2) return null;
+  if (first.parentId === null || first.parentName === null) return null;
+  return {
+    parent: { id: first.parentId, name: first.parentName },
+    firstNames: rows.map((row) => row.firstName),
+    target: {
+      parentId: first.parentId,
+      items: rows.map((row) => ({ paymentId: row.paymentId, kind: row.kind })),
+    },
+    message: buildFamilyMessage(
+      {
+        parentName: first.parentName,
+        phone: first.phone,
+        messageLocale: first.messageLocale,
+        children: rows.map((row) => ({
+          firstName: row.firstName,
+          endsOn: row.endsOn,
+          price: row.price,
+        })),
+      },
+      context,
+      today,
+    ),
+  };
+}
+
 /**
  * The wa.me link for a reminder of `kind` with the text of buildReminderText(). Built on the
  * server, so the template code never ships to the browser.
@@ -333,6 +421,43 @@ function toTarget(
   };
 }
 
+function toMember(
+  row: z.infer<typeof contactShape>,
+  kind: ReminderKind,
+): FamilyMember {
+  return {
+    paymentId: row.payment_id,
+    kind,
+    firstName: row.first_name,
+    endsOn: row.ends_on,
+    price: row.price,
+    phone: row.phone,
+    parentId: row.parent_id,
+    parentName: row.parent_name,
+    messageLocale: row.message_locale,
+  };
+}
+
+/** Rows of one tab as messages: a parent's children together (D-18), in the tab's order. */
+function toBlocks<R extends z.infer<typeof contactShape>, T>(
+  rows: readonly R[],
+  kindOf: (row: R) => ReminderKind,
+  toItem: (row: R) => T,
+  context: ReminderContext,
+  today: Date,
+): ReminderBlock<T>[] {
+  return groupDueRows(
+    rows.map((row) => ({ row, parentId: row.parent_id })),
+  ).map((group) => ({
+    family: familyOf(
+      group.map(({ row }) => toMember(row, kindOf(row))),
+      context,
+      today,
+    ),
+    items: group.map(({ row }) => toItem(row)),
+  }));
+}
+
 function toEvent(row: z.infer<typeof eventShape>): ReminderEvent {
   return {
     id: row.id,
@@ -354,7 +479,11 @@ export function parseReminderEvents(raw: unknown): ReminderEvent[] {
 function toNamedEvent(
   row: z.infer<typeof namedEventShape>,
 ): NamedReminderEvent {
-  return { ...toEvent(row), name: `${row.last_name} ${row.first_name}` };
+  return {
+    ...toEvent(row),
+    name: `${row.last_name} ${row.first_name}`,
+    firstName: row.first_name,
+  };
 }
 
 async function screenTab(
@@ -374,44 +503,86 @@ async function screenTab(
   return data;
 }
 
+/** Opened events of several children of one parent go together, at the place of the newest. */
+function toOpenedBlocks(
+  rows: readonly z.infer<typeof openedEventShape>[],
+): OpenedBlock[] {
+  return groupDueRows(
+    rows.map((row) => ({ row, parentId: row.parent_id })),
+  ).map((group) => {
+    const [first] = group;
+    const parent =
+      group.length > 1 && first?.row.parent_id && first.row.parent_name
+        ? { id: first.row.parent_id, name: first.row.parent_name }
+        : null;
+    return { parent, events: group.map(({ row }) => toNamedEvent(row)) };
+  });
+}
+
+/** The "today" tab of reminders_screen(), checked and turned into messages. */
+export function parseRemindersToday(raw: unknown, now: Date): RemindersToday {
+  const screen = z
+    .object({
+      context: z.unknown(),
+      due: z.array(contactShape.extend({ kind: kindShape })),
+      opened: z.array(openedEventShape),
+    })
+    .parse(raw);
+  const context = parseReminderContext(screen.context);
+  return {
+    reminderDays: context.reminderDays,
+    due: toBlocks(
+      screen.due,
+      (row) => row.kind,
+      (row) => toTarget(row, row.kind, context, now),
+      context,
+      now,
+    ),
+    opened: toOpenedBlocks(screen.opened),
+  };
+}
+
 /** "Today" tab: due reminders with links and the chats opened today. One database request. */
 export async function getRemindersToday(
   db: Db,
   now: Date,
 ): Promise<RemindersToday> {
-  const screen = z
-    .object({
-      context: z.unknown(),
-      due: z.array(contactShape.extend({ kind: kindShape })),
-      opened: z.array(namedEventShape),
-    })
-    .parse(await screenTab(db, now, "today"));
-  const context = parseReminderContext(screen.context);
-  return {
-    reminderDays: context.reminderDays,
-    due: screen.due.map((row) => toTarget(row, row.kind, context, now)),
-    opened: screen.opened.map(toNamedEvent),
-  };
+  return parseRemindersToday(await screenTab(db, now, "today"), now);
 }
 
-/** "Overdue" tab: ended subscriptions, each with its "overdue" reminder link and event. */
-export async function getRemindersOverdue(
-  db: Db,
+/** The "overdue" tab of reminders_screen(), checked and turned into messages. */
+export function parseRemindersOverdue(
+  raw: unknown,
   now: Date,
-): Promise<RemindersOverdue> {
+): RemindersOverdue {
   const screen = z
     .object({
       context: z.unknown(),
       overdue: z.array(contactShape.extend({ event: eventShape.nullable() })),
     })
-    .parse(await screenTab(db, now, "overdue"));
+    .parse(raw);
   const context = parseReminderContext(screen.context);
   return {
-    overdue: screen.overdue.map((row) => ({
-      ...toTarget(row, "overdue", context, now),
-      event: row.event ? toEvent(row.event) : null,
-    })),
+    overdue: toBlocks(
+      screen.overdue,
+      () => "overdue",
+      (row) => ({
+        ...toTarget(row, "overdue", context, now),
+        event: row.event ? toEvent(row.event) : null,
+      }),
+      context,
+      now,
+    ),
+    rows: screen.overdue.length,
   };
+}
+
+/** "Overdue" tab: ended subscriptions with their "overdue" reminder, a parent's children together. */
+export async function getRemindersOverdue(
+  db: Db,
+  now: Date,
+): Promise<RemindersOverdue> {
+  return parseRemindersOverdue(await screenTab(db, now, "overdue"), now);
 }
 
 /** "History" tab: events of one day (today by default), optionally of one employee. */
@@ -564,6 +735,44 @@ export async function markReminderSent(
       markedSentAt: row.marked_sent_at,
       changed: row.changed,
     },
+  };
+}
+
+const markedFamilyShape = z
+  .array(
+    z.object({
+      id: z.string(),
+      client_id: z.string(),
+      status: statusShape,
+      marked_sent_at: z.string().nullable(),
+      changed: z.boolean(),
+    }),
+  )
+  .min(1);
+
+/**
+ * "Marked as sent" for one message to a parent: every child in it at once, in one transaction.
+ * A child whose chat was never opened refuses the whole call; children already marked stay as
+ * they were, so a repeat changes nothing.
+ */
+export async function markFamilyRemindersSent(
+  db: Db,
+  actor: Actor,
+  input: MarkFamilySentInput,
+): Promise<ReminderResult<MarkedFamily>> {
+  if (!isStaff(actor)) return { ok: false, error: "forbidden" };
+  const { data, error } = await db.rpc("mark_family_reminders_sent", {
+    p_parent_id: input.parentId,
+    p_items: input.items.map((item) => ({
+      payment_id: item.paymentId,
+      kind: item.kind,
+    })),
+  });
+  if (error) return { ok: false, error: reminderError(error) };
+  const rows = markedFamilyShape.parse(data);
+  return {
+    ok: true,
+    data: { changed: rows.filter((row) => row.changed).length },
   };
 }
 

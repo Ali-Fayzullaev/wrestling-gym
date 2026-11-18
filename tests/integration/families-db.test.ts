@@ -1,10 +1,16 @@
-import { randomInt, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import postgres from "postgres";
 import { afterAll, describe, expect, inject, it } from "vitest";
 
 import { connectLocalDb } from "./db";
-import { insertClient, insertPayment, templateId } from "./support/fixtures";
+import {
+  familyPhone,
+  insertChild,
+  insertParent,
+  paidUntil,
+} from "./support/families";
+import { insertClient, templateId } from "./support/fixtures";
 import {
   admin,
   asActor,
@@ -27,56 +33,6 @@ afterAll(async () => {
 const TODAY = "2026-03-15";
 const CHECK_VIOLATION = { code: "23514" };
 const PERMISSION_DENIED = { code: "42501" };
-
-/** Phones outside the seed (+7700000…, +7700002…) and outside testPhone() (+77000009…). */
-const familyPhone = () => `+7703${String(randomInt(1e7)).padStart(7, "0")}`;
-
-async function insertParent(
-  tx: Tx,
-  row: {
-    name?: string;
-    phone?: string;
-    locale?: string;
-    archived?: boolean;
-  } = {},
-): Promise<string> {
-  const id = randomUUID();
-  await tx`
-    insert into public.parents (id, name, phone, message_locale, archived_at, created_by)
-    values (
-      ${id}, ${row.name ?? "Айгуль"}, ${row.phone ?? familyPhone()}, ${row.locale ?? "ru"},
-      ${row.archived ? new Date("2026-01-01T00:00:00Z") : null}, ${SEED_STAFF.owner}
-    )
-  `;
-  return id;
-}
-
-async function insertChild(
-  tx: Tx,
-  parentId: string,
-  firstName: string,
-): Promise<string> {
-  const id = randomUUID();
-  await tx`
-    insert into public.clients (
-      id, last_name, first_name, phone, parent_id, group_id, started_on, created_by
-    ) values (
-      ${id}, 'Семейный', ${firstName}, null, ${parentId}, ${SEED_GROUP}, '2026-01-10',
-      ${SEED_STAFF.owner}
-    )
-  `;
-  return id;
-}
-
-/** A paid subscription ending on `periodEnd`, recorded long ago. */
-function paidUntil(tx: Tx, clientId: string, periodEnd: string) {
-  return insertPayment(tx, {
-    clientId,
-    periodStart: "2026-02-16",
-    periodEnd,
-    createdAt: new Date("2026-02-16T06:00:00Z"),
-  });
-}
 
 function createChild(
   tx: Tx,
@@ -466,10 +422,12 @@ describe("criterion 4: one message to the parent, chat opened for every child", 
     // Committed: the parallel sessions must see the same rows. The family template is never
     // removed by any test, so these events block nothing.
     const f = await sql.begin(async (tx) => {
-      const parentId = await insertParent(tx, { archived: true });
+      // Children first, then the parent (STUB(D-23): no child in work with an archived parent).
+      const parentId = await insertParent(tx);
       const arman = await insertChild(tx, parentId, "Параллельный");
       const dana = await insertChild(tx, parentId, "Параллельная");
       await tx`update public.clients set archived_at = now() where id in ${tx([arman, dana])}`;
+      await tx`update public.parents set archived_at = now() where id = ${parentId}`;
       return {
         parentId,
         payments: [

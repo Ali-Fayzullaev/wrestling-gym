@@ -37,6 +37,20 @@ export const openReminderSchema = z.union([
 export const markReminderSentSchema = z.object({ eventId: id });
 export type MarkReminderSentInput = z.infer<typeof markReminderSentSchema>;
 
+const distinctItems = (items: { paymentId: string; kind: string }[]) =>
+  new Set(items.map((item) => `${item.paymentId}:${item.kind}`)).size ===
+  items.length;
+
+/** "Sent" for one message to a parent: the children still to mark (D-18). */
+export const markFamilySentSchema = z
+  .object({
+    parentId: id,
+    items: z.array(singleReminder).min(1).max(FAMILY_ITEMS_MAX),
+  })
+  .strict()
+  .refine((value) => distinctItems(value.items), { path: ["items"] });
+export type MarkFamilySentInput = z.infer<typeof markFamilySentSchema>;
+
 const days = z.coerce.number().int().min(DAYS_MIN).max(DAYS_MAX);
 
 const emptyToNull = (value: unknown) =>

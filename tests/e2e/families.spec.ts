@@ -76,6 +76,103 @@ async function cleanUp(supabase: Supabase, lastName: string) {
     if (id) await db.from("parents").delete().eq("id", id);
 }
 
+type SeededFamily = {
+  parentId: string;
+  childIds: string[];
+  paymentIds: string[];
+};
+
+/**
+ * A parent and children inserted directly, each with a payment ending on its own date (null: no
+ * payment). Recorded a month ago, so no reminder of these subscriptions was opened yet.
+ */
+async function seedFamily(
+  supabase: Supabase,
+  family: {
+    lastName: string;
+    parentName: string;
+    parentPhone: string;
+    children: { firstName: string; periodEnd: string | null }[];
+  },
+): Promise<SeededFamily> {
+  const db = serviceClient(supabase);
+  const today = businessDate(new Date());
+  const parentId = randomUUID();
+  const childIds = family.children.map(() => randomUUID());
+  const { error: parentError } = await db.from("parents").insert({
+    id: parentId,
+    name: family.parentName,
+    phone: family.parentPhone,
+    message_locale: "ru",
+    created_by: SEED_OWNER,
+  });
+  if (parentError) throw new Error(`parent: ${parentError.code}`);
+  if (childIds.length > 0) {
+    const { error: childError } = await db.from("clients").insert(
+      family.children.map((child, i) => ({
+        id: childIds[i],
+        last_name: family.lastName,
+        first_name: child.firstName,
+        parent_id: parentId,
+        group_id: SEED_GROUP,
+        started_on: addDays(today, -90),
+        created_by: SEED_OWNER,
+      })),
+    );
+    if (childError) throw new Error(`children: ${childError.code}`);
+  }
+  const paid = family.children.flatMap((child, i) =>
+    child.periodEnd === null
+      ? []
+      : [{ clientId: childIds[i] ?? "", periodEnd: child.periodEnd }],
+  );
+  const paymentIds = paid.map(() => randomUUID());
+  if (paid.length > 0) {
+    const { error: paymentError } = await db.from("payments").insert(
+      paid.map((payment, i) => ({
+        id: paymentIds[i],
+        client_id: payment.clientId,
+        kind: "payment",
+        amount: 15000,
+        method: "cash",
+        period_start: addDays(payment.periodEnd, -29),
+        period_end: payment.periodEnd,
+        idempotency_key: randomUUID(),
+        created_by: SEED_OWNER,
+        created_at: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+      })),
+    );
+    if (paymentError) throw new Error(`payments: ${paymentError.code}`);
+  }
+  return { parentId, childIds, paymentIds };
+}
+
+/** Events and payments are append-only: the children and the parent are archived and stay. */
+async function archiveFamily(supabase: Supabase, family: SeededFamily) {
+  const db = serviceClient(supabase);
+  const now = new Date().toISOString();
+  await db
+    .from("clients")
+    .update({ archived_at: now })
+    .in("id", family.childIds);
+  await db
+    .from("parents")
+    .update({ archived_at: now })
+    .eq("id", family.parentId);
+}
+
+/** wa.me stays inside the test: the popup gets a stub page instead of WhatsApp. */
+async function stubWhatsApp(page: Page) {
+  await page
+    .context()
+    .route("https://wa.me/**", (route) =>
+      route.fulfill({ contentType: "text/plain", body: "wa.me" }),
+    );
+}
+
+const visible = (page: Page, testId: string) =>
+  page.getByTestId(testId).filter({ visible: true });
+
 async function fillChild(page: Page, lastName: string, firstName: string) {
   await page.getByLabel(f.kindChild).check();
   await page.getByLabel(f.lastName, { exact: true }).fill(lastName);
@@ -298,6 +395,292 @@ test.describe("A parent and several children", () => {
         .from("parents")
         .update({ archived_at: new Date().toISOString() })
         .eq("id", parentId);
+    }
+  });
+});
+
+// Step 22: the family block on the Reminders screen, a parent's archive and deletion.
+
+test.describe("Reminders: one block per parent", () => {
+  test("criteria 1, 3, 4: Today tab, one message, chat opened and Sent for both children", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = unique("Напоминаемый");
+    const parentName = unique("Айгуль");
+    const parentPhone = randomPhone();
+    const today = businessDate(new Date());
+    const family = await seedFamily(supabase, {
+      lastName,
+      parentName,
+      parentPhone,
+      children: [
+        { firstName: "Арман", periodEnd: addDays(today, 1) },
+        { firstName: "Дана", periodEnd: addDays(today, 1) },
+      ],
+    });
+    const db = serviceClient(supabase);
+    const urls = recordUrls(page);
+    try {
+      await stubWhatsApp(page);
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      await page.goto("/reminders");
+
+      const block = visible(page, "due-family").filter({ hasText: parentName });
+      await expect(block).toHaveCount(1);
+      await expect(block.getByTestId("family-title")).toHaveText(
+        fmt(ru.reminders.screen.family, {
+          parent: parentName,
+          children: "Арман, Дана",
+        }),
+      );
+      await expect(block.getByTestId("family-child")).toHaveCount(2);
+      // No separate row for either child.
+      await expect(
+        visible(page, "due-row").filter({ hasText: lastName }),
+      ).toHaveCount(0);
+
+      const link = block.getByTestId("whatsapp-button");
+      await expect(link).toHaveCount(1);
+      const url = new URL((await link.getAttribute("href")) ?? "");
+      expect(url.origin + url.pathname).toBe(
+        `https://wa.me/${parentPhone.slice(1)}`,
+      );
+      const text = url.searchParams.get("text") ?? "";
+      expect(text).toMatch(/Арман: до .+, 15\s000 ₸/);
+      expect(text).toMatch(/Дана: до .+, 15\s000 ₸/);
+
+      const [popup] = await Promise.all([
+        page.waitForEvent("popup"),
+        link.click(),
+      ]);
+      await popup.close();
+
+      // Both children move to "Chats opened today", together.
+      const opened = visible(page, "opened-family").filter({
+        hasText: parentName,
+      });
+      await expect(opened).toHaveCount(1, SERVER_ROUND_TRIP);
+      await expect(block).toHaveCount(0);
+      await expect(opened.getByTestId("family-child")).toHaveCount(2);
+      await opened
+        .getByRole("button", { name: ru.reminders.screen.markFamily })
+        .click();
+      await expect(opened.getByTestId("mark-sent-button")).toHaveCount(
+        0,
+        SERVER_ROUND_TRIP,
+      );
+
+      const { data: events } = await db
+        .from("reminder_events")
+        .select("client_id, status")
+        .in("payment_id", family.paymentIds);
+      expect(events).toHaveLength(2);
+      expect(events?.every((event) => event.status === "marked_sent")).toBe(
+        true,
+      );
+
+      expectNoneIn(urls, [lastName, parentName, parentPhone]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await archiveFamily(supabase, family);
+    }
+  });
+
+  test("criterion 2: Overdue tab, one block for the overdue children only", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = unique("Просроченный");
+    const parentName = unique("Гульнара");
+    const today = businessDate(new Date());
+    const family = await seedFamily(supabase, {
+      lastName,
+      parentName,
+      parentPhone: randomPhone(),
+      children: [
+        { firstName: "Арман", periodEnd: addDays(today, -3) },
+        { firstName: "Дана", periodEnd: addDays(today, -4) },
+        { firstName: "Тимур", periodEnd: addDays(today, 7) },
+      ],
+    });
+    const db = serviceClient(supabase);
+    try {
+      await stubWhatsApp(page);
+      await loginAs(page, SEED_EMAILS.owner, SEED_PASSWORD);
+      await page.goto("/reminders?tab=overdue");
+
+      const block = visible(page, "overdue-family").filter({
+        hasText: parentName,
+      });
+      await expect(block).toHaveCount(1);
+      await expect(block.getByTestId("family-child")).toHaveCount(2);
+      await expect(block).not.toContainText("Тимур");
+      await expect(block).toContainText(ru.reminders.screen.notOpened);
+
+      const [popup] = await Promise.all([
+        page.waitForEvent("popup"),
+        block.getByTestId("whatsapp-button").click(),
+      ]);
+      await popup.close();
+      const mark = block.getByRole("button", {
+        name: ru.reminders.screen.markFamily,
+      });
+      await expect(mark).toBeVisible(SERVER_ROUND_TRIP);
+      await mark.click();
+      await expect(block.getByTestId("mark-sent-button")).toHaveCount(
+        0,
+        SERVER_ROUND_TRIP,
+      );
+
+      const { data: events } = await db
+        .from("reminder_events")
+        .select("kind, status")
+        .in("payment_id", family.paymentIds);
+      expect(events).toEqual([
+        { kind: "overdue", status: "marked_sent" },
+        { kind: "overdue", status: "marked_sent" },
+      ]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await archiveFamily(supabase, family);
+    }
+  });
+});
+
+test.describe("A parent's archive and deletion", () => {
+  const p = ru.parents;
+
+  test("criterion 8: admin archives and restores; no Delete; D-23 refusal while a child is in work", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = unique("Архивный");
+    const parentName = unique("Сауле");
+    const family = await seedFamily(supabase, {
+      lastName,
+      parentName,
+      parentPhone: randomPhone(),
+      children: [{ firstName: "Арман", periodEnd: null }],
+    });
+    const db = serviceClient(supabase);
+    const urls = recordUrls(page);
+    try {
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      await page.goto(`/parents/${family.parentId}`);
+      await expect(page.getByTestId("parent-delete")).toHaveCount(0);
+
+      // STUB(D-23): the child is still in work.
+      await page.getByTestId("parent-archive").click();
+      await page.getByTestId("parent-archive-confirm").click();
+      await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(
+        p.errors.has_active_children,
+      );
+      await page.getByRole("button", { name: ru.common.cancel }).click();
+
+      await db
+        .from("clients")
+        .update({ archived_at: new Date().toISOString() })
+        .in("id", family.childIds);
+      await page.reload();
+      await page.getByTestId("parent-archive").click();
+      await page.getByTestId("parent-archive-confirm").click();
+      await expect(page.getByTestId("parent-archived")).toBeVisible(
+        SERVER_ROUND_TRIP,
+      );
+      await expect(page.getByTestId("parent-archive")).toHaveText(p.restore);
+
+      // The child's card says the parent is archived.
+      await page.goto(`/clients/${family.childIds[0] ?? ""}`);
+      await expect(page.getByTestId("client-parent-archived")).toContainText(
+        ru.clients.card.parentArchived,
+      );
+      // STUB(D-23): the child cannot come back while the parent is archived.
+      await page.getByRole("button", { name: ru.clients.restore }).click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: ru.clients.restoreDialog.confirm })
+        .click();
+      await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(
+        ru.clients.errors.parent_archived,
+      );
+      await page.getByRole("button", { name: ru.common.cancel }).click();
+
+      await page.goto(`/parents/${family.parentId}`);
+      await page.getByTestId("parent-archive").click();
+      await page.getByTestId("parent-archive-confirm").click();
+      await expect(page.getByTestId("parent-archived")).toHaveCount(
+        0,
+        SERVER_ROUND_TRIP,
+      );
+
+      expectNoneIn(urls, [lastName, parentName]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await cleanUp(supabase, lastName);
+    }
+  });
+
+  test("criterion 8: the owner deletes a parent without children; with a child it is refused", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = unique("Удаляемый");
+    const lonely = unique("Лишняя");
+    const busy = unique("Занятая");
+    const empty = await seedFamily(supabase, {
+      lastName,
+      parentName: lonely,
+      parentPhone: randomPhone(),
+      children: [],
+    });
+    const withChild = await seedFamily(supabase, {
+      lastName,
+      parentName: busy,
+      parentPhone: randomPhone(),
+      children: [{ firstName: "Дана", periodEnd: null }],
+    });
+    const db = serviceClient(supabase);
+    const urls = recordUrls(page);
+    const remove = async (name: string) => {
+      await page.getByTestId("parent-delete").click();
+      const dialog = page.getByRole("dialog");
+      await dialog
+        .getByLabel(p.deleteDialog.reason)
+        .selectOption("created_by_mistake");
+      await dialog
+        .getByLabel(fmt(p.deleteDialog.confirmLabel, { name }))
+        .fill(name);
+      await page.getByTestId("parent-delete-confirm").click();
+    };
+    try {
+      await loginAs(page, SEED_EMAILS.owner, SEED_PASSWORD);
+
+      await page.goto(`/parents/${withChild.parentId}`);
+      await remove(busy);
+      await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(
+        p.errors.has_children,
+      );
+
+      await page.goto(`/parents/${empty.parentId}`);
+      await remove(lonely);
+      await expect(page).toHaveURL("/clients", SERVER_ROUND_TRIP);
+      await expect(page.getByText(p.deleteDialog.deleted)).toBeVisible();
+      const { data } = await db
+        .from("parents")
+        .select("id")
+        .eq("id", empty.parentId);
+      expect(data).toEqual([]);
+
+      expectNoneIn(urls, [lastName, lonely, busy]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await cleanUp(supabase, lastName);
+      await db.from("parents").delete().eq("id", empty.parentId);
     }
   });
 });

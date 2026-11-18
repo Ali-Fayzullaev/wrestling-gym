@@ -6,15 +6,29 @@ import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { createServerDb } from "@/db/server";
 import {
+  archiveParentSchema,
+  deleteParentSchema,
   type ParentField,
   parentFormToRaw,
   parentIdSchema,
   parentInputSchema,
 } from "@/features/parents/schema";
-import { type ParentError, updateParent } from "@/features/parents/service";
+import {
+  deleteParent,
+  type ParentError,
+  setParentArchived,
+  updateParent,
+} from "@/features/parents/service";
 
 export type ParentActionResult =
   { ok: true } | { ok: false; error: ParentError; fields?: ParentField[] };
+
+function refreshAfterParentChange() {
+  // The parent's card, the children's cards and the Today screen show the parent.
+  revalidatePath("/parents", "layout");
+  revalidatePath("/clients", "layout");
+  revalidatePath("/today");
+}
 
 const PARENT_FIELDS = new Set<string>([
   "name",
@@ -50,9 +64,36 @@ export async function updateParentAction(
     parsed.data,
   );
   if (!result.ok) return result;
-  // The parent's card, the children's cards and the Today screen show the parent.
-  revalidatePath("/parents", "layout");
-  revalidatePath("/clients", "layout");
-  revalidatePath("/today");
+  refreshAfterParentChange();
+  return { ok: true };
+}
+
+/** "To archive" / "Bring back" on the parent's card; owner and admin, repeats are harmless. */
+export async function setParentArchivedAction(
+  raw: unknown,
+): Promise<ParentActionResult> {
+  const actor = await requireStaff(STAFF_ROLES);
+  const parsed = archiveParentSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const result = await setParentArchived(
+    await createServerDb(),
+    actor,
+    parsed.data,
+  );
+  if (!result.ok) return result;
+  refreshAfterParentChange();
+  return { ok: true };
+}
+
+/** "Delete" on the parent's card: the owner, a parent without children. */
+export async function deleteParentAction(
+  raw: unknown,
+): Promise<ParentActionResult> {
+  const actor = await requireStaff(STAFF_ROLES);
+  const parsed = deleteParentSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const result = await deleteParent(await createServerDb(), actor, parsed.data);
+  if (!result.ok) return result;
+  refreshAfterParentChange();
   return { ok: true };
 }

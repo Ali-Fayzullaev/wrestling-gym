@@ -14,6 +14,7 @@ import { createServerDb } from "@/db/server";
 import { requireStaff } from "@/features/auth/require-staff";
 import { STAFF_ROLES } from "@/features/auth/roles";
 import { PayButton } from "@/features/payments/components/pay-button";
+import { ParentActions } from "@/features/parents/components/parent-actions";
 import { parentIdSchema } from "@/features/parents/schema";
 import { getParent, type ParentChild } from "@/features/parents/service";
 import { getI18n } from "@/i18n/server";
@@ -25,6 +26,7 @@ import {
   cancelPaymentAction,
   recordPaymentAction,
 } from "../../clients/payment-actions";
+import { deleteParentAction, setParentArchivedAction } from "../actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -32,15 +34,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * A parent and their children, each with status and "Paid" (D-19: payments stay per child). Two
- * database requests: the role check and parent_screen().
+ * A parent and their children, each with status and "Paid" (D-19: payments stay per child), and
+ * the parent's archive and deletion. Two database requests: the role check and parent_screen().
  */
 export default async function ParentPage({
   params,
 }: PageProps<"/parents/[id]">) {
   const { t: messages, locale } = await getI18n();
   const p = messages.parents;
-  await requireStaff(STAFF_ROLES);
+  const actor = await requireStaff(STAFF_ROLES);
   const id = parentIdSchema.safeParse((await params).id);
   if (!id.success) notFound();
   const now = new Date();
@@ -49,7 +51,7 @@ export default async function ParentPage({
   const { parent, children } = screen;
 
   return (
-    <Texts ns={["payments"]}>
+    <Texts ns={["payments", "parents"]}>
       <BackLink href="/clients" label={messages.clients.back} />
       <PageHeader
         title={parent.name}
@@ -73,11 +75,22 @@ export default async function ParentPage({
                 {p.addChild}
               </Link>
             )}
+            <ParentActions
+              parentId={parent.id}
+              name={parent.name}
+              archived={parent.archived}
+              canDelete={actor.role === "owner"}
+              setArchived={setParentArchivedAction}
+              remove={deleteParentAction}
+            />
           </div>
         }
       />
       {parent.archived ? (
-        <p className="flex items-center gap-2 rounded-xl border bg-muted px-4 py-3 text-sm">
+        <p
+          className="flex items-center gap-2 rounded-xl border bg-muted px-4 py-3 text-sm"
+          data-testid="parent-archived"
+        >
           <Archive aria-hidden className="size-4 shrink-0" />
           {p.archivedNotice}
         </p>

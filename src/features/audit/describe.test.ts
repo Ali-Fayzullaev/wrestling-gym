@@ -284,6 +284,22 @@ describe("describeAuditEntry", () => {
     });
   });
 
+  it("a deleted parent: the reason, no name and no link (step 22)", () => {
+    const result = describeAuditEntry(
+      RU,
+      entry({
+        action: "parent.delete",
+        entity: "parent",
+        entityId: OTHER,
+        details: { reason: "created_by_mistake" },
+      }),
+      NOW,
+    );
+    expect(result.title).toBe("Родитель удалён");
+    expect(result.details).toEqual(["причина: создан по ошибке"]);
+    expect(result.target).toBeNull();
+  });
+
   it("staff: role change names the employee; own sign-in has no target", () => {
     const change = describeAuditEntry(
       RU,

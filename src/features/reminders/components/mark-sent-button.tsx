@@ -5,25 +5,31 @@ import { useState, useTransition } from "react";
 
 import { buttonVariants } from "@/components/ui/variants";
 
-import type { MarkedReminder, ReminderResult } from "../result";
-import type { MarkReminderSentInput } from "../schema";
+import type { MarkedFamily, MarkedReminder, ReminderResult } from "../result";
+import type { MarkFamilySentInput, MarkReminderSentInput } from "../schema";
 
 export type MarkReminderSent = (
   input: MarkReminderSentInput,
 ) => Promise<ReminderResult<MarkedReminder>>;
 
+/** "Sent" for every child of one family message at once (D-18). */
+export type MarkFamilySent = (
+  input: MarkFamilySentInput,
+) => Promise<ReminderResult<MarkedFamily>>;
+
 /**
  * The manual "marked as sent": only the employee knows the message went out. After it is saved the
- * server re-renders the row with who marked it and when.
+ * server re-renders the row with who marked it and when. One event, or every child of a family
+ * message still to mark.
  */
-export function MarkSentButton({
-  eventId,
+export function MarkSentButton<Input>({
+  input,
   labels,
   mark,
 }: {
-  eventId: string;
+  input: Input;
   labels: { markSent: string; marking: string; failed: string };
-  mark: MarkReminderSent;
+  mark: (input: Input) => Promise<ReminderResult<unknown>>;
 }) {
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
@@ -38,7 +44,7 @@ export function MarkSentButton({
           setFailed(false);
           startTransition(async () => {
             try {
-              const result = await mark({ eventId });
+              const result = await mark(input);
               if (!result.ok) setFailed(true);
             } catch {
               setFailed(true);
