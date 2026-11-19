@@ -59,14 +59,14 @@ isOneToOne: false
                   ]
                 },"clients": {
                   Row: {
-                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"deleted_at": string | null,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"message_locale": string,"note": string,"parent_id": string | null,"phone": string | null,"search_text": string | null,"started_on": string,"updated_at": string
+                    "archived_at": string | null,"birth_date": string | null,"created_at": string,"created_by": string,"deleted_at": string | null,"first_name": string,"group_id": string | null,"id": string,"last_name": string,"message_locale": string,"note": string,"parent_id": string | null,"phone": string | null,"request_key": string | null,"request_position": number | null,"search_text": string | null,"started_on": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"message_locale"?: string,"note"?: string,"parent_id"?: string | null,"phone"?: string | null,"search_text"?: never,"started_on": string,"updated_at"?: string
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name": string,"group_id"?: string | null,"id"?: string,"last_name": string,"message_locale"?: string,"note"?: string,"parent_id"?: string | null,"phone"?: string | null,"request_key"?: string | null,"request_position"?: number | null,"search_text"?: never,"started_on": string,"updated_at"?: string
                   }
                   Update: {
-                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"message_locale"?: string,"note"?: string,"parent_id"?: string | null,"phone"?: string | null,"search_text"?: never,"started_on"?: string,"updated_at"?: string
+                    "archived_at"?: string | null,"birth_date"?: string | null,"created_at"?: string,"created_by"?: string,"deleted_at"?: string | null,"first_name"?: string,"group_id"?: string | null,"id"?: string,"last_name"?: string,"message_locale"?: string,"note"?: string,"parent_id"?: string | null,"phone"?: string | null,"request_key"?: string | null,"request_position"?: number | null,"search_text"?: never,"started_on"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -348,6 +348,9 @@ isOneToOne: false
                            },
 "complete_password_change":
 { Args: { "p_staff_id": string }; Returns: undefined
+                           },
+"create_children":
+{ Args: { "p_children"?: Json,"p_new_parent"?: Json,"p_parent_id"?: string,"p_request_key"?: string }; Returns: Json
                            },
 "create_client":
 { Args: { "p_birth_date"?: string,"p_first_name": string,"p_group_id"?: string,"p_last_name": string,"p_message_locale"?: string,"p_new_parent"?: Json,"p_note"?: string,"p_parent_id"?: string,"p_phone"?: string,"p_started_on": string }; Returns: string

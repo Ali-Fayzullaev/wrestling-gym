@@ -15,6 +15,7 @@ import { DEFAULT_LOCALE } from "@/lib/locale";
 
 import {
   checkPhoneAction,
+  createChildrenAction,
   createClientAction,
   searchParentsAction,
 } from "../actions";
@@ -66,6 +67,7 @@ export default async function NewClientPage({
           groups={groups}
           archivedGroup={null}
           submit={createClientAction}
+          submitChildren={createChildrenAction}
           checkPhone={checkPhoneAction}
           searchParents={searchParentsAction}
         />

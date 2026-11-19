@@ -8,6 +8,9 @@ import { STAFF_ROLES } from "@/features/auth/roles";
 import type { ActionResult } from "@/features/clients/result";
 import {
   archiveClientSchema,
+  childrenFormToRaw,
+  childrenInputSchema,
+  childrenIssues,
   type ClientField,
   clientFormToRaw,
   clientIdSchema,
@@ -16,6 +19,7 @@ import {
   phoneCheckSchema,
 } from "@/features/clients/schema";
 import {
+  createChildren,
   createClient,
   deleteClient,
   type DeleteOutcome,
@@ -91,6 +95,30 @@ export async function createClientAction(
   const result = await createClient(await createServerDb(), actor, parsed.data);
   if (result.ok) refreshClients();
   return withFields(result);
+}
+
+/** Several children of one parent in one save (D-24): the new-client form in "Child" mode. */
+export async function createChildrenAction(
+  form: FormData,
+): Promise<ActionResult<{ parentId: string; childIds: string[] }>> {
+  const actor = await requireStaff(STAFF_ROLES);
+  const parsed = childrenInputSchema.safeParse(childrenFormToRaw(form));
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: "invalid",
+      ...childrenIssues(parsed.error.issues),
+    };
+  const result = await createChildren(
+    await createServerDb(),
+    actor,
+    parsed.data,
+  );
+  if (result.ok) refreshClients();
+  // group_not_found names no child: the form shows it as a general error.
+  if (!result.ok && result.error === "parent_not_found")
+    return { ...result, fields: ["parentId"] };
+  return result;
 }
 
 export async function updateClientAction(

@@ -1,11 +1,10 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
-  type ReactNode,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -17,11 +16,11 @@ import { buttonVariants, inputClassName } from "@/components/ui/variants";
 import { useText } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import { HTML_LANG, type Locale, LOCALE_NAMES, LOCALES } from "@/lib/locale";
-import { normalizePhone } from "@/lib/phone";
 
 import type { ParentOption } from "@/features/parents/service";
 
 import {
+  childrenFormFields,
   CLIENT_KINDS,
   clientFormFields as fields,
   type ClientKind,
@@ -29,9 +28,12 @@ import {
   NOTE_MAX,
 } from "../form-fields";
 import type { ActionResult } from "../result";
-import type { ClientField, PhoneCheckInput } from "../schema";
-import type { ActiveGroup, PhoneDuplicate } from "../service";
+import type { ClientField } from "../schema";
+import type { ActiveGroup } from "../service";
+import { ChildrenFields } from "./children-fields";
+import { Field, fieldControl } from "./form-field";
 import { ParentPicker, type SearchParents } from "./parent-picker";
+import { type CheckPhone, PhoneDuplicates, usePhoneCheck } from "./phone-check";
 
 export type ClientFormValues = {
   lastName: string;
@@ -49,12 +51,19 @@ export type ClientFormValues = {
 
 type Failure = Extract<ActionResult<unknown>, { ok: false }>;
 
+export type SubmitChildren = (
+  form: FormData,
+) => Promise<ActionResult<{ parentId: string; childIds: string[] }>>;
+
 /**
  * New client and edit client. First the kind: an adult has their own phone and language; a child
  * has a parent (found or entered here), whose phone and language the reminders use (D-18), and
  * maybe a phone of their own. Submitted by hand, not through <form action>: React would reset the
  * fields after the action, and a failed save must keep what was typed. Leaving the phone field
  * checks the number and lists other clients with it (a warning; saving is still allowed).
+ *
+ * A new child is saved with any brothers and sisters in one go (D-24): one parent, then a block
+ * per child (ChildrenFields), sent to submitChildren. An adult and an edited child stay one client.
  */
 export function ClientForm({
   mode,
@@ -63,6 +72,7 @@ export function ClientForm({
   groups,
   archivedGroup,
   submit,
+  submitChildren,
   checkPhone,
   searchParents,
 }: {
@@ -74,9 +84,9 @@ export function ClientForm({
   /** The client's current group when it is archived: it may stay, but cannot be chosen anew. */
   archivedGroup: ActiveGroup | null;
   submit: (form: FormData) => Promise<ActionResult<{ id: string } | null>>;
-  checkPhone: (
-    input: PhoneCheckInput,
-  ) => Promise<ActionResult<PhoneDuplicate[]>>;
+  /** The new-client form only: several children of one parent. */
+  submitChildren: SubmitChildren | null;
+  checkPhone: CheckPhone;
   searchParents: SearchParents;
 }) {
   const clientErrorText = useText("clients").errors;
@@ -87,71 +97,87 @@ export function ClientForm({
   const [pending, startTransition] = useTransition();
   const [kind, setKind] = useState<ClientKind>(initial.kind);
   const child = kind === "child";
-  const [phoneWrong, setPhoneWrong] = useState(false);
-  const [duplicates, setDuplicates] = useState<PhoneDuplicate[]>([]);
-  // The last number looked up, so leaving the field again does not ask twice.
-  const checkedPhone = useRef<string | null>(
-    mode === "edit" ? normalizePhone(initial.phone) : null,
+  const severalChildren = child && submitChildren !== null;
+  const phone = usePhoneCheck(
+    checkPhone,
+    clientId,
+    mode === "edit" ? initial.phone : null,
   );
+  // One key per filling of the form, made on the first save and kept for the retries, so a repeat
+  // returns the children already saved instead of adding them twice.
+  const requestKey = useRef<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const invalid = new Set<ClientField>(failure?.fields ?? []);
-  if (phoneWrong) invalid.add("phone");
+  if (phone.wrong) invalid.add("phone");
+  const childIssues = failure?.childFields ?? [];
   const generalError =
     failure &&
-    (failure.error !== "invalid" || (failure.fields ?? []).length === 0)
+    (failure.error !== "invalid" ||
+      ((failure.fields ?? []).length === 0 && childIssues.length === 0))
       ? clientErrorText[failure.error]
       : null;
   const cancelHref = clientId ? `/clients/${clientId}` : "/clients";
 
-  function onPhoneBlur(value: string) {
-    if (value.trim() === "") {
-      setPhoneWrong(false);
-      return;
-    }
-    const phone = normalizePhone(value);
-    setPhoneWrong(phone === null);
-    if (phone === null || phone === checkedPhone.current) return;
-    checkedPhone.current = phone;
-    void checkPhone({ phone, excludeId: clientId }).then((result) => {
-      // A newer number may have been typed meanwhile.
-      if (checkedPhone.current === phone && result.ok)
-        setDuplicates(result.data);
-    });
-  }
+  useEffect(() => {
+    // After a failed save the first wrong field takes the focus; a general error has none.
+    formRef.current
+      ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      ?.focus();
+  }, [failure]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     requestToaster();
     startTransition(async () => {
-      const result = await submit(form);
-      if (!result.ok) {
-        setFailure(result);
-        return;
+      let destination: string;
+      let message: string;
+      if (severalChildren) {
+        requestKey.current ??= crypto.randomUUID();
+        form.set(childrenFormFields.requestKey, requestKey.current);
+        const result = await submitChildren(form);
+        if (!result.ok) {
+          setFailure(result);
+          return;
+        }
+        const { parentId, childIds } = result.data;
+        // One child: their card, as before. Several: the parent's card lists them all (D-19).
+        destination =
+          childIds.length === 1
+            ? `/clients/${childIds[0]}`
+            : `/parents/${parentId}`;
+        message =
+          childIds.length === 1
+            ? f.created
+            : fmt(f.childrenCreated, { count: String(childIds.length) });
+      } else {
+        const result = await submit(form);
+        if (!result.ok) {
+          setFailure(result);
+          return;
+        }
+        destination = `/clients/${result.data?.id ?? clientId}`;
+        message = mode === "create" ? f.created : f.saved;
       }
       setFailure(null);
       // sonner is not part of this screen's first load; DeferredToaster has usually fetched it.
       const { toast } = await import("sonner");
-      toast.success(mode === "create" ? f.created : f.saved);
-      router.push(`/clients/${result.data?.id ?? clientId}`);
+      toast.success(message);
+      router.push(destination);
     });
   }
 
-  const describedBy = (field: ClientField, hint = false) =>
-    [
-      hint ? `${id}-${field}-hint` : null,
-      invalid.has(field) ? `${id}-${field}-error` : null,
-    ]
-      .filter(Boolean)
-      .join(" ") || undefined;
-  const control = (field: ClientField, hint = false) => ({
-    id: `${id}-${field}`,
-    "aria-invalid": invalid.has(field) || undefined,
-    "aria-describedby": describedBy(field, hint),
-  });
+  const control = (field: ClientField, hint = false) =>
+    fieldControl(id, field, invalid, hint);
 
   return (
-    <form onSubmit={onSubmit} noValidate className="grid max-w-2xl gap-5">
+    <form
+      ref={formRef}
+      onSubmit={onSubmit}
+      noValidate
+      className="grid max-w-2xl gap-5"
+    >
       {generalError ? (
         <p
           role="alert"
@@ -183,184 +209,195 @@ export function ClientForm({
         </div>
       </fieldset>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field id={id} field="lastName" label={f.lastName} invalid={invalid}>
-          <input
-            {...control("lastName")}
-            name={fields.lastName}
-            defaultValue={initial.lastName}
-            maxLength={NAME_MAX}
-            autoComplete="off"
-            required
-            className={inputClassName}
+      {severalChildren ? (
+        <>
+          <ParentPicker
+            initial={initial.parent}
+            invalid={invalid}
+            search={searchParents}
           />
-        </Field>
-        <Field id={id} field="firstName" label={f.firstName} invalid={invalid}>
-          <input
-            {...control("firstName")}
-            name={fields.firstName}
-            defaultValue={initial.firstName}
-            maxLength={NAME_MAX}
-            autoComplete="off"
-            required
-            className={inputClassName}
+          <ChildrenFields
+            initial={{
+              lastName: initial.lastName,
+              groupId: initial.groupId ?? "",
+              startedOn: initial.startedOn,
+            }}
+            groups={groups}
+            issues={childIssues}
+            checkPhone={checkPhone}
+            onBlocksChange={() => setFailure(null)}
           />
-        </Field>
-      </div>
-
-      {child ? (
-        <ParentPicker
-          initial={initial.parent}
-          invalid={invalid}
-          search={searchParents}
-        />
-      ) : null}
-
-      <Field
-        id={id}
-        field="phone"
-        label={child ? f.childPhone : f.phone}
-        hint={child ? f.childPhoneHint : f.phoneHint}
-        invalid={invalid}
-      >
-        <input
-          {...control("phone", true)}
-          name={fields.phone}
-          type="tel"
-          inputMode="tel"
-          autoComplete="off"
-          defaultValue={initial.phone}
-          required={!child}
-          onBlur={(event) => onPhoneBlur(event.target.value)}
-          onChange={() => setPhoneWrong(false)}
-          className={`${inputClassName} tabular-nums`}
-        />
-      </Field>
-      {duplicates.length > 0 ? (
-        <div
-          role="status"
-          data-testid="phone-duplicates"
-          className="-mt-2 grid gap-1 rounded-md bg-status-expiring px-3 py-2 text-sm text-status-expiring-foreground"
-        >
-          <p className="flex items-center gap-2 font-medium">
-            <TriangleAlert aria-hidden className="size-4 shrink-0" />
-            {f.duplicates}
-          </p>
-          <ul className="grid gap-0.5 pl-6">
-            {duplicates.map((duplicate) => (
-              <li key={duplicate.id}>
-                <Link
-                  href={`/clients/${duplicate.id}`}
-                  prefetch={false}
-                  target="_blank"
-                  className="underline underline-offset-4"
-                >
-                  {duplicate.lastName} {duplicate.firstName}
-                </Link>
-                {duplicate.archived ? ` (${f.duplicateArchived})` : null}
-              </li>
-            ))}
-          </ul>
-          <p>{f.duplicatesHint}</p>
-        </div>
-      ) : null}
-
-      {child ? (
-        // A child's reminders go in the parent's language; the client's own stays as it was.
-        <input
-          type="hidden"
-          name={fields.messageLocale}
-          value={initial.messageLocale}
-        />
+        </>
       ) : (
-        <Field
-          id={id}
-          field="messageLocale"
-          label={f.messageLocale}
-          hint={f.messageLocaleHint}
-          invalid={invalid}
-        >
-          <select
-            {...control("messageLocale", true)}
-            name={fields.messageLocale}
-            defaultValue={initial.messageLocale}
-            className={`${inputClassName} sm:max-w-[calc(50%-0.625rem)]`}
+        <>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              id={id}
+              field="lastName"
+              label={f.lastName}
+              invalid={invalid}
+            >
+              <input
+                {...control("lastName")}
+                name={fields.lastName}
+                defaultValue={initial.lastName}
+                maxLength={NAME_MAX}
+                autoComplete="off"
+                required
+                className={inputClassName}
+              />
+            </Field>
+            <Field
+              id={id}
+              field="firstName"
+              label={f.firstName}
+              invalid={invalid}
+            >
+              <input
+                {...control("firstName")}
+                name={fields.firstName}
+                defaultValue={initial.firstName}
+                maxLength={NAME_MAX}
+                autoComplete="off"
+                required
+                className={inputClassName}
+              />
+            </Field>
+          </div>
+
+          {child ? (
+            <ParentPicker
+              initial={initial.parent}
+              invalid={invalid}
+              search={searchParents}
+            />
+          ) : null}
+
+          <Field
+            id={id}
+            field="phone"
+            label={child ? f.childPhone : f.phone}
+            hint={child ? f.childPhoneHint : f.phoneHint}
+            invalid={invalid}
           >
-            {LOCALES.map((option) => (
-              // Each language named in itself, as the client would recognise it.
-              <option key={option} value={option} lang={HTML_LANG[option]}>
-                {LOCALE_NAMES[option]}
-              </option>
-            ))}
-          </select>
-        </Field>
+            <input
+              {...control("phone", true)}
+              name={fields.phone}
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              defaultValue={initial.phone}
+              required={!child}
+              onBlur={(event) => phone.onBlur(event.target.value)}
+              onChange={phone.onChange}
+              className={`${inputClassName} tabular-nums`}
+            />
+          </Field>
+          <PhoneDuplicates duplicates={phone.duplicates} />
+
+          {child ? (
+            // A child's reminders go in the parent's language; the client's own stays as it was.
+            <input
+              type="hidden"
+              name={fields.messageLocale}
+              value={initial.messageLocale}
+            />
+          ) : (
+            <Field
+              id={id}
+              field="messageLocale"
+              label={f.messageLocale}
+              hint={f.messageLocaleHint}
+              invalid={invalid}
+            >
+              <select
+                {...control("messageLocale", true)}
+                name={fields.messageLocale}
+                defaultValue={initial.messageLocale}
+                className={`${inputClassName} sm:max-w-[calc(50%-0.625rem)]`}
+              >
+                {LOCALES.map((option) => (
+                  // Each language named in itself, as the client would recognise it.
+                  <option key={option} value={option} lang={HTML_LANG[option]}>
+                    {LOCALE_NAMES[option]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field id={id} field="groupId" label={f.group} invalid={invalid}>
+              <select
+                {...control("groupId")}
+                name={fields.groupId}
+                defaultValue={initial.groupId ?? ""}
+                className={inputClassName}
+              >
+                <option value="">{f.noGroup}</option>
+                {archivedGroup ? (
+                  <option value={archivedGroup.id}>
+                    {fmt(f.archivedGroup, { name: archivedGroup.name })}
+                  </option>
+                ) : null}
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              id={id}
+              field="startedOn"
+              label={f.startedOn}
+              invalid={invalid}
+            >
+              <input
+                {...control("startedOn")}
+                name={fields.startedOn}
+                type="date"
+                defaultValue={initial.startedOn}
+                required
+                className={`${inputClassName} tabular-nums`}
+              />
+            </Field>
+          </div>
+
+          <Field
+            id={id}
+            field="birthDate"
+            label={f.birthDate}
+            hint={f.birthDateHint}
+            invalid={invalid}
+          >
+            <input
+              {...control("birthDate", true)}
+              name={fields.birthDate}
+              type="date"
+              defaultValue={initial.birthDate ?? ""}
+              className={`${inputClassName} tabular-nums sm:max-w-[calc(50%-0.625rem)]`}
+            />
+          </Field>
+
+          <Field
+            id={id}
+            field="note"
+            label={f.note}
+            hint={f.noteHint}
+            invalid={invalid}
+          >
+            <textarea
+              {...control("note", true)}
+              name={fields.note}
+              defaultValue={initial.note}
+              maxLength={NOTE_MAX}
+              rows={3}
+              className={`${inputClassName} h-auto min-h-24 py-2`}
+            />
+          </Field>
+        </>
       )}
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field id={id} field="groupId" label={f.group} invalid={invalid}>
-          <select
-            {...control("groupId")}
-            name={fields.groupId}
-            defaultValue={initial.groupId ?? ""}
-            className={inputClassName}
-          >
-            <option value="">{f.noGroup}</option>
-            {archivedGroup ? (
-              <option value={archivedGroup.id}>
-                {fmt(f.archivedGroup, { name: archivedGroup.name })}
-              </option>
-            ) : null}
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id={id} field="startedOn" label={f.startedOn} invalid={invalid}>
-          <input
-            {...control("startedOn")}
-            name={fields.startedOn}
-            type="date"
-            defaultValue={initial.startedOn}
-            required
-            className={`${inputClassName} tabular-nums`}
-          />
-        </Field>
-      </div>
-
-      <Field
-        id={id}
-        field="birthDate"
-        label={f.birthDate}
-        hint={f.birthDateHint}
-        invalid={invalid}
-      >
-        <input
-          {...control("birthDate", true)}
-          name={fields.birthDate}
-          type="date"
-          defaultValue={initial.birthDate ?? ""}
-          className={`${inputClassName} tabular-nums sm:max-w-[calc(50%-0.625rem)]`}
-        />
-      </Field>
-
-      <Field
-        id={id}
-        field="note"
-        label={f.note}
-        hint={f.noteHint}
-        invalid={invalid}
-      >
-        <textarea
-          {...control("note", true)}
-          name={fields.note}
-          defaultValue={initial.note}
-          maxLength={NOTE_MAX}
-          rows={3}
-          className={`${inputClassName} h-auto min-h-24 py-2`}
-        />
-      </Field>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Link
@@ -375,41 +412,5 @@ export function ClientForm({
         </button>
       </div>
     </form>
-  );
-}
-
-function Field({
-  id,
-  field,
-  label,
-  hint,
-  invalid,
-  children,
-}: {
-  id: string;
-  field: ClientField;
-  label: string;
-  hint?: string;
-  invalid: ReadonlySet<ClientField>;
-  children: ReactNode;
-}) {
-  const f = useText("clientForm");
-  return (
-    <div className="grid content-start gap-1.5">
-      <label htmlFor={`${id}-${field}`} className="text-sm font-medium">
-        {label}
-      </label>
-      {children}
-      {hint ? (
-        <p id={`${id}-${field}-hint`} className="text-sm text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-      {invalid.has(field) ? (
-        <p id={`${id}-${field}-error`} className="text-sm text-destructive">
-          {f.errors[field as keyof typeof f.errors]}
-        </p>
-      ) : null}
-    </div>
   );
 }

@@ -413,6 +413,12 @@ export const ru = {
     duplicatesHint:
       "Сохранить можно. Если это брат или сестра, выберите «Ребёнок» и того же родителя.",
     duplicateArchived: "в архиве",
+    childNumber: "Ребёнок {number}",
+    addChild: "Добавить ещё ребёнка",
+    removeChild: "Убрать",
+    removeChildLabel: "Убрать ребёнка {number}",
+    childrenMax: "За одно сохранение можно добавить до {max} детей.",
+    childrenCreated: "Добавлено детей: {count}",
     save: "Сохранить",
     saving: "Сохраняем…",
     cancel: "Отмена",

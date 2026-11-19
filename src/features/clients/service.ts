@@ -24,6 +24,7 @@ import { STATUSES } from "./filters";
 import type { DeleteReason } from "./form-fields";
 import type {
   ArchiveClientInput,
+  ChildrenInput,
   ClientInput,
   DeleteClientInput,
   PhoneCheckInput,
@@ -386,11 +387,15 @@ function clientError(error: { code?: string; message?: string }): ClientError {
     return "confirmation_mismatch";
   if (error.code === "23514" && error.message === "parent_archived")
     return "parent_archived";
-  // Check constraints and invalid input: the server-side Zod check should have caught these.
+  // Check and not-null constraints, invalid input: the server-side Zod check should have caught
+  // these.
   if (
     error.code === "23514" ||
+    error.code === "23502" ||
     error.code === "22023" ||
-    error.code === "22P02"
+    error.code === "22P02" ||
+    error.code === "22007" ||
+    error.code === "22008"
   )
     return "invalid";
   return "unavailable";
@@ -457,6 +462,55 @@ export async function createClient(
   const { data, error } = await db.rpc("create_client", clientArgs(input));
   if (error) return { ok: false, error: clientError(error) };
   return { ok: true, data: { id: data } };
+}
+
+const childrenCreatedShape = z.object({
+  parent_id: z.string(),
+  child_ids: z.array(z.string()).min(1),
+});
+
+function newParentArg(parent: ChildrenInput["parent"]) {
+  return parent.kind === "existing"
+    ? { p_parent_id: parent.id }
+    : {
+        p_new_parent: {
+          name: parent.name,
+          phone: parent.phone,
+          message_locale: parent.messageLocale,
+        },
+      };
+}
+
+/**
+ * Several children of one parent (D-24): the parent (created once when new) and every child are
+ * saved together or not at all. A repeat with the same request key returns the children already
+ * saved, which the database guarantees with a unique index.
+ */
+export async function createChildren(
+  db: Db,
+  actor: Actor,
+  input: ChildrenInput,
+): Promise<Result<{ parentId: string; childIds: string[] }>> {
+  if (!isStaff(actor)) return { ok: false, error: "forbidden" };
+  const { data, error } = await db.rpc("create_children", {
+    ...newParentArg(input.parent),
+    p_request_key: input.requestKey,
+    p_children: input.children.map((child) => ({
+      last_name: child.lastName,
+      first_name: child.firstName,
+      phone: child.phone,
+      birth_date: child.birthDate,
+      group_id: child.groupId,
+      started_on: child.startedOn,
+      note: child.note,
+    })),
+  });
+  if (error) return { ok: false, error: clientError(error) };
+  const created = childrenCreatedShape.parse(data);
+  return {
+    ok: true,
+    data: { parentId: created.parent_id, childIds: created.child_ids },
+  };
 }
 
 /** Saves the client and logs the names of the changed fields. */

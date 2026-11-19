@@ -4,6 +4,11 @@ import { DEFAULT_LOCALE, type Locale, LOCALES } from "@/lib/locale";
 import { normalizePhone } from "@/lib/phone";
 
 import {
+  CHILD_FIELDS,
+  type ChildField,
+  childFieldName,
+  CHILDREN_MAX,
+  childrenFormFields,
   CLIENT_KINDS,
   clientFormFields,
   type ClientKind,
@@ -149,6 +154,99 @@ function parentOf(input: {
 
 export type ClientInput = z.infer<typeof clientInputSchema>;
 
+/** One child of the several-children form (D-24): the same rules as a child in the client form. */
+const childInputSchema = z.object({
+  lastName: name,
+  firstName: name,
+  phone: optionalPhone,
+  groupId: z.preprocess(emptyToNull, z.uuid().nullable()),
+  startedOn: calendarDate,
+  birthDate: z.preprocess(emptyToNull, calendarDate.nullable()),
+  note: z.string().max(NOTE_MAX),
+});
+
+export type ChildInput = z.infer<typeof childInputSchema>;
+
+/** A child's parent in the several-children form: never "none". */
+export type ChildrenParent = Exclude<ParentInput, null>;
+
+/** A new parent, or one on file, and 1 to CHILDREN_MAX children, saved together. */
+export const childrenInputSchema = z
+  .object({
+    parentMode: z.enum(PARENT_MODES).catch("existing"),
+    parentId: z.preprocess(emptyToNull, z.uuid().nullable()),
+    newParentName: z.preprocess(emptyToNull, name.nullable()),
+    newParentPhone: optionalPhone,
+    newParentLocale: z.enum(LOCALES).catch(DEFAULT_LOCALE),
+    requestKey: z.uuid(),
+    children: z.array(childInputSchema).min(1).max(CHILDREN_MAX),
+  })
+  .transform((input, ctx) => {
+    const parent = parentOf({ ...input, kind: "child" });
+    if (parent === null) {
+      const fields: ClientField[] =
+        input.parentMode === "existing"
+          ? ["parentId"]
+          : [
+              ...(input.newParentName === null
+                ? (["newParentName"] as const)
+                : []),
+              ...(input.newParentPhone === null
+                ? (["newParentPhone"] as const)
+                : []),
+            ];
+      for (const field of fields)
+        ctx.addIssue({ code: "custom", path: [field] });
+      return z.NEVER;
+    }
+    return {
+      parent,
+      children: input.children,
+      requestKey: input.requestKey,
+    };
+  });
+
+export type ChildrenInput = z.infer<typeof childrenInputSchema>;
+
+/** A wrong field of one child, by the child's place in the form. */
+export type ChildFieldIssue = { index: number; field: ChildField };
+
+const CHILD_FIELD_SET = new Set<string>(CHILD_FIELDS);
+const PARENT_FIELD_SET = new Set<string>([
+  "parentId",
+  "newParentName",
+  "newParentPhone",
+  "newParentLocale",
+]);
+
+/**
+ * Which parent fields and which children's fields are wrong; the values never leave the form. A
+ * wrong count of children (none, too many) names no field.
+ */
+export function childrenIssues(issues: { path: PropertyKey[] }[]): {
+  fields: ClientField[];
+  childFields: ChildFieldIssue[];
+} {
+  const fields = new Set<ClientField>();
+  const childFields = new Map<string, ChildFieldIssue>();
+  for (const { path } of issues) {
+    const [first, index, field] = path;
+    if (typeof first === "string" && PARENT_FIELD_SET.has(first))
+      fields.add(first as ClientField);
+    if (
+      first === "children" &&
+      typeof index === "number" &&
+      typeof field === "string" &&
+      CHILD_FIELD_SET.has(field)
+    )
+      childFields.set(`${index}.${field}`, {
+        index,
+        field: field as ChildField,
+      });
+  }
+  return { fields: [...fields], childFields: [...childFields.values()] };
+}
+
 export const clientIdSchema = z.uuid();
 
 export const phoneCheckSchema = z.object({
@@ -196,5 +294,41 @@ export function clientFormToRaw(form: FormData): Record<string, unknown> {
     startedOn: text(f.startedOn),
     note: text(f.note),
     messageLocale: text(f.messageLocale),
+  };
+}
+
+/**
+ * The raw shape for childrenInputSchema. Children are read by their place in the form; places past
+ * CHILDREN_MAX are kept as far as one more, so a longer list is refused rather than cut.
+ */
+export function childrenFormToRaw(form: FormData): Record<string, unknown> {
+  const text = (field: string) => {
+    const value = form.get(field);
+    return typeof value === "string" ? value : "";
+  };
+  const f = clientFormFields;
+  let count = 0;
+  for (const key of form.keys()) {
+    const match = /^children\.(\d{1,2})\./.exec(key);
+    if (match) count = Math.max(count, Number(match[1]) + 1);
+  }
+  const children = Array.from(
+    { length: Math.min(count, CHILDREN_MAX + 1) },
+    (_, index) =>
+      Object.fromEntries(
+        CHILD_FIELDS.map((field) => [
+          field,
+          text(childFieldName(index, field)),
+        ]),
+      ),
+  );
+  return {
+    parentMode: text(f.parentMode),
+    parentId: text(f.parentId),
+    newParentName: text(f.newParentName),
+    newParentPhone: text(f.newParentPhone),
+    newParentLocale: text(f.newParentLocale),
+    requestKey: text(childrenFormFields.requestKey),
+    children,
   };
 }

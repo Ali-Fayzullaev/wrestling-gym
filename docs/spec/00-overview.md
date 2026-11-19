@@ -84,7 +84,7 @@ Next.js (App Router, RSC, Server Actions), TypeScript strict, Tailwind + shadcn/
 | 21 | [21-families.md](21-families.md) | Родитель и несколько детей, одно сообщение на семью | 20, D-18, D-19 | done |
 | 22 | [22-families-followup.md](22-families-followup.md) | Семейный блок на «Напоминаниях», архив и удаление родителя | 21 | done |
 | 23 | [23-remove-consents.md](23-remove-consents.md) | Убрать согласия из формы и карточки клиента | 22, D-10 | done |
-| 24 | [24-several-children-form.md](24-several-children-form.md) | Несколько детей в одной форме «Новый клиент» | 23, D-24 | todo |
+| 24 | [24-several-children-form.md](24-several-children-form.md) | Несколько детей в одной форме «Новый клиент» | 23, D-24 | done |
 
 Статусы: `todo` → `in-progress` → `done` (или `blocked: <причина>`).
 
