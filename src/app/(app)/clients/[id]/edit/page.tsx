@@ -65,6 +65,7 @@ export default async function EditClientPage({
             group?.archived ? { id: group.id, name: group.name } : null
           }
           submit={updateClientAction.bind(null, client.id)}
+          submitChildren={null}
           checkPhone={checkPhoneAction}
           searchParents={searchParentsAction}
         />

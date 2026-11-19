@@ -18,6 +18,31 @@ export const clientFormFields = {
   messageLocale: "messageLocale",
 } as const;
 
+/**
+ * Several children of one parent in one save (D-24): the request key and each child's fields,
+ * named children.<index>.<field> by the child's place in the form.
+ */
+export const childrenFormFields = { requestKey: "requestKey" } as const;
+
+/** The fields of one child in the new-client form. */
+export const CHILD_FIELDS = [
+  "lastName",
+  "firstName",
+  "phone",
+  "groupId",
+  "startedOn",
+  "birthDate",
+  "note",
+] as const;
+export type ChildField = (typeof CHILD_FIELDS)[number];
+
+/** Upper limit of one save: guards against a mistaken input, not a rule of the gym. */
+export const CHILDREN_MAX = 10;
+
+export function childFieldName(index: number, field: ChildField): string {
+  return `children.${index}.${field}`;
+}
+
 /** An adult is reminded on their own phone; a child through the parent (D-18). */
 export const CLIENT_KINDS = ["adult", "child"] as const;
 export type ClientKind = (typeof CLIENT_KINDS)[number];

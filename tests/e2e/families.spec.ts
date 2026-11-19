@@ -688,3 +688,203 @@ test.describe("A parent's archive and deletion", () => {
     }
   });
 });
+
+test.describe("Several children in one form (D-24)", () => {
+  const block = (page: Page, number: number) =>
+    page.getByRole("group", {
+      name: fmt(f.childNumber, { number: String(number) }),
+    });
+  const addChild = (page: Page) =>
+    page.getByRole("button", { name: f.addChild }).click();
+
+  test("criteria 1, 3, 8: a new parent and three children; an error in one saves nobody", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = unique("Многодетный");
+    const parentName = unique("Мама");
+    const parentPhone = randomPhone();
+    const urls = recordUrls(page);
+    const db = serviceClient(supabase);
+    try {
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      await page.goto("/clients/new");
+      await page.getByLabel(f.kindChild).check();
+      await page.getByLabel(f.parentNew).check();
+      await page.getByLabel(f.newParentName).fill(parentName);
+      await page.getByLabel(f.newParentPhone).fill(parentPhone);
+
+      const first = block(page, 1);
+      await first.getByLabel(f.lastName, { exact: true }).fill(lastName);
+      await first.getByLabel(f.firstName, { exact: true }).fill("Арман");
+      await first
+        .getByLabel(f.group, { exact: true })
+        .selectOption({ index: 1 });
+      const group = await first
+        .getByLabel(f.group, { exact: true })
+        .inputValue();
+      await first.getByLabel(f.startedOn).fill("2026-09-01");
+      // The first child cannot be removed.
+      await expect(
+        first.getByRole("button", { name: f.removeChild }),
+      ).toHaveCount(0);
+
+      // Criterion 8: the new block copies last name, group and start date; the name is empty and
+      // takes the focus.
+      await addChild(page);
+      const second = block(page, 2);
+      await expect(second.getByLabel(f.lastName, { exact: true })).toHaveValue(
+        lastName,
+      );
+      await expect(second.getByLabel(f.group, { exact: true })).toHaveValue(
+        group,
+      );
+      await expect(second.getByLabel(f.startedOn)).toHaveValue("2026-09-01");
+      await expect(second.getByLabel(f.firstName, { exact: true })).toHaveValue(
+        "",
+      );
+      await expect(
+        second.getByLabel(f.firstName, { exact: true }),
+      ).toBeFocused();
+      await page.keyboard.type("Дана");
+
+      // A third block, removed, then added again.
+      await addChild(page);
+      await block(page, 3)
+        .getByRole("button", {
+          name: fmt(f.removeChildLabel, { number: "3" }),
+        })
+        .click();
+      await expect(page.getByTestId("child-block")).toHaveCount(2);
+      await expect(
+        page.getByRole("button", { name: f.addChild }),
+      ).toBeFocused();
+      await addChild(page);
+      await expect(page.getByTestId("child-block")).toHaveCount(3);
+
+      // Criterion 3: the third child has no first name. Nobody is saved, the error is at that
+      // field, and the focus is on it.
+      await page.getByRole("button", { name: f.save }).click();
+      const third = block(page, 3);
+      await expect(third.getByText(f.errors.firstName)).toBeVisible();
+      await expect(page.getByText(f.errors.firstName)).toHaveCount(1);
+      await expect(
+        third.getByLabel(f.firstName, { exact: true }),
+      ).toBeFocused();
+      const { data: noParent } = await db
+        .from("parents")
+        .select("id")
+        .eq("phone", parentPhone);
+      expect(noParent).toEqual([]);
+
+      await third.getByLabel(f.firstName, { exact: true }).fill("Тимур");
+      await page.getByRole("button", { name: f.save }).click();
+
+      // Several children: the parent's card, each child with "Paid" (D-19).
+      await expect(page).toHaveURL(
+        /\/parents\/[0-9a-f-]{36}$/,
+        SERVER_ROUND_TRIP,
+      );
+      await expect(
+        page.getByRole("heading", { level: 1, name: parentName }),
+      ).toBeVisible();
+      const children = page.getByTestId("parent-child");
+      await expect(children).toHaveCount(3);
+      await expect(children.getByTestId("pay-button")).toHaveCount(3);
+
+      const { data } = await db
+        .from("clients")
+        .select("first_name, parent_id, group_id, started_on")
+        .eq("last_name", lastName)
+        .order("request_position");
+      expect(data?.map((row) => row.first_name)).toEqual([
+        "Арман",
+        "Дана",
+        "Тимур",
+      ]);
+      expect(new Set(data?.map((row) => row.parent_id)).size).toBe(1);
+      expect(new Set(data?.map((row) => row.group_id))).toEqual(
+        new Set([group]),
+      );
+      expect(new Set(data?.map((row) => row.started_on))).toEqual(
+        new Set(["2026-09-01"]),
+      );
+      const { data: parents } = await db
+        .from("parents")
+        .select("id")
+        .eq("phone", parentPhone);
+      expect(parents).toHaveLength(1);
+
+      // Criterion 10: ids only in URLs.
+      expectNoneIn(urls, [lastName, parentName, parentPhone, "Арман", "Тимур"]);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await cleanUp(supabase, lastName);
+    }
+  });
+
+  test("criterion 2: a parent on file and two children through ?parent=<id>", async ({
+    page,
+    supabase,
+    consoleErrors,
+  }) => {
+    const lastName = unique("Многодетный");
+    const parentName = unique("Мама");
+    const family = await seedFamily(supabase, {
+      lastName,
+      parentName,
+      parentPhone: randomPhone(),
+      children: [],
+    });
+    try {
+      await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+      await page.goto(`/parents/${family.parentId}`);
+      await page.getByRole("link", { name: ru.parents.addChild }).click();
+      await expect(page).toHaveURL(/\/clients\/new\?parent=[0-9a-f-]{36}$/);
+      await expect(page.getByTestId("parent-chosen")).toContainText(parentName);
+
+      await block(page, 1)
+        .getByLabel(f.lastName, { exact: true })
+        .fill(lastName);
+      await block(page, 1)
+        .getByLabel(f.firstName, { exact: true })
+        .fill("Алия");
+      await addChild(page);
+      await page.keyboard.type("Ержан");
+      await page.getByRole("button", { name: f.save }).click();
+
+      await expect(page).toHaveURL(
+        `/parents/${family.parentId}`,
+        SERVER_ROUND_TRIP,
+      );
+      await expect(page.getByTestId("parent-child")).toHaveCount(2);
+      expect(consoleErrors).toEqual([]);
+    } finally {
+      await cleanUp(supabase, lastName);
+      await serviceClient(supabase)
+        .from("parents")
+        .delete()
+        .eq("id", family.parentId);
+    }
+  });
+
+  test("criterion 8: after the tenth child the button is gone", async ({
+    page,
+  }) => {
+    await loginAs(page, SEED_EMAILS.admin, SEED_PASSWORD);
+    await page.goto("/clients/new");
+    await page.getByLabel(f.kindChild).check();
+    for (let i = 1; i < 10; i++) await addChild(page);
+    await expect(page.getByTestId("child-block")).toHaveCount(10);
+    await expect(page.getByRole("button", { name: f.addChild })).toHaveCount(0);
+    await expect(
+      page.getByText(fmt(f.childrenMax, { max: "10" })),
+    ).toBeVisible();
+    // Removing one brings it back, with the focus on it.
+    await block(page, 10)
+      .getByRole("button", { name: fmt(f.removeChildLabel, { number: "10" }) })
+      .click();
+    await expect(page.getByRole("button", { name: f.addChild })).toBeFocused();
+  });
+});

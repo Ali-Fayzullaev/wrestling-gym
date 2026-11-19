@@ -407,6 +407,12 @@ export const kk: Messages = {
     duplicatesHint:
       "Сақтауға болады. Егер бұл бауыры болса, «Бала» мен сол ата-ананы таңдаңыз.",
     duplicateArchived: "мұрағатта",
+    childNumber: "Бала {number}",
+    addChild: "Тағы бала қосу",
+    removeChild: "Алып тастау",
+    removeChildLabel: "{number}-баланы алып тастау",
+    childrenMax: "Бір сақтауда {max} балаға дейін қосуға болады.",
+    childrenCreated: "Балалар қосылды: {count}",
     save: "Сақтау",
     saving: "Сақтап жатырмыз…",
     cancel: "Болдырмау",

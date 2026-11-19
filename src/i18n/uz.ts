@@ -407,6 +407,12 @@ export const uz: Messages = {
     duplicatesHint:
       "Сақлаш мумкин. Агар бу ака-укаси ёки опа-синглиси бўлса, «Бола» ва ўша ота-онани танланг.",
     duplicateArchived: "архивда",
+    childNumber: "Бола {number}",
+    addChild: "Яна бола қўшиш",
+    removeChild: "Олиб ташлаш",
+    removeChildLabel: "{number}-болани олиб ташлаш",
+    childrenMax: "Бир сақлашда {max} тагача бола қўшиш мумкин.",
+    childrenCreated: "Болалар қўшилди: {count}",
     save: "Сақлаш",
     saving: "Сақланмоқда…",
     cancel: "Бекор қилиш",
